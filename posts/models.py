@@ -1,0 +1,28 @@
+from django.db import models
+
+class Autor(models.Model):
+    nome = models.CharField(max_length=100)
+    email = models.EmailField(unique=True)
+    bio = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.nome
+
+
+class Categoria(models.Model):
+    nome = models.CharField(max_length=50)
+    slug = models.SlugField(unique=True)
+
+    def __str__(self):
+        return self.nome
+    
+class Post(models.Model):
+    titulo = models.CharField(max_length=200)
+    conteudo = models.TextField()
+    data_criacao = models.DateField(auto_now_add=True)
+    publicado = models.BooleanField(default=False)
+    autor = models.ForeignKey(Autor, on_delete=models.CASCADE)
+    categorias = models.ManyToManyField(Categoria)
+
+    def __str__(self):
+        return self.titulo
