@@ -1,0 +1,18 @@
+{% extends 'posts/base.html' %}
+
+{% block titulo %}Lista de Posts{% endblock %}
+
+{% block conteudo %}
+<ul>
+    {% for post in posts %}
+    <li>
+        <strong>{{ post.titulo }}</strong>
+        <br>
+        Por {{ post.autor.nome }} em {{ post.data_criacao|date:"d/m/Y" }}
+        <p>{{ post.conteudo|truncatewords:20 }}</p>
+    </li>
+    {% empty %}
+    <li>Nenhum post encontrado</li>
+    {% endfor %}
+</ul>
+{% endblock %}
