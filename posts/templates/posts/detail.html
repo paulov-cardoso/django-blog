@@ -1,0 +1,44 @@
+{% extends 'posts/base.html' %}
+
+{% block titulo %}{{ post.titulo }}{% endblock %}
+
+{% block conteudo %}
+
+<div class="max-w-3xl mx-auto">
+
+    <!-- Categorias -->
+    <div class="flex flex-wrap gap-2 mb-4">
+        {% for cat in post.categorias.all %}
+        <span class="bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full">
+            {{ cat.nome }}
+        </span>
+        {% empty %}
+        <span class="text-gray-400 text-xs">Sem categoria</span>
+        {% endfor %}
+    </div>
+
+    <!-- Título -->
+    <h1 class="text-4xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h1>
+
+    <!-- Meta informações -->
+    <div class="flex items-center gap-4 text-sm text-gray-500 mb-8 border-b pb-4">
+        <span>✍️ {{ post.autor.nome }}</span>
+        <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+    </div>
+
+    <!-- Conteúdo -->
+    <div class="text-gray-700 leading-relaxed text-lg">
+        {{ post.conteudo }}
+    </div>
+
+    <!-- Botão voltar -->
+    <div class="mt-10">
+        <a href="{% url 'listar_posts' %}" 
+           class="bg-blue-700 text-white px-5 py-2 rounded-lg hover:bg-blue-800 transition text-sm">
+            ← Voltar para posts
+        </a>
+    </div>
+
+</div>
+
+{% endblock %}

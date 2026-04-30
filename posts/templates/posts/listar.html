@@ -3,16 +3,102 @@
 {% block titulo %}Lista de Posts{% endblock %}
 
 {% block conteudo %}
-<ul>
+
+<h2 class="text-3xl font-bold text-gray-800 mb-6">Meus Notes Publicados</h2>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {% for post in posts %}
-    <li>
-        <strong>{{ post.titulo }}</strong>
-        <br>
-        Por {{ post.autor.nome }} em {{ post.data_criacao|date:"d/m/Y" }}
-        <p>{{ post.conteudo|truncatewords:20 }}</p>
-    </li>
+    
+    <!-- Card clicável -->
+    <div onclick="abrirModal('{{ post.id }}')"
+         style="border-left: 4px solid {{ post.categorias.first.cor }}; background-color: {{ post.categorias.first.cor }}15"
+         class="rounded-xl shadow-md hover:shadow-lg transition p-6 flex flex-col justify-between cursor-pointer">
+        
+        <div>
+            <div class="flex flex-wrap gap-2 mb-3">
+                {% for cat in post.categorias.all %}
+                <span class="text-xs font-semibold px-2 py-1 rounded-full"
+                      style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                    {{ cat.nome }}
+                </span>
+                {% endfor %}
+            </div>
+
+            <h3 class="text-xl font-bold text-gray-800 mb-2">{{ post.titulo }}</h3>
+
+            <p class="text-gray-500 text-sm mb-4">
+                {{ post.conteudo|truncatewords:20 }}
+            </p>
+        </div>
+
+        <div class="text-xs text-gray-400 flex justify-between items-center mt-4">
+            <span>✍️ {{ post.autor.nome }}</span>
+            <span>📅 {{ post.data_criacao|date:"d/m/Y" }}</span>
+        </div>
+    </div>
+
+    <!-- Modal do post -->
+    <div id="modal-{{ post.id }}"
+     class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
+         onclick="fecharModalFora(event, '{{ post.id }}')">
+        
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 p-8 relative max-h-[90vh] overflow-y-auto">
+            
+            <!-- Botão fechar -->
+            <button onclick="fecharModal('{{ post.id }}')"
+                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">
+                ✕
+            </button>
+
+            <!-- Categorias -->
+            <div class="flex flex-wrap gap-2 mb-4">
+                {% for cat in post.categorias.all %}
+                <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                      style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                    {{ cat.nome }}
+                </span>
+                {% endfor %}
+            </div>
+
+            <!-- Título -->
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
+
+            <!-- Meta -->
+            <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
+                <span>✍️ {{ post.autor.nome }}</span>
+                <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+            </div>
+
+            <!-- Conteúdo -->
+            <div class="text-gray-700 leading-relaxed">
+                {{ post.conteudo }}
+            </div>
+
+        </div>
+    </div>
+
     {% empty %}
-    <li>Nenhum post encontrado</li>
+    <p class="text-gray-500 col-span-3">Nenhum post encontrado.</p>
     {% endfor %}
-</ul>
+</div>
+
+<!-- JavaScript do modal -->
+<script>
+    function abrirModal(id) {
+        document.getElementById('modal-' + id).classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function fecharModal(id) {
+        document.getElementById('modal-' + id).classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function fecharModalFora(event, id) {
+        if (event.target === document.getElementById('modal-' + id)) {
+            fecharModal(id);
+        }
+    }
+</script>
+
 {% endblock %}

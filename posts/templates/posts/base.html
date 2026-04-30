@@ -1,22 +1,32 @@
+{% load tailwind_tags %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titulo %}Blog{% endblock %}</title>
+    {% tailwind_css %}
 </head>
-<body>
-    <header>
-        <h1>Meu Blog</h1>
-    </header>
+<body class="bg-gray-100 min-h-screen flex flex-col">
 
-    <main>
+    <nav class="bg-gradient-to-r from-blue-900 via-cyan-500 via-blue-600 via-purple-600 to-orange-500 text-white px-6 py-4 shadow-md">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <a href="/" class="text-2xl font-bold tracking-tight"> Meu Blognotes</a>
+            <div class="flex gap-4 text-sm">
+                <a href="/" class="hover:underline">Posts</a>
+                <a href="/admin" class="hover:underline">Admin</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto w-full px-4 py-8 flex-grow">
         {% block conteudo %}
         {% endblock %}
     </main>
 
-    <footer>
-        <p></p>
+    <footer class="bg-gradient-to-r from-blue-900 via-cyan-500 via-blue-600 via-purple-600 to-orange-500 text-white text-center py-4 text-sm">
+        <p>© 2026 Meu Blog — Feito com Django + Tailwind</p>
     </footer>
+
 </body>
 </html>
