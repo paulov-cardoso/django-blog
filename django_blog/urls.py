@@ -23,4 +23,22 @@ urlpatterns = [
     path('', include('posts.urls')),
     path('login/', auth_views.LoginView.as_view(template_name='posts/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
+    path('senha/reset/', auth_views.PasswordResetView.as_view(
+        template_name='posts/senha_reset.html',
+        email_template_name='posts/senha_reset_email.html',
+        success_url='/senha/reset/enviado/'
+    ), name='password_reset'),
+
+    path('senha/reset/enviado/', auth_views.PasswordResetDoneView.as_view(
+        template_name='posts/senha_reset_enviado.html'
+    ), name='password_reset_done'),
+
+    path('senha/reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+        template_name='posts/senha_reset_confirmar.html',
+        success_url='/senha/reset/concluido/'
+    ), name='password_reset_confirm'),
+
+    path('senha/reset/concluido/', auth_views.PasswordResetCompleteView.as_view(
+        template_name='posts/senha_reset_concluido.html'
+    ), name='password_reset_complete'),
 ]

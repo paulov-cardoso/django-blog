@@ -1,0 +1,51 @@
+{% extends 'posts/base.html' %}
+
+{% block body_class %}bg-gradient-to-br from-blue-900 via-purple-600 to-orange-500{% endblock %}
+{% block footer_class %}bg-transparent fixed bottom-0 w-full{% endblock %}
+{% block nav %}{% endblock %}
+{% block titulo %}Nova Senha — Blognotes{% endblock %}
+
+{% block conteudo %}
+
+<div class="flex flex-col items-center justify-center min-h-[90vh]">
+
+    <div style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);"
+         class="border border-white/20 rounded-xl text-white w-full max-w-md p-10 mx-4">
+
+        <h2 class="text-3xl font-bold text-center mb-8" style="font-family: 'Poppins', sans-serif;">
+            Nova senha
+        </h2>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="relative mb-6">
+                <input type="password" name="new_password1" placeholder="Nova senha" required
+                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
+                       style="font-family: 'Poppins', sans-serif;"/>
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
+            </div>
+
+            <div class="relative mb-8">
+                <input type="password" name="new_password2" placeholder="Confirme a nova senha" required
+                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
+                       style="font-family: 'Poppins', sans-serif;"/>
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
+            </div>
+
+            {% if form.errors %}
+            <div class="bg-red-500/30 border border-red-300 text-white text-sm px-4 py-3 rounded-lg mb-6 text-center">
+                As senhas não conferem ou não atendem aos requisitos.
+            </div>
+            {% endif %}
+
+            <button type="submit"
+                    class="w-full h-12 bg-white text-gray-800 font-medium rounded-full shadow-lg hover:bg-gray-100 transition text-base"
+                    style="font-family: 'Poppins', sans-serif;">
+                Redefinir senha
+            </button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

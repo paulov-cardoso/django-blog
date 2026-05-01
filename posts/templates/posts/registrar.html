@@ -6,7 +6,7 @@
 
 {% block nav %}{% endblock %}
 
-{% block titulo %}Login — Blognotes{% endblock %}
+{% block titulo %}Cadastro — Blognotes{% endblock %}
 
 {% block conteudo %}
 
@@ -25,7 +25,7 @@
 
     <!-- Título -->
     <div class="floating text-center text-white mb-8" style="font-family: 'Poppins', sans-serif;">
-        <p class="text-lg font-light opacity-50 mb-0">Olá, bem vindo ao</p>
+        <p class="text-lg font-light opacity-50 mb-0">Crie sua conta no</p>
         <h1 class="text-5xl font-semibold tracking-tight mt-0 mb-1">Blognotes</h1>
     </div>
 
@@ -35,50 +35,62 @@
 
         <h2 class="text-3xl font-bold text-center mb-8"
             style="font-family: 'Poppins', sans-serif;">
-            Entrar
+            Cadastro
         </h2>
 
         {% if form.errors %}
         <div class="bg-red-500/30 border border-red-300 text-white text-sm px-4 py-3 rounded-lg mb-6 text-center">
-            Usuário ou senha incorretos.
+            Corrija os erros abaixo.
         </div>
         {% endif %}
 
         <form method="POST">
             {% csrf_token %}
 
-            <div class="relative mb-8">
+            <!-- Usuário -->
+            <div class="relative mb-6">
                 <input type="text" name="username" placeholder="Usuário" required
+                       value="{{ form.username.value|default:'' }}"
                        class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
                        style="font-family: 'Poppins', sans-serif;"/>
                 <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">👤</span>
+                {% if form.username.errors %}
+                <p class="text-red-300 text-xs mt-1 px-4">{{ form.username.errors.0 }}</p>
+                {% endif %}
             </div>
 
-            <div class="relative mb-4">
-                <input type="password" name="password" placeholder="Senha" required
+            <!-- Senha -->
+            <div class="relative mb-6">
+                <input type="password" name="password1" placeholder="Senha" required
                        class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
                        style="font-family: 'Poppins', sans-serif;"/>
                 <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
+                {% if form.password1.errors %}
+                <p class="text-red-300 text-xs mt-1 px-4">{{ form.password1.errors.0 }}</p>
+                {% endif %}
             </div>
 
-            <div class="flex justify-between text-sm mb-6 px-1 font-light"
-                 style="font-family: 'Poppins', sans-serif;">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" class="accent-white"> Lembrar senha
-                </label>
-                <a href="{% url 'password_reset' %}" class="hover:underline">Esqueci a senha</a>
+            <!-- Confirmar Senha -->
+            <div class="relative mb-8">
+                <input type="password" name="password2" placeholder="Confirme a senha" required
+                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
+                       style="font-family: 'Poppins', sans-serif;"/>
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
+                {% if form.password2.errors %}
+                <p class="text-red-300 text-xs mt-1 px-4">{{ form.password2.errors.0 }}</p>
+                {% endif %}
             </div>
 
             <button type="submit"
                     class="w-full h-12 bg-white text-gray-800 font-medium rounded-full shadow-lg hover:bg-gray-100 transition text-base"
                     style="font-family: 'Poppins', sans-serif;">
-                Login
+                Criar conta
             </button>
 
             <p class="text-center text-sm mt-6 font-light"
                style="font-family: 'Poppins', sans-serif;">
-                Não possui uma conta?
-                <a href="{% url 'registrar' %}" class="font-semibold hover:underline">Registre-se</a>
+                Já possui uma conta?
+                <a href="{% url 'login' %}" class="font-semibold hover:underline">Entrar</a>
             </p>
         </form>
     </div>
@@ -93,23 +105,19 @@
 </div>
 
 <script>
-    const texto = "Onde suas ideias jamais caem no esquecimento";
+    const texto = "Comece a guardar suas ideias agora mesmo";
     let i = 0;
     let digitando = true;
 
     function typeWriter() {
         const slogan = document.getElementById('slogan');
-
         if (digitando) {
             if (i < texto.length) {
                 slogan.textContent += texto.charAt(i);
                 i++;
                 setTimeout(typeWriter, 60);
             } else {
-                setTimeout(() => {
-                    digitando = false;
-                    typeWriter();
-                }, 2000);
+                setTimeout(() => { digitando = false; typeWriter(); }, 2000);
             }
         } else {
             if (i > 0) {
@@ -117,10 +125,7 @@
                 i--;
                 setTimeout(typeWriter, 30);
             } else {
-                setTimeout(() => {
-                    digitando = true;
-                    typeWriter();
-                }, 500);
+                setTimeout(() => { digitando = true; typeWriter(); }, 500);
             }
         }
     }

@@ -1,0 +1,27 @@
+{% extends 'posts/base.html' %}
+
+{% block body_class %}bg-gradient-to-br from-blue-900 via-purple-600 to-orange-500{% endblock %}
+{% block footer_class %}bg-transparent fixed bottom-0 w-full{% endblock %}
+{% block nav %}{% endblock %}
+{% block titulo %}Senha Redefinida — Blognotes{% endblock %}
+
+{% block conteudo %}
+
+<div class="flex flex-col items-center justify-center min-h-[90vh]">
+    <div style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);"
+         class="border border-white/20 rounded-xl text-white w-full max-w-md p-10 mx-4 text-center">
+
+        <div class="text-6xl mb-6">✅</div>
+        <h2 class="text-3xl font-bold mb-4" style="font-family: 'Poppins', sans-serif;">Senha redefinida!</h2>
+        <p class="font-light opacity-70 mb-8" style="font-family: 'Poppins', sans-serif;">
+            Sua senha foi alterada com sucesso. Faça login com sua nova senha.
+        </p>
+        <a href="{% url 'login' %}"
+           class="w-full inline-block h-12 leading-[3rem] bg-white text-gray-800 font-medium rounded-full shadow-lg hover:bg-gray-100 transition text-base"
+           style="font-family: 'Poppins', sans-serif;">
+            Ir para o login
+        </a>
+    </div>
+</div>
+
+{% endblock %}
