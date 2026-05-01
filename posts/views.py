@@ -1,15 +1,18 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from .models import Post
+from .models import Post, Autor
 from .forms import PostForm
 
 @login_required
 def criar_post(request):
     if request.method == 'POST':
         form = PostForm(request.POST)
+        cor = request.POST.get('cor', '#3B82F6')
         if form.is_valid():
             post = form.save(commit=False)
-            post.autor = request.user.autor
+            post.cor = cor
+            autor = Autor.objects.first()
+            post.autor = autor
             post.save()
             form.save_m2m()
             return redirect('listar_posts')

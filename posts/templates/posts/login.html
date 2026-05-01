@@ -1,0 +1,125 @@
+{% extends 'posts/base.html' %}
+
+{% block body_class %}bg-gradient-to-br from-blue-900 via-purple-600 to-orange-500{% endblock %}
+
+{% block footer_class %}bg-transparent fixed bottom-0 w-full{% endblock %}
+
+{% block nav %}{% endblock %}
+
+{% block titulo %}Login — Blognotes{% endblock %}
+
+{% block conteudo %}
+
+<div class="flex flex-col items-center justify-center min-h-[90vh]">
+
+    <!-- Título -->
+    <div class="text-center text-white mb-8" style="font-family: 'Poppins', sans-serif;">
+        <p class="text-lg font-light opacity-50 mb-0">Olá, bem vindo ao</p>
+        <h1 class="text-5xl font-semibold tracking-tight mt-0 mb-1">Blognotes</h1>
+    </div>
+
+    <!-- Formulário -->
+    <div style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);"
+         class="border border-white/20 rounded-xl text-white w-full max-w-md p-10 mx-4">
+
+        <h2 class="text-3xl font-bold text-center mb-8"
+            style="font-family: 'Poppins', sans-serif;">
+            Entrar
+        </h2>
+
+        {% if form.errors %}
+        <div class="bg-red-500/30 border border-red-300 text-white text-sm px-4 py-3 rounded-lg mb-6 text-center">
+            Usuário ou senha incorretos.
+        </div>
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="relative mb-8">
+                <input type="text" name="username" placeholder="Usuário" required
+                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
+                       style="font-family: 'Poppins', sans-serif;"/>
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">👤</span>
+            </div>
+
+            <div class="relative mb-4">
+                <input type="password" name="password" placeholder="Senha" required
+                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
+                       style="font-family: 'Poppins', sans-serif;"/>
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
+            </div>
+
+            <div class="flex justify-between text-sm mb-6 px-1 font-light"
+                 style="font-family: 'Poppins', sans-serif;">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" class="accent-white"> Lembrar senha
+                </label>
+                <a href="#" class="hover:underline">Esqueci a senha</a>
+            </div>
+
+            <button type="submit"
+                    class="w-full h-12 bg-white text-gray-800 font-medium rounded-full shadow-lg hover:bg-gray-100 transition text-base"
+                    style="font-family: 'Poppins', sans-serif;">
+                Login
+            </button>
+
+            <p class="text-center text-sm mt-6 font-light"
+               style="font-family: 'Poppins', sans-serif;">
+                Não possui uma conta?
+                <a href="#" class="font-semibold hover:underline">Registre-se</a>
+            </p>
+        </form>
+    </div>
+
+    <!-- Slogan animado -->
+    <div class="text-center text-white mt-8" style="font-family: 'Poppins', sans-serif;">
+        <p class="text-lg font-light opacity-50">
+            <span id="slogan"></span><span id="cursor" class="opacity-80">|</span>
+        </p>
+    </div>
+
+</div>
+
+<script>
+    const texto = "Onde suas ideias jamais caem no esquecimento";
+    let i = 0;
+    let digitando = true;
+
+    function typeWriter() {
+        const slogan = document.getElementById('slogan');
+
+        if (digitando) {
+            if (i < texto.length) {
+                slogan.textContent += texto.charAt(i);
+                i++;
+                setTimeout(typeWriter, 60);
+            } else {
+                setTimeout(() => {
+                    digitando = false;
+                    typeWriter();
+                }, 2000);
+            }
+        } else {
+            if (i > 0) {
+                slogan.textContent = texto.substring(0, i - 1);
+                i--;
+                setTimeout(typeWriter, 30);
+            } else {
+                setTimeout(() => {
+                    digitando = true;
+                    typeWriter();
+                }, 500);
+            }
+        }
+    }
+
+    setInterval(() => {
+        const cursor = document.getElementById('cursor');
+        cursor.style.opacity = cursor.style.opacity === '0' ? '1' : '0';
+    }, 500);
+
+    typeWriter();
+</script>
+
+{% endblock %}
