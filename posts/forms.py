@@ -1,5 +1,7 @@
 from django import forms
 from .models import Post, Categoria
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 
 class PostForm(forms.ModelForm):
     class Meta:
@@ -17,3 +19,14 @@ class PostForm(forms.ModelForm):
             }),
             'categorias': forms.CheckboxSelectMultiple(),
         }
+
+class RegistroForm(UserCreationForm):
+    nome_exibicao = forms.CharField(
+        max_length=100,
+        required=True,
+        label='Como quer ser chamado?'
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'nome_exibicao', 'password1', 'password2']

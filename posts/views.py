@@ -4,6 +4,7 @@ from .models import Post, Autor
 from .forms import PostForm
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
+from .forms import PostForm, RegistroForm
 
 @login_required
 def criar_post(request):
@@ -13,8 +14,7 @@ def criar_post(request):
         if form.is_valid():
             post = form.save(commit=False)
             post.cor = cor
-            autor = Autor.objects.first()
-            post.autor = autor
+            post.autor = request.user.autor
             post.save()
             form.save_m2m()
             return redirect('listar_posts')
@@ -22,8 +22,12 @@ def criar_post(request):
         form = PostForm()
     return render(request, 'posts/criar.html', {'form': form})
 
+@login_required
 def listar_post(request):
-    posts = Post.objects.filter(publicado=True).order_by('-data_criacao')
+    posts = Post.objects.filter(
+        publicado=True,
+        autor=request.user.autor
+    ).order_by('-data_criacao')
     return render(request, 'posts/listar.html', {'posts': posts})
 
 def detalhe_post(request, post_id):
@@ -32,11 +36,16 @@ def detalhe_post(request, post_id):
 
 def registrar(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = RegistroForm(request.POST)
         if form.is_valid():
             user = form.save()
+            nome_exibicao = form.cleaned_data.get('nome_exibicao')
+            autor = user.autor
+            autor.nome = nome_exibicao  # ← garante que nome nunca seja null
+            autor.nome_exibicao = nome_exibicao
+            autor.save()
             login(request, user)
             return redirect('listar_posts')
     else:
-        form = UserCreationForm()
+        form = RegistroForm()
     return render(request, 'posts/registrar.html', {'form': form})

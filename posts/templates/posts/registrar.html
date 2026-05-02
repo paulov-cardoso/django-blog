@@ -47,39 +47,63 @@
         <form method="POST">
             {% csrf_token %}
 
-            <!-- Usuário -->
-            <div class="relative mb-6">
-                <input type="text" name="username" placeholder="Usuário" required
-                       value="{{ form.username.value|default:'' }}"
-                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
-                       style="font-family: 'Poppins', sans-serif;"/>
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">👤</span>
-                {% if form.username.errors %}
-                <p class="text-red-300 text-xs mt-1 px-4">{{ form.username.errors.0 }}</p>
-                {% endif %}
-            </div>
+           <!-- Usuário -->
+<div class="relative mb-6">
+    <input type="text" name="username" placeholder="Usuário" required
+           value="{{ form.username.value|default:'' }}"
+           class="w-full h-12 bg-transparent border-2 {% if form.username.errors %}border-red-400{% else %}border-white/20{% endif %} rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light peer"
+           style="font-family: 'Poppins', sans-serif;"/>
+    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">👤</span>
+    <div class="hidden peer-focus:block absolute left-0 -top-8 bg-white/20 backdrop-blur-sm text-white text-xs rounded-lg px-3 py-2 w-full text-center">
+        Somente letras, números e @/./+/-/_
+    </div>
+    {% if form.username.errors %}
+    <p class="text-red-300 text-xs mt-2 px-4">⚠️ {{ form.username.errors.0 }}</p>
+    {% endif %}
+</div>
 
-            <!-- Senha -->
-            <div class="relative mb-6">
-                <input type="password" name="password1" placeholder="Senha" required
-                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
-                       style="font-family: 'Poppins', sans-serif;"/>
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
-                {% if form.password1.errors %}
-                <p class="text-red-300 text-xs mt-1 px-4">{{ form.password1.errors.0 }}</p>
-                {% endif %}
-            </div>
+<!-- Como quer ser chamado -->
+<div class="relative mb-6">
+    <input type="text" name="nome_exibicao" placeholder="Como quer ser chamado?" required
+           value="{{ form.nome_exibicao.value|default:'' }}"
+           class="w-full h-12 bg-transparent border-2 {% if form.nome_exibicao.errors %}border-red-400{% else %}border-white/20{% endif %} rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light peer"
+           style="font-family: 'Poppins', sans-serif;"/>
+    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">✨</span>
+    <div class="hidden peer-focus:block absolute left-0 -top-8 bg-white/20 backdrop-blur-sm text-white text-xs rounded-lg px-3 py-2 w-full text-center">
+        Esse nome aparecerá nas suas publicações
+    </div>
+    {% if form.nome_exibicao.errors %}
+    <p class="text-red-300 text-xs mt-2 px-4">⚠️ {{ form.nome_exibicao.errors.0 }}</p>
+    {% endif %}
+</div>
 
-            <!-- Confirmar Senha -->
-            <div class="relative mb-8">
-                <input type="password" name="password2" placeholder="Confirme a senha" required
-                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
-                       style="font-family: 'Poppins', sans-serif;"/>
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
-                {% if form.password2.errors %}
-                <p class="text-red-300 text-xs mt-1 px-4">{{ form.password2.errors.0 }}</p>
-                {% endif %}
-            </div>
+<!-- Senha -->
+<div class="relative mb-6">
+    <input type="password" name="password1" placeholder="Senha" required
+           class="w-full h-12 bg-transparent border-2 {% if form.password1.errors %}border-red-400{% else %}border-white/20{% endif %} rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light peer"
+           style="font-family: 'Poppins', sans-serif;"/>
+    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
+    <div class="hidden peer-focus:block absolute left-0 -top-10 bg-white/20 backdrop-blur-sm text-white text-xs rounded-lg px-3 py-2 w-full text-center">
+        Mínimo 8 caracteres. Não use senhas muito comuns.
+    </div>
+    {% if form.password1.errors %}
+    <p class="text-red-300 text-xs mt-2 px-4">⚠️ {{ form.password1.errors.0 }}</p>
+    {% endif %}
+</div>
+
+<!-- Confirmar Senha -->
+<div class="relative mb-8">
+    <input type="password" name="password2" placeholder="Confirme a senha" required
+           class="w-full h-12 bg-transparent border-2 {% if form.password2.errors %}border-red-400{% else %}border-white/20{% endif %} rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light peer"
+           style="font-family: 'Poppins', sans-serif;"/>
+    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
+    <div class="hidden peer-focus:block absolute left-0 -top-8 bg-white/20 backdrop-blur-sm text-white text-xs rounded-lg px-3 py-2 w-full text-center">
+        Digite a mesma senha novamente
+    </div>
+    {% if form.password2.errors %}
+    <p class="text-red-300 text-xs mt-2 px-4">⚠️ {{ form.password2.errors.0 }}</p>
+    {% endif %}
+</div>
 
             <button type="submit"
                     class="w-full h-12 bg-white text-gray-800 font-medium rounded-full shadow-lg hover:bg-gray-100 transition text-base"
