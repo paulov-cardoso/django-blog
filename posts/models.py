@@ -21,11 +21,24 @@ class Categoria(models.Model):
         return self.nome
     
 class Post(models.Model):
+
+    VISIBILIDADE_CHOICES = [
+        ('privado', 'Privado'),
+        ('feed', 'Feed de Ideias'),
+        ('universo', 'Campo das Ideias'),
+    ]
+
     titulo = models.CharField(max_length=200)
     conteudo = models.TextField()
     cor = models.CharField(max_length=7, default='#3B82F6')
     data_criacao = models.DateTimeField(auto_now_add=True)
     publicado = models.BooleanField(default=False)
+    visibilidade = models.CharField(
+        max_length=10,
+        choices=VISIBILIDADE_CHOICES,
+        default='privado'
+    )
+    desistiu = models.BooleanField(default=False)
     autor = models.ForeignKey(Autor, on_delete=models.CASCADE)
     categorias = models.ManyToManyField(Categoria)
 
