@@ -4,7 +4,9 @@
 
 {% block conteudo %}
 
-<!-- Abas -->
+<!-- ═══════════════════════════════════════ -->
+<!-- ABAS DE NAVEGAÇÃO                       -->
+<!-- ═══════════════════════════════════════ -->
 <div class="flex justify-center border-b border-gray-200 mb-8">
     <a href="/?aba=meus_notes"
        class="px-6 py-3 text-sm font-semibold transition border-b-2
@@ -23,7 +25,9 @@
     </a>
 </div>
 
-<!-- Título dinâmico -->
+<!-- ═══════════════════════════════════════ -->
+<!-- TÍTULO DINÂMICO POR ABA                 -->
+<!-- ═══════════════════════════════════════ -->
 {% if aba == 'meus_notes' %}
 <h2 class="text-3xl font-bold text-gray-800 mb-6">📓 Meus Notes</h2>
 {% elif aba == 'feed' %}
@@ -34,12 +38,16 @@
 <p class="text-gray-500 -mt-4 mb-6 text-sm">Ideias abertas para toda a comunidade colaborar</p>
 {% endif %}
 
-<!-- Cards -->
+<!-- ═══════════════════════════════════════ -->
+<!-- GRID DE CARDS                           -->
+<!-- ═══════════════════════════════════════ -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {% for post in posts %}
 
+    <!-- CARD -->
     <div onclick="abrirModal('{{ aba }}-{{ post.id }}')"
-         style="border-left: 4px solid {{ post.categorias.first.cor|default:'#8B5CF6' }}; background-color: {{ post.categorias.first.cor|default:'#8B5CF6' }}15"
+         style="border-left: 4px solid {{ post.categorias.first.cor|default:'#8B5CF6' }};
+                background-color: {{ post.categorias.first.cor|default:'#8B5CF6' }}15"
          class="rounded-xl shadow-md hover:shadow-lg transition p-6 flex flex-col justify-between cursor-pointer relative">
 
         {% if post.desistiu %}
@@ -49,6 +57,7 @@
         {% endif %}
 
         <div>
+            <!-- Categorias -->
             <div class="flex flex-wrap gap-2 mb-3">
                 {% for cat in post.categorias.all %}
                 <span class="text-xs font-semibold px-2 py-1 rounded-full"
@@ -58,165 +67,170 @@
                 {% endfor %}
             </div>
 
+            <!-- Título e prévia -->
             <h3 class="text-xl font-bold text-gray-800 mb-2">{{ post.titulo }}</h3>
             <p class="text-gray-500 text-sm mb-4">{{ post.conteudo|truncatewords:20 }}</p>
         </div>
 
+        <!-- Rodapé do card -->
         <div class="text-xs text-gray-400 flex justify-between items-center mt-4">
             <span>✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}</span>
             <span>📅 {{ post.data_criacao|date:"d/m/Y" }}</span>
         </div>
     </div>
 
-    <!-- Modal -->
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL DO POST                           -->
+    <!-- ═══════════════════════════════════════ -->
     <div id="modal-{{ aba }}-{{ post.id }}"
          class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
          onclick="fecharModalFora(event, '{{ aba }}-{{ post.id }}')">
 
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 p-8 relative max-h-[90vh] overflow-y-auto">
+        <!-- Container do modal — scroll separado do overflow para o dropdown funcionar -->
+        
+            <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
 
-            <button onclick="fecharModal('{{ aba }}-{{ post.id }}')"
-                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">
-                ✕
-            </button>
-
-            <div class="flex flex-wrap gap-2 mb-4">
-                {% for cat in post.categorias.all %}
-                <span class="text-xs font-semibold px-3 py-1 rounded-full"
-                      style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
-                    {{ cat.nome }}
-                </span>
-                {% endfor %}
-            </div>
-
-            <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
-
-            <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
-                <span>✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}</span>
-                <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
-            </div>
-
-            <div class="text-gray-700 leading-relaxed mb-8">
-                {{ post.conteudo }}
-            </div>
-
-
-            <!-- Ações do modal -->
-            <!-- Ações do modal -->
-<div class="border-t pt-6">
-
-    <!-- Linha superior: autor/data já existe acima -->
-    
-    <!-- Linha de ações: Editar à esquerda, Dropdown à direita -->
-    <div class="flex justify-between items-center">
-
-        <!-- Botão Editar — canto esquerdo -->
-        <a href="{% url 'editar_post' post.id %}"
-           class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
-            ✏️ Editar
-        </a>
-
-        <div class="flex items-center gap-3">
-
-            <!-- Badge de visibilidade -->
-            {% if post.visibilidade == 'universo' %}
-            <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
-            {% elif post.visibilidade == 'feed' %}
-            <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
-            {% else %}
-            <span class="text-xs text-gray-400 font-semibold">🔒 Privado</span>
-            {% endif %}
-
-            <!-- Dropdown — canto direito -->
-            {% if post.autor.usuario == user %}
-            <div class="relative" id="dropdown-container-{{ post.id }}">
-                <button onclick="event.stopPropagation(); toggleDropdown('{{ post.id }}')"
-                        class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition flex items-center gap-2">
-                    O que fazer? <span>▼</span>
+                <!-- Botão fechar -->
+                <button onclick="fecharModal('{{ aba }}-{{ post.id }}')"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">
+                    ✕
                 </button>
 
-                <div id="dropdown-{{ post.id }}"
-                     class="hidden absolute right-0 bottom-12 bg-white rounded-xl shadow-xl border border-gray-100 w-64 z-50 overflow-hidden">
+                <!-- Categorias -->
+                <div class="flex flex-wrap gap-2 mb-4">
+                    {% for cat in post.categorias.all %}
+                    <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                          style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                        {{ cat.nome }}
+                    </span>
+                    {% endfor %}
+                </div>
 
-                    {% if post.visibilidade == 'privado' %}
-                    <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="visibilidade" value="feed">
-                        <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
-                            👥 Enviar para o Feed de Ideias
-                        </button>
-                    </form>
-                    <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="visibilidade" value="universo">
-                        <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
-                            🌍 Jogar para o Campo das Ideias
-                        </button>
-                    </form>
+                <!-- Título -->
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
 
-                    {% elif post.visibilidade == 'feed' %}
-                    <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="visibilidade" value="universo">
-                        <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
-                            🌍 Jogar para o Campo das Ideias
-                        </button>
-                    </form>
-                    <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="visibilidade" value="privado">
-                        <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
-                            🔒 Retirar do Feed
-                        </button>
-                    </form>
+                <!-- Autor, data e dropdown na mesma linha -->
+                <div class="flex justify-between items-center text-sm text-gray-400 mb-6 border-b pb-4">
+                    <div class="flex gap-4">
+                        <span>✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}</span>
+                        <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+                    </div>
 
-                    {% elif post.visibilidade == 'universo' %}
-                    <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="visibilidade" value="feed">
-                        <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
-                            👥 Retirar do Campo (ir para Feed)
+                    <!-- Dropdown "O que fazer com a ideia?" — só para o autor -->
+                    {% if post.autor.usuario == user %}
+                    <div class="relative" id="dropdown-container-{{ post.id }}">
+                        <button onclick="toggleDropdown('{{ post.id }}')"
+                                class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-semibold hover:opacity-90 transition flex items-center gap-1">
+                            O que fazer com a ideia? ▼
                         </button>
-                    </form>
-                    <button class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2 text-purple-600">
-                        🙋 Eleger Moderadores
-                    </button>
-                    {% if not post.desistiu %}
-                    <form method="POST" action="{% url 'desistir_ideia' post.id %}">
-                        {% csrf_token %}
-                        <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-red-50 text-red-500 transition flex items-center gap-2">
-                            😔 Desistir da Ideia
-                        </button>
-                    </form>
-                    {% else %}
-                    <div class="px-4 py-3 text-sm text-orange-500 font-semibold">
-                        🤝 Procurando moderador...
+
+                        <!-- Menu do dropdown — abre para baixo -->
+                        <div id="dropdown-{{ post.id }}"
+                            class="hidden fixed bg-white rounded-xl shadow-xl border border-gray-100 w-64 z-[9999] overflow-hidden">
+
+                            {% if post.visibilidade == 'privado' %}
+                            <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="visibilidade" value="feed">
+                                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                    👥 Enviar para o Feed de Ideias
+                                </button>
+                            </form>
+                            <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="visibilidade" value="universo">
+                                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                    🌍 Enviar para o Campo das Ideias
+                                </button>
+                            </form>
+
+                            {% elif post.visibilidade == 'feed' %}
+                            <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="visibilidade" value="universo">
+                                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                    🌍 Enviar para o Campo das Ideias
+                                </button>
+                            </form>
+                            <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="visibilidade" value="privado">
+                                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                    🔒 Retirar do Feed
+                                </button>
+                            </form>
+
+                            {% elif post.visibilidade == 'universo' %}
+                            <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="visibilidade" value="feed">
+                                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                    👥 Retirar do Campo (ir para Feed)
+                                </button>
+                            </form>
+                            <button class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2 text-purple-600">
+                                🙋 Eleger Moderadores
+                            </button>
+                            {% if not post.desistiu %}
+                            <form method="POST" action="{% url 'desistir_ideia' post.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-red-50 text-red-500 transition flex items-center gap-2">
+                                    😔 Desistir da Ideia
+                                </button>
+                            </form>
+                            {% else %}
+                            <div class="px-4 py-3 text-sm text-orange-500 font-semibold">
+                                🤝 Procurando moderador...
+                            </div>
+                            {% endif %}
+                            {% endif %}
+
+                        </div>
                     </div>
                     {% endif %}
+                </div>
+
+                <!-- Conteúdo do post -->
+                <div class="text-gray-700 leading-relaxed mb-8">
+                    {{ post.conteudo }}
+                </div>
+
+                <!-- ═══════════════════════════════════════ -->
+                <!-- RODAPÉ DO MODAL                         -->
+                <!-- ═══════════════════════════════════════ -->
+                <div class="border-t pt-6 flex justify-between items-center">
+
+                    <!-- Botão Editar — sempre visível para o autor -->
+                    {% if post.autor.usuario == user %}
+                    <a href="{% url 'editar_post' post.id %}"
+                       class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
+                        ✏️ Editar
+                    </a>
+                    {% else %}
+                    <!-- Ações para outros usuários -->
+                    {% if post.desistiu %}
+                    <button class="text-sm text-purple-600 border border-purple-300 px-4 py-2 rounded-full hover:bg-purple-50 transition">
+                        🙋 Quero moderar essa ideia
+                    </button>
+                    {% else %}
+                    <span class="text-sm text-gray-400">💬 Colabore nos comentários</span>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- Badge de visibilidade -->
+                    {% if post.visibilidade == 'universo' %}
+                    <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+                    {% elif post.visibilidade == 'feed' %}
+                    <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+                    {% else %}
+                    <span class="text-xs text-gray-400 font-semibold">🔒 Privado</span>
                     {% endif %}
 
                 </div>
             </div>
-
-            {% else %}
-            {% if post.desistiu %}
-            <button class="text-sm text-purple-600 border border-purple-300 px-4 py-2 rounded-full hover:bg-purple-50 transition">
-                🙋 Quero moderar essa ideia
-            </button>
-            {% else %}
-            <span class="text-sm text-gray-400">💬 Colabore nos comentários</span>
-            {% endif %}
-            {% endif %}
-
-        </div>
-    </div>
-</div>
-
-
-
-        </div>
     </div>
 
+    <!-- Estado vazio por aba -->
     {% empty %}
     <div class="col-span-3 text-center text-gray-400 py-20">
         {% if aba == 'meus_notes' %}
@@ -236,7 +250,11 @@
     {% endfor %}
 </div>
 
+<!-- ═══════════════════════════════════════ -->
+<!-- JAVASCRIPT                              -->
+<!-- ═══════════════════════════════════════ -->
 <script>
+    let dropdownAberto = false;
 
     function abrirModal(id) {
         document.getElementById('modal-' + id).classList.remove('hidden');
@@ -255,25 +273,46 @@
     }
 
     function toggleDropdown(id) {
-        const dropdown = document.getElementById('dropdown-' + id);
-        const allDropdowns = document.querySelectorAll('[id^="dropdown-"]');
-        allDropdowns.forEach(d => {
-            if (d.id !== 'dropdown-' + id) d.classList.add('hidden');
-        });
-        dropdown.classList.toggle('hidden');
-    }
+    const btn = document.querySelector(`#dropdown-container-${id} button`);
+    const dropdown = document.getElementById('dropdown-' + id);
 
-    document.addEventListener('click', function(event) {
-        const containers = document.querySelectorAll('[id^="dropdown-container-"]');
-        containers.forEach(container => {
-            if (!container.contains(event.target)) {
-                const id = container.id.replace('dropdown-container-', '');
-                const dropdown = document.getElementById('dropdown-' + id);
-                if (dropdown) dropdown.classList.add('hidden');
-            }
-        });
+    // Fecha todos os dropdowns abertos
+    document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+        if (!d.id.includes('container') && d.id !== 'dropdown-' + id) {
+            d.classList.add('hidden');
+        }
     });
 
+    const estaFechado = dropdown.classList.contains('hidden');
+
+    if (estaFechado) {
+        const rect = btn.getBoundingClientRect();
+        dropdown.style.top = (rect.bottom + 8) + 'px';
+        dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+        dropdown.classList.remove('hidden');
+        dropdownAberto = true;
+    } else {
+        dropdown.classList.add('hidden');
+        dropdownAberto = false;
+    }
+}
+
+    // Fecha ao clicar fora
+    document.addEventListener('click', function(event) {
+        if (dropdownAberto) {
+            const containers = document.querySelectorAll('[id^="dropdown-container-"]');
+            let clicouDentro = false;
+            containers.forEach(container => {
+                if (container.contains(event.target)) clicouDentro = true;
+            });
+            if (!clicouDentro) {
+                document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+                    if (!d.id.includes('container')) d.classList.add('hidden');
+                });
+                dropdownAberto = false;
+            }
+        }
+    });
 </script>
 
 {% endblock %}
