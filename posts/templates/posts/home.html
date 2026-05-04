@@ -1,33 +1,24 @@
 {% extends 'posts/base.html' %}
-
 {% block titulo %}Blognotes{% endblock %}
-
 {% block conteudo %}
 
-<!-- ═══════════════════════════════════════ -->
-<!-- ABAS DE NAVEGAÇÃO                       -->
-<!-- ═══════════════════════════════════════ -->
+<!-- ABAS DE NAVEGAÇÃO -->
 <div class="flex justify-center border-b border-gray-200 mb-8">
     <a href="/?aba=meus_notes"
-       class="px-6 py-3 text-sm font-semibold transition border-b-2
-              {% if aba == 'meus_notes' %}border-blue-600 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+       class="px-6 py-3 text-sm font-semibold transition border-b-2 {% if aba == 'meus_notes' %}border-blue-600 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
         📓 Meus Notes
     </a>
     <a href="/?aba=feed"
-       class="px-6 py-3 text-sm font-semibold transition border-b-2
-              {% if aba == 'feed' %}border-purple-600 text-purple-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+       class="px-6 py-3 text-sm font-semibold transition border-b-2 {% if aba == 'feed' %}border-purple-600 text-purple-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
         👥 Feed de Ideias
     </a>
     <a href="/?aba=universo"
-       class="px-6 py-3 text-sm font-semibold transition border-b-2
-              {% if aba == 'universo' %}border-orange-500 text-orange-500{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+       class="px-6 py-3 text-sm font-semibold transition border-b-2 {% if aba == 'universo' %}border-orange-500 text-orange-500{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
         🌍 Campo das Ideias
     </a>
 </div>
 
-<!-- ═══════════════════════════════════════ -->
-<!-- TÍTULO DINÂMICO POR ABA                 -->
-<!-- ═══════════════════════════════════════ -->
+<!-- TÍTULO DINÂMICO -->
 {% if aba == 'meus_notes' %}
 <h2 class="text-3xl font-bold text-gray-800 mb-6">📓 Meus Notes</h2>
 {% elif aba == 'feed' %}
@@ -38,11 +29,9 @@
 <p class="text-gray-500 -mt-4 mb-6 text-sm">Ideias abertas para toda a comunidade colaborar</p>
 {% endif %}
 
-<!-- ═══════════════════════════════════════ -->
-<!-- GRID DE CARDS                           -->
-<!-- ═══════════════════════════════════════ -->
+<!-- GRID DE CARDS -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {% for post in posts %}
+{% for post in posts %}
 
     <!-- CARD -->
     <div onclick="abrirModal('{{ aba }}-{{ post.id }}')"
@@ -75,9 +64,7 @@
         </div>
     </div>
 
-    <!-- ═══════════════════════════════════════ -->
-    <!-- MODAL DO POST                           -->
-    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL DO POST -->
     <div id="modal-{{ aba }}-{{ post.id }}"
          class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
          onclick="fecharModalFora(event, '{{ aba }}-{{ post.id }}')">
@@ -110,7 +97,7 @@
                     <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
                 </div>
 
-                <!-- Dropdown — só para o autor -->
+                <!-- Dropdown — só para o autor atual -->
                 {% if post.autor.usuario == user %}
                 <div class="relative" id="dropdown-container-{{ post.id }}">
                     <button onclick="toggleDropdown('{{ post.id }}')"
@@ -124,8 +111,8 @@
                          class="hidden fixed bg-white rounded-xl shadow-xl border border-gray-100
                                 w-64 z-[9999] overflow-hidden">
 
-                        <!-- ── PRIVADO ──────────────────────────────── -->
                         {% if post.visibilidade == 'privado' %}
+                            <!-- ── PRIVADO ── -->
                             <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="visibilidade" value="feed">
@@ -143,18 +130,15 @@
                                 </button>
                             </form>
                             <div class="border-t border-gray-100">
-                                <form method="POST" action="{% url 'desistir_ideia' post.id %}"
-                                      onsubmit="return confirm('Excluir este post permanentemente? Esta ação não pode ser desfeita.')">
-                                    {% csrf_token %}
-                                    <button type="submit"
-                                            class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
-                                        🗑️ Excluir
-                                    </button>
-                                </form>
+                                <button type="button"
+                                        onclick="abrirModalExcluir('{{ post.id }}')"
+                                        class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
+                                    🗑️ Excluir
+                                </button>
                             </div>
 
-                        <!-- ── FEED ────────────────────────────────── -->
                         {% elif post.visibilidade == 'feed' %}
+                            <!-- ── FEED ── -->
                             <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="visibilidade" value="universo">
@@ -164,7 +148,7 @@
                                 </button>
                             </form>
 
-                            {% if post.candidaturas.filter_aceitas %}
+                            {% if post.tem_interacoes %}
                                 <div class="flex items-center gap-2 px-4 py-3 text-sm opacity-40 cursor-not-allowed">
                                     🔒 Retirar do Feed
                                 </div>
@@ -181,36 +165,29 @@
                             {% endif %}
 
                             <div class="border-t border-gray-100">
-                                
-                                {% if post.candidaturas.filter_aceitas %}
-                                <div class="flex items-center gap-2 px-4 py-3 text-sm opacity-40 cursor-not-allowed">
-                                    😔 Desistir da Ideia
-                                </div>
+                                {% if post.tem_interacoes %}
+                                    <div class="flex items-center gap-2 px-4 py-3 text-sm opacity-40 cursor-not-allowed">
+                                        😔 Desistir da Ideia
+                                    </div>
                                     <p class="px-4 pb-2 text-xs text-red-400">
                                         Este post tem cooperações aceitas. Eleja um moderador antes de desistir.
                                     </p>
                                 {% else %}
-
-                                    <form method="POST" action="{% url 'desistir_ideia' post.id %}"
-                                          onsubmit="return confirm('Tem certeza? Esta ação não pode ser desfeita.')">
-                                        {% csrf_token %}
-                                        <button type="submit"
-                                                class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
-                                            😔 Desistir da Ideia
-                                        </button>
-                                    </form>
+                                    <button type="button"
+                                            onclick="abrirModalDesistirFeed('{{ post.id }}')"
+                                            class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
+                                        😔 Desistir da Ideia
+                                    </button>
                                 {% endif %}
                             </div>
 
-                        <!-- ── UNIVERSO ────────────────────────────── -->
                         {% elif post.visibilidade == 'universo' %}
+                            <!-- ── UNIVERSO ── -->
                             {% if post.tem_interacoes %}
                                 <div class="flex items-center gap-2 px-4 py-3 text-sm opacity-40 cursor-not-allowed">
                                     👥 Retirar do Campo (ir para Feed)
                                 </div>
-                                <p class="px-4 pb-2 text-xs text-gray-400">
-                                    Este post já tem interações.
-                                </p>
+                                <p class="px-4 pb-2 text-xs text-gray-400">Este post já tem interações.</p>
                             {% else %}
                                 <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
                                     {% csrf_token %}
@@ -224,10 +201,10 @@
 
                             <div class="border-t border-gray-100">
                                 {% if post.tem_moderador %}
-                                    <form method="POST" action="{% url 'desistir_ideia' post.id %}"
-                                          onsubmit="return confirm('Tem certeza? Esta ação não pode ser desfeita.')">
+                                    <form method="POST" action="{% url 'desistir_ideia' post.id %}">
                                         {% csrf_token %}
                                         <button type="submit"
+                                                onclick="return confirm('Tem certeza? Esta ação não pode ser desfeita.')"
                                                 class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
                                             😔 Desistir da Ideia
                                         </button>
@@ -240,8 +217,8 @@
                                     </button>
                                 {% endif %}
                             </div>
-                        {% endif %}
 
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
@@ -300,9 +277,7 @@
             {% endif %}
 
             <!-- Conteúdo -->
-            <div class="text-gray-700 leading-relaxed mb-8">
-                {{ post.conteudo }}
-            </div>
+            <div class="text-gray-700 leading-relaxed mb-8">{{ post.conteudo }}</div>
 
             <!-- Rodapé do modal -->
             <div class="border-t pt-6 flex justify-between items-center">
@@ -331,7 +306,58 @@
         </div>
     </div>
 
-    <!-- Modal de bloqueio de desistência — um por post -->
+    <!-- Modal confirmar exclusão (privado) -->
+    <div id="modal-excluir-{{ post.id }}"
+         class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">🗑️ Excluir post?</h2>
+            <p class="text-sm text-gray-600 mb-5">
+                Este post será excluído permanentemente e não poderá ser recuperado.
+            </p>
+            <div class="flex gap-3">
+                <button onclick="fecharModalExcluir('{{ post.id }}')"
+                        class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
+                    Cancelar
+                </button>
+                <form method="POST" action="{% url 'desistir_ideia' post.id %}" class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">
+                        Excluir
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal desistir do feed (sem colaboração) -->
+    <div id="modal-desistir-feed-{{ post.id }}"
+         class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">😔 Desistir da ideia?</h2>
+            <p class="text-sm text-gray-600 mb-2">
+                Ao desistir, este post voltará para o seu <strong>Notes Privado</strong> e ninguém mais poderá vê-lo.
+            </p>
+            <p class="text-xs text-gray-400 mb-5">
+                Lá você poderá excluí-lo definitivamente quando quiser.
+            </p>
+            <div class="flex gap-3">
+                <button onclick="fecharModalDesistirFeed('{{ post.id }}')"
+                        class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
+                    Cancelar
+                </button>
+                <form method="POST" action="{% url 'desistir_ideia' post.id %}" class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">
+                        Desistir
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de bloqueio (universo sem moderador) -->
     <div id="modal-bloqueio-{{ post.id }}"
          class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
         <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
@@ -351,7 +377,7 @@
         </div>
     </div>
 
-    {% empty %}
+{% empty %}
     <div class="col-span-3 text-center text-gray-400 py-20">
         {% if aba == 'meus_notes' %}
         <p class="text-6xl mb-4">📓</p>
@@ -367,12 +393,10 @@
         <p class="text-sm mt-2">Seja o primeiro a jogar uma ideia para o universo!</p>
         {% endif %}
     </div>
-    {% endfor %}
+{% endfor %}
 </div>
 
-<!-- ═══════════════════════════════════════ -->
-<!-- JAVASCRIPT                              -->
-<!-- ═══════════════════════════════════════ -->
+<!-- JAVASCRIPT -->
 <script>
     let dropdownAberto = false;
 
@@ -397,7 +421,7 @@
         const dropdown = document.getElementById('dropdown-' + id);
 
         document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
-            if (!d.id.includes('container') && !d.id.includes('bloqueio') && d.id !== 'dropdown-' + id) {
+            if (!d.id.includes('container') && !d.id.includes('bloqueio') && !d.id.includes('excluir') && !d.id.includes('desistir') && d.id !== 'dropdown-' + id) {
                 d.classList.add('hidden');
             }
         });
@@ -416,19 +440,43 @@
     }
 
     function abrirModalBloqueio(postId) {
-        // Fecha o dropdown primeiro
         const dd = document.getElementById('dropdown-' + postId);
         if (dd) dd.classList.add('hidden');
         dropdownAberto = false;
-
-        // Abre o modal de bloqueio
         const m = document.getElementById('modal-bloqueio-' + postId);
         m.classList.remove('hidden');
         m.classList.add('flex');
     }
-
     function fecharModalBloqueio(postId) {
         const m = document.getElementById('modal-bloqueio-' + postId);
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+    }
+
+    function abrirModalExcluir(postId) {
+        const dd = document.getElementById('dropdown-' + postId);
+        if (dd) dd.classList.add('hidden');
+        dropdownAberto = false;
+        const m = document.getElementById('modal-excluir-' + postId);
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+    }
+    function fecharModalExcluir(postId) {
+        const m = document.getElementById('modal-excluir-' + postId);
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+    }
+
+    function abrirModalDesistirFeed(postId) {
+        const dd = document.getElementById('dropdown-' + postId);
+        if (dd) dd.classList.add('hidden');
+        dropdownAberto = false;
+        const m = document.getElementById('modal-desistir-feed-' + postId);
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+    }
+    function fecharModalDesistirFeed(postId) {
+        const m = document.getElementById('modal-desistir-feed-' + postId);
         m.classList.add('hidden');
         m.classList.remove('flex');
     }
@@ -442,7 +490,7 @@
             });
             if (!clicouDentro) {
                 document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
-                    if (!d.id.includes('container') && !d.id.includes('bloqueio')) {
+                    if (!d.id.includes('container') && !d.id.includes('bloqueio') && !d.id.includes('excluir') && !d.id.includes('desistir')) {
                         d.classList.add('hidden');
                     }
                 });

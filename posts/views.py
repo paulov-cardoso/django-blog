@@ -6,33 +6,12 @@ from .models import Post, Autor, ModeradorPost, CandidaturaModerador
 from .forms import PostForm, RegistroForm
 
 
-# ── helper — verifica interações bloqueantes no universo ──────────
+# ── helper — verifica interações bloqueantes ──────────────────────
 
 def tem_interacoes_bloqueantes(post):
-    """
-    Retorna True se o post no Campo das Ideias já tem interações
-    que impedem retorno ao Feed.
-    Critérios:
-      - Candidatura aceita (moderador eleito), OU
-      - 3+ pessoas diferentes comentaram (além do autor)
-        → TODO: ativar quando Fase 8 (Comentario) for implementada
-    """
     if post.candidaturas.filter(status='aceito').exists():
         return True
-
-    # TODO: descomentar na Fase 8
-    # from .models import Comentario
-    # autores_comentarios = (
-    #     Comentario.objects
-    #     .filter(post=post)
-    #     .exclude(autor=post.autor)
-    #     .values('autor')
-    #     .distinct()
-    #     .count()
-    # )
-    # if autores_comentarios >= 3:
-    #     return True
-
+    # TODO Fase 8: adicionar checagem de 3+ comentadores distintos
     return False
 
 
@@ -41,8 +20,9 @@ def tem_interacoes_bloqueantes(post):
 def _pode_desistir(post):
     """
     Privado  → sempre pode (post será excluído).
-    Feed     → pode se NÃO houver candidatura aceita; senão exige moderador.
-    Universo → nunca pode sem moderador ativo.
+    Feed sem colaboração → pode (post volta para privado).
+    Feed com colaboração → exige moderador.
+    Universo → sempre exige moderador.
     """
     if post.visibilidade == 'privado':
         return True, ''
@@ -124,7 +104,12 @@ def criar_post(request):
 
 @login_required
 def editar_post(request, post_id):
-    post = get_object_or_404(Post, id=post_id, autor=request.user.autor)
+    # Bloqueia edição se o usuário não for mais o autor atual
+    post = get_object_or_404(Post, id=post_id)
+    if post.autor.usuario != request.user:
+        messages.error(request, 'Você não tem permissão para editar este post.')
+        return redirect('/?aba=meus_notes')
+
     if request.method == 'POST':
         form = PostForm(request.POST, instance=post)
         cor = request.POST.get('cor', post.cor)
@@ -176,17 +161,30 @@ def detalhe_post(request, post_id):
     })
 
 
-# ── mudar visibilidade (feed / universo / privado) ────────────────
+# ── mudar visibilidade ────────────────────────────────────────────
 
 @login_required
 def jogar_para_universo(request, post_id):
-    post = get_object_or_404(Post, id=post_id, autor=request.user.autor)
+    post = get_object_or_404(Post, id=post_id)
+
+    # Bloqueia se o usuário não for o autor atual
+    if post.autor.usuario != request.user:
+        messages.error(request, 'Você não tem permissão para mover este post.')
+        return redirect('/?aba=meus_notes')
+
     if request.method == 'POST':
         visibilidade = request.POST.get('visibilidade', 'universo')
         post.visibilidade = visibilidade
         post.publicado = True
         post.save()
-    return redirect('/?aba=meus_notes')
+
+    aba = 'meus_notes'
+    if post.visibilidade == 'feed':
+        aba = 'feed'
+    elif post.visibilidade == 'universo':
+        aba = 'universo'
+
+    return redirect(f'/?aba={aba}')
 
 
 # ── desistir da ideia ─────────────────────────────────────────────
@@ -198,50 +196,45 @@ def desistir_ideia(request, post_id):
 
     if post.autor != autor:
         messages.error(request, 'Você não é o autor deste post.')
-        return redirect('detalhe_post', post_id=post_id)
+        return redirect('/?aba=meus_notes')
 
     pode, motivo = _pode_desistir(post)
 
     if not pode:
         messages.error(request, motivo)
-        return redirect('detalhe_post', post_id=post_id)
+        return redirect('/?aba=universo')
 
     # Cenário 1 — privado: exclui permanentemente
     if post.visibilidade == 'privado':
         post.delete()
-        messages.success(request, 'Ideia excluída permanentemente.')
-        return redirect('home')
+        return redirect('/?aba=meus_notes')
 
-    # Cenários 2 e 3 — tem moderador: transfere propriedade
+    # Cenário 2 — feed sem colaboração: volta para privado
+    if post.visibilidade == 'feed':
+        tem_cooperacao = post.candidaturas.filter(status='aceito').exists()
+        if not tem_cooperacao:
+            post.visibilidade = 'privado'
+            post.desistiu = False
+            post.save()
+            return redirect('/?aba=meus_notes')
+
+    # Cenários 3 e 4 — tem moderador: transfere propriedade
     moderadores_ativos = post.moderadores.filter(ativo=True)
     if moderadores_ativos.exists():
         if not post.autor_original:
             post.autor_original = autor
 
         moderadores_ativos.update(papel='dono')
-
         novo_dono = moderadores_ativos.first().autor
         post.autor = novo_dono
         post.desistiu = True
         post.procura_moderador = False
         post.save()
 
-        messages.success(
-            request,
-            f'Você desistiu da ideia. {novo_dono.nome_exibicao} agora é o dono.'
-        )
-    else:
-        # Sem moderador ainda: marca como procurando
-        post.desistiu = True
-        post.procura_moderador = True
-        post.save()
-        messages.warning(
-            request,
-            'Ideia marcada como "Procura-se Moderador". '
-            'Indique um moderador para se desvincular completamente.'
-        )
+        return redirect('/?aba=universo')
 
-    return redirect('detalhe_post', post_id=post_id)
+    # Sem moderador — não deveria chegar aqui, mas por segurança:
+    return redirect('/?aba=universo')
 
 
 # ── candidatar-se a moderador ─────────────────────────────────────
@@ -253,14 +246,14 @@ def candidatar_moderador(request, post_id):
 
     if post.autor == candidato:
         messages.error(request, 'Você já é o autor deste post.')
-        return redirect('detalhe_post', post_id=post_id)
+        return redirect('/?aba=universo')
 
     ja_existe = CandidaturaModerador.objects.filter(
         post=post, candidato=candidato
     ).exists()
     if ja_existe:
         messages.info(request, 'Você já se candidatou a este post.')
-        return redirect('detalhe_post', post_id=post_id)
+        return redirect('/?aba=universo')
 
     mensagem = request.POST.get('mensagem', '')
     CandidaturaModerador.objects.create(
@@ -269,8 +262,7 @@ def candidatar_moderador(request, post_id):
         mensagem=mensagem,
         status='pendente'
     )
-    messages.success(request, 'Candidatura enviada! Aguarde o aval do autor.')
-    return redirect('detalhe_post', post_id=post_id)
+    return redirect('/?aba=universo')
 
 
 # ── eleger moderador ──────────────────────────────────────────────
@@ -283,15 +275,12 @@ def eleger_moderador(request, post_id, candidatura_id):
 
     if post.autor != autor:
         messages.error(request, 'Apenas o autor pode eleger moderadores.')
-        return redirect('detalhe_post', post_id=post_id)
+        return redirect('/?aba=universo')
 
     ativos = post.moderadores.filter(ativo=True).count()
     if ativos >= post.limite_moderadores:
-        messages.error(
-            request,
-            f'Limite de {post.limite_moderadores} moderadores atingido.'
-        )
-        return redirect('detalhe_post', post_id=post_id)
+        messages.error(request, f'Limite de {post.limite_moderadores} moderadores atingido.')
+        return redirect('/?aba=universo')
 
     candidatura.status = 'aceito'
     candidatura.save()
@@ -306,11 +295,7 @@ def eleger_moderador(request, post_id, candidatura_id):
         post.procura_moderador = False
         post.save()
 
-    messages.success(
-        request,
-        f'{candidatura.candidato.nome_exibicao} foi eleito moderador!'
-    )
-    return redirect('detalhe_post', post_id=post_id)
+    return redirect('/?aba=universo')
 
 
 # ── recusar candidatura ───────────────────────────────────────────
@@ -323,12 +308,11 @@ def recusar_candidatura(request, post_id, candidatura_id):
 
     if post.autor != autor:
         messages.error(request, 'Apenas o autor pode recusar candidaturas.')
-        return redirect('detalhe_post', post_id=post_id)
+        return redirect('/?aba=universo')
 
     candidatura.status = 'recusado'
     candidatura.save()
-    messages.info(request, 'Candidatura recusada.')
-    return redirect('detalhe_post', post_id=post_id)
+    return redirect('/?aba=universo')
 
 
 # ── registro ──────────────────────────────────────────────────────
