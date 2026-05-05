@@ -1,0 +1,259 @@
+{% extends 'posts/base.html' %}
+{% block titulo %}{{ autor_perfil.nome_exibicao }} — Blognotes{% endblock %}
+
+{% block conteudo %}
+<div id="perfil-conteudo">
+    <div class="max-w-4xl mx-auto">
+
+    <!-- CAPA -->
+    <div class="relative w-full h-48 rounded-2xl overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 mb-0">
+        {% if autor_perfil.foto_capa %}
+            <img src="{{ autor_perfil.foto_capa.url }}"
+                 alt="Capa"
+                 class="w-full h-full object-cover">
+        {% endif %}
+    </div>
+
+    <!-- LOSANGO + STATS -->
+    <div class="relative flex items-end gap-8 px-8 -mt-10 mb-6">
+
+        <!-- Foto de perfil em losango -->
+        <div class="relative flex-shrink-0" style="width: 100px; height: 100px;">
+            <div style="
+                width: 100px;
+                height: 100px;
+                transform: rotate(45deg);
+                overflow: hidden;
+                border: 4px solid white;
+                background: #e5e7eb;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            ">
+                {% if autor_perfil.foto_perfil %}
+                    <img src="{{ autor_perfil.foto_perfil.url }}"
+                         alt="{{ autor_perfil.nome_exibicao }}"
+                         style="width:100%; height:100%; object-fit:cover; transform:rotate(-45deg) scale(1.5);">
+                {% else %}
+                    <div style="
+                        width:100%; height:100%;
+                        display:flex; align-items:center; justify-content:center;
+                        transform: rotate(-45deg);
+                        font-size: 2rem;
+                        font-weight: bold;
+                        color: #6b7280;
+                    ">
+                        {{ autor_perfil.nome_exibicao|first|upper }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Stats ao lado do losango -->
+        <div class="flex gap-6 pb-2 flex-wrap">
+            <div class="text-center">
+                <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguidores }}</p>
+                <p class="text-xs text-gray-500">Seguidores</p>
+            </div>
+            <div class="text-center">
+                <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguindo }}</p>
+                <p class="text-xs text-gray-500">Seguindo</p>
+            </div>
+            <div class="text-center">
+                <p class="text-xl font-bold text-gray-800">
+                    {{ autor_perfil.posts.filter.count }}
+                </p>
+                <p class="text-xs text-gray-500">Ideias públicas</p>
+            </div>
+            {% if eh_proprio_perfil %}
+            <div class="text-center">
+                <p class="text-xl font-bold text-gray-800">
+                    {% with privados=autor_perfil.posts.all %}
+                    {{ autor_perfil.posts.all|length }}
+                    {% endwith %}
+                </p>
+                <p class="text-xs text-gray-500">Notes privados</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Botão seguir -->
+        {% if not eh_proprio_perfil and user.is_authenticated %}
+        <div class="ml-auto pb-2">
+            <form method="POST" action="{% url 'seguir_autor' autor_perfil.usuario.username %}">
+                {% csrf_token %}
+                {% if segue %}
+                    <button type="submit"
+                            class="px-5 py-2 rounded-full text-sm font-semibold border border-gray-300
+                                   text-gray-600 hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition">
+                        ✓ Seguindo
+                    </button>
+                {% else %}
+                    <button type="submit"
+                            class="px-5 py-2 rounded-full text-sm font-semibold
+                                   bg-indigo-600 hover:bg-indigo-700 text-white transition">
+                        + Seguir
+                    </button>
+                {% endif %}
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Botão editar perfil (próprio) -->
+        {% if eh_proprio_perfil %}
+        <div class="ml-auto pb-2">
+            <a href="#"
+               class="px-5 py-2 rounded-full text-sm font-semibold border border-gray-300
+                      text-gray-600 hover:bg-gray-50 transition">
+                ✏️ Editar perfil
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- NOME E BIO -->
+    <div class="px-8 mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">{{ autor_perfil.nome_exibicao }}</h1>
+        {% if autor_perfil.bio %}
+        <p class="text-gray-500 text-sm mt-1">{{ autor_perfil.bio }}</p>
+        {% endif %}
+    </div>
+
+    <!-- PAINEL DE IDEIAS -->
+    <div class="px-8">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">💡 Ideias</h2>
+
+        {% if posts_publicos %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for post in posts_publicos %}
+
+                {% if post.visibilidade == 'universo' %}
+                <!-- Campo das Ideias — aberto para todos -->
+                <div class="rounded-xl p-5 shadow-sm border cursor-pointer hover:shadow-md transition"
+                     style="border-left: 4px solid {{ post.categorias.first.cor|default:'#8B5CF6' }};
+                            background-color: {{ post.categorias.first.cor|default:'#8B5CF6' }}10"
+                     onclick="abrirModalPerfil('{{ post.id }}')">
+                    <div class="flex flex-wrap gap-1 mb-2">
+                        {% for cat in post.categorias.all %}
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                              style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                            {{ cat.nome }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    <h3 class="font-bold text-gray-800 mb-1">{{ post.titulo }}</h3>
+                    <p class="text-gray-500 text-xs">{{ post.conteudo|truncatewords:15 }}</p>
+                    <span class="text-xs text-orange-500 font-semibold mt-2 block">🌍 Campo das Ideias</span>
+                </div>
+
+                {% elif post.visibilidade == 'feed' %}
+                <!-- Feed — só quem segue pode abrir -->
+                {% if segue or eh_proprio_perfil %}
+                <div class="rounded-xl p-5 shadow-sm border cursor-pointer hover:shadow-md transition"
+                     style="border-left: 4px solid {{ post.categorias.first.cor|default:'#8B5CF6' }};
+                            background-color: {{ post.categorias.first.cor|default:'#8B5CF6' }}10"
+                     onclick="abrirModalPerfil('{{ post.id }}')">
+                    <div class="flex flex-wrap gap-1 mb-2">
+                        {% for cat in post.categorias.all %}
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                              style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                            {{ cat.nome }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    <h3 class="font-bold text-gray-800 mb-1">{{ post.titulo }}</h3>
+                    <p class="text-gray-500 text-xs">{{ post.conteudo|truncatewords:15 }}</p>
+                    <span class="text-xs text-purple-600 font-semibold mt-2 block">👥 Feed de Ideias</span>
+                </div>
+                {% else %}
+                <!-- Bloqueado para quem não segue -->
+                <div class="rounded-xl p-5 shadow-sm border bg-gray-50 opacity-60 cursor-not-allowed"
+                     style="border-left: 4px solid #d1d5db;">
+                    <div class="flex items-center gap-2 text-gray-400 mb-2">
+                        <span class="text-lg">🔒</span>
+                        <span class="text-sm font-semibold">Ideia do Feed</span>
+                    </div>
+                    <p class="text-xs text-gray-400">Siga {{ autor_perfil.nome_exibicao }} para ver esta ideia.</p>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <!-- Modal do post no perfil -->
+                <div id="modal-perfil-{{ post.id }}"
+                     class="fixed inset-0 backdrop-blur-sm bg-black/40 items-center justify-center z-50 hidden"
+                     onclick="fecharModalPerfil(event, '{{ post.id }}')">
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
+
+                        <button onclick="document.getElementById('modal-perfil-{{ post.id }}').classList.add('hidden')"
+                                class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">
+                            ✕
+                        </button>
+
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            {% for cat in post.categorias.all %}
+                            <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                                  style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                                {{ cat.nome }}
+                            </span>
+                            {% endfor %}
+                        </div>
+
+                        <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
+
+                        <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
+                            <span>✍️ {{ post.autor.nome_exibicao }}</span>
+                            <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+                        </div>
+
+                        {% if post.autor_original %}
+                        <p class="text-xs text-gray-400 mb-4">
+                            💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
+                        </p>
+                        {% endif %}
+
+                        <div class="text-gray-700 leading-relaxed mb-6">{{ post.conteudo }}</div>
+
+                        <div class="border-t pt-4 flex justify-between items-center">
+                            <span class="text-sm text-gray-400">💬 Colabore nos comentários</span>
+                            {% if post.visibilidade == 'universo' %}
+                            <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+                            {% else %}
+                            <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+            {% endfor %}
+        </div>
+
+        {% else %}
+        <div class="text-center text-gray-400 py-16">
+            <p class="text-4xl mb-3">💡</p>
+            <p class="font-semibold">Nenhuma ideia pública ainda.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+</div>
+{% endblock %}
+
+
+<script>
+    function abrirModalPerfil(id) {
+        const m = document.getElementById('modal-perfil-' + id);
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function fecharModalPerfil(event, id) {
+        const m = document.getElementById('modal-perfil-' + id);
+        if (event.target === m) {
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+    }
+</script>
+
+{% endblock %}

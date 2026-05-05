@@ -10,6 +10,8 @@ from .views import (
     candidatar_moderador,
     eleger_moderador,
     recusar_candidatura,
+    perfil,
+    seguir_autor,
 )
 
 urlpatterns = [
@@ -17,12 +19,18 @@ urlpatterns = [
     path('post/<int:post_id>/', detalhe_post, name='detalhe_post'),
     path('novo/', criar_post, name='criar_post'),
     path('registrar/', registrar, name='registrar'),
+
+    # visibilidade
     path('post/<int:post_id>/jogar/', jogar_para_universo, name='jogar_para_universo'),
     path('post/<int:post_id>/desistir/', desistir_ideia, name='desistir_ideia'),
     path('post/<int:post_id>/editar/', editar_post, name='editar_post'),
 
-    # ── moderação ──────────────────────────────────────────────────
+    # moderação
     path('post/<int:post_id>/candidatar/', candidatar_moderador, name='candidatar_moderador'),
     path('post/<int:post_id>/eleger/<int:candidatura_id>/', eleger_moderador, name='eleger_moderador'),
     path('post/<int:post_id>/recusar/<int:candidatura_id>/', recusar_candidatura, name='recusar_candidatura'),
+
+    # perfil e social
+    path('perfil/<str:username>/', perfil, name='perfil'),
+    path('perfil/<str:username>/seguir/', seguir_autor, name='seguir_autor'),
 ]

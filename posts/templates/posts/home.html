@@ -4,6 +4,10 @@
 
 <!-- ABAS DE NAVEGAÇÃO -->
 <div class="flex justify-center border-b border-gray-200 mb-8">
+    <a href="/?aba=perfil"
+       class="px-6 py-3 text-sm font-semibold transition border-b-2 {% if aba == 'perfil' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+        👤 Perfil
+    </a>
     <a href="/?aba=meus_notes"
        class="px-6 py-3 text-sm font-semibold transition border-b-2 {% if aba == 'meus_notes' %}border-blue-600 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
         📓 Meus Notes
@@ -18,7 +22,170 @@
     </a>
 </div>
 
-<!-- TÍTULO DINÂMICO -->
+<!-- ═══════════════════════════════════════ -->
+<!-- ABA PERFIL                              -->
+<!-- ═══════════════════════════════════════ -->
+{% if aba == 'perfil' %}
+
+    <!-- CAPA -->
+    <div class="relative w-full h-48 rounded-2xl overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 mb-0">
+        {% if autor_perfil.foto_capa %}
+            <img src="{{ autor_perfil.foto_capa.url }}" alt="Capa" class="w-full h-full object-cover">
+        {% endif %}
+    </div>
+
+    <!-- LOSANGO + STATS + AÇÕES -->
+    <div class="relative flex items-end gap-8 px-8 -mt-10 mb-6 flex-wrap">
+
+        <!-- Foto de perfil em losango -->
+        <div class="flex-shrink-0" style="width:100px; height:100px;">
+            <div style="width:100px; height:100px; transform:rotate(45deg); overflow:hidden;
+                        border:4px solid white; background:#e5e7eb; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+                {% if autor_perfil.foto_perfil %}
+                    <img src="{{ autor_perfil.foto_perfil.url }}"
+                         alt="{{ autor_perfil.nome_exibicao }}"
+                         style="width:100%; height:100%; object-fit:cover; transform:rotate(-45deg) scale(1.5);">
+                {% else %}
+                    <div style="width:100%; height:100%; display:flex; align-items:center;
+                                justify-content:center; transform:rotate(-45deg);
+                                font-size:2rem; font-weight:bold; color:#6b7280;">
+                        {{ autor_perfil.nome_exibicao|first|upper }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Contadores -->
+        <div class="flex gap-6 pb-2 flex-wrap">
+            <div class="text-center">
+                <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguidores }}</p>
+                <p class="text-xs text-gray-500">Seguidores</p>
+            </div>
+            <div class="text-center">
+                <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguindo }}</p>
+                <p class="text-xs text-gray-500">Seguindo</p>
+            </div>
+            <div class="text-center">
+                <p class="text-xl font-bold text-gray-800">{{ posts_publicos|length }}</p>
+                <p class="text-xs text-gray-500">Ideias públicas</p>
+            </div>
+            <div class="text-center">
+                <p class="text-xl font-bold text-gray-800">
+                    {{ autor_perfil.posts.all|length }}
+                </p>
+                <p class="text-xs text-gray-500">Notes privados</p>
+            </div>
+        </div>
+
+        <!-- Botão editar perfil -->
+        <div class="ml-auto pb-2">
+            <a href="#"
+               class="px-5 py-2 rounded-full text-sm font-semibold border border-gray-300
+                      text-gray-600 hover:bg-gray-50 transition">
+                ✏️ Editar perfil
+            </a>
+        </div>
+    </div>
+
+    <!-- NOME E BIO -->
+    <div class="px-8 mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">{{ autor_perfil.nome_exibicao }}</h1>
+        {% if autor_perfil.bio %}
+            <p class="text-gray-500 text-sm mt-1">{{ autor_perfil.bio }}</p>
+        {% endif %}
+    </div>
+
+    <!-- PAINEL DE IDEIAS PÚBLICAS -->
+    <div class="px-8">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">💡 Minhas Ideias</h2>
+
+        {% if posts_publicos %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for post in posts_publicos %}
+            <div class="rounded-xl p-5 shadow-sm border cursor-pointer hover:shadow-md transition"
+                 style="border-left: 4px solid {{ post.categorias.first.cor|default:'#8B5CF6' }};
+                        background-color: {{ post.categorias.first.cor|default:'#8B5CF6' }}10"
+                 onclick="abrirModal('perfil-{{ post.id }}')">
+                <div class="flex flex-wrap gap-1 mb-2">
+                    {% for cat in post.categorias.all %}
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                        {{ cat.nome }}
+                    </span>
+                    {% endfor %}
+                </div>
+                <h3 class="font-bold text-gray-800 mb-1">{{ post.titulo }}</h3>
+                <p class="text-gray-500 text-xs mb-2">{{ post.conteudo|truncatewords:15 }}</p>
+                {% if post.visibilidade == 'universo' %}
+                <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+                {% else %}
+                <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+                {% endif %}
+            </div>
+
+            <!-- Modal do post no perfil próprio -->
+            <div id="modal-perfil-{{ post.id }}"
+                 class="fixed inset-0 backdrop-blur-sm bg-black/40 items-center justify-center z-50 hidden"
+                 onclick="fecharModalFora(event, 'perfil-{{ post.id }}')">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
+                    <button onclick="fecharModal('perfil-{{ post.id }}')"
+                            class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">✕</button>
+
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        {% for cat in post.categorias.all %}
+                        <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                              style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                            {{ cat.nome }}
+                        </span>
+                        {% endfor %}
+                    </div>
+
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
+
+                    <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
+                        <span>✍️ {{ post.autor.nome_exibicao }}</span>
+                        <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+                    </div>
+
+                    {% if post.autor_original %}
+                    <p class="text-xs text-gray-400 mb-4">
+                        💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
+                    </p>
+                    {% endif %}
+
+                    <div class="text-gray-700 leading-relaxed mb-6">{{ post.conteudo }}</div>
+
+                    <div class="border-t pt-4 flex justify-between items-center">
+                        <a href="{% url 'editar_post' post.id %}"
+                           class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
+                            ✏️ Editar
+                        </a>
+                        {% if post.visibilidade == 'universo' %}
+                        <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+                        {% else %}
+                        <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% else %}
+        <div class="text-center text-gray-400 py-16">
+            <p class="text-4xl mb-3">💡</p>
+            <p class="font-semibold">Nenhuma ideia pública ainda.</p>
+            <p class="text-sm mt-1">Envie um note para o Feed ou Campo das Ideias!</p>
+        </div>
+        {% endif %}
+    </div>
+
+{% else %}
+
+<!-- ═══════════════════════════════════════ -->
+<!-- ABAS DE CONTEÚDO (notes, feed, universo)-->
+<!-- ═══════════════════════════════════════ -->
+
 {% if aba == 'meus_notes' %}
 <h2 class="text-3xl font-bold text-gray-800 mb-6">📓 Meus Notes</h2>
 {% elif aba == 'feed' %}
@@ -29,7 +196,6 @@
 <p class="text-gray-500 -mt-4 mb-6 text-sm">Ideias abertas para toda a comunidade colaborar</p>
 {% endif %}
 
-<!-- GRID DE CARDS -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 {% for post in posts %}
 
@@ -59,7 +225,10 @@
         </div>
 
         <div class="text-xs text-gray-400 flex justify-between items-center mt-4">
-            <span>✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}</span>
+            <button onclick="event.stopPropagation(); abrirModalPerfil('{{ post.autor.usuario.username }}')"
+                    class="hover:underline hover:text-indigo-500 transition">
+                ✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}
+            </button>
             <span>📅 {{ post.data_criacao|date:"d/m/Y" }}</span>
         </div>
     </div>
@@ -71,13 +240,9 @@
 
         <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
 
-            <!-- Botão fechar -->
             <button onclick="fecharModal('{{ aba }}-{{ post.id }}')"
-                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">
-                ✕
-            </button>
+                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">✕</button>
 
-            <!-- Categorias -->
             <div class="flex flex-wrap gap-2 mb-4">
                 {% for cat in post.categorias.all %}
                 <span class="text-xs font-semibold px-3 py-1 rounded-full"
@@ -87,17 +252,17 @@
                 {% endfor %}
             </div>
 
-            <!-- Título -->
             <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
 
-            <!-- Autor, data e dropdown -->
             <div class="flex justify-between items-center text-sm text-gray-400 mb-6 border-b pb-4">
                 <div class="flex gap-4">
-                    <span>✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}</span>
+                    <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
+                            class="hover:underline hover:text-indigo-500 transition">
+                        ✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}
+                    </button>
                     <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
                 </div>
 
-                <!-- Dropdown — só para o autor atual -->
                 {% if post.autor.usuario == user %}
                 <div class="relative" id="dropdown-container-{{ post.id }}">
                     <button onclick="toggleDropdown('{{ post.id }}')"
@@ -112,69 +277,56 @@
                                 w-64 z-[9999] overflow-hidden">
 
                         {% if post.visibilidade == 'privado' %}
-                            <!-- ── PRIVADO ── -->
                             <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="visibilidade" value="feed">
-                                <button type="submit"
-                                        class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
                                     👥 Enviar para o Feed de Ideias
                                 </button>
                             </form>
                             <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="visibilidade" value="universo">
-                                <button type="submit"
-                                        class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
                                     🌍 Enviar para o Campo das Ideias
                                 </button>
                             </form>
                             <div class="border-t border-gray-100">
-                                <button type="button"
-                                        onclick="abrirModalExcluir('{{ post.id }}')"
+                                <button type="button" onclick="abrirModal('excluir-{{ post.id }}')"
                                         class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
                                     🗑️ Excluir
                                 </button>
                             </div>
 
                         {% elif post.visibilidade == 'feed' %}
-                            <!-- ── FEED ── -->
                             <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="visibilidade" value="universo">
-                                <button type="submit"
-                                        class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
                                     🌍 Enviar para o Campo das Ideias
                                 </button>
                             </form>
-
-                            {% if post.tem_interacoes %}
-                                <div class="flex items-center gap-2 px-4 py-3 text-sm opacity-40 cursor-not-allowed">
+                            {% if post.tem_interacoes_feed %}
+                                <button type="button" onclick="abrirModal('aviso-retirar-feed-{{ post.id }}')"
+                                        class="w-full text-left px-4 py-3 text-sm opacity-60 hover:bg-gray-50 transition flex items-center gap-2">
                                     🔒 Retirar do Feed
-                                </div>
-                                <p class="px-4 pb-2 text-xs text-gray-400">Há cooperações aceitas.</p>
+                                </button>
                             {% else %}
-                                <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="visibilidade" value="privado">
-                                    <button type="submit"
-                                            class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
-                                        🔒 Retirar do Feed
-                                    </button>
-                                </form>
+                                <button type="button" onclick="abrirModal('confirmar-retirar-feed-{{ post.id }}')"
+                                        class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                    🔒 Retirar do Feed
+                                </button>
                             {% endif %}
-
                             <div class="border-t border-gray-100">
-                                {% if post.tem_interacoes %}
-                                    <div class="flex items-center gap-2 px-4 py-3 text-sm opacity-40 cursor-not-allowed">
+                                {% if post.tem_interacoes_feed %}
+                                    <div class="px-4 py-3 text-sm opacity-40 cursor-not-allowed flex items-center gap-2">
                                         😔 Desistir da Ideia
                                     </div>
                                     <p class="px-4 pb-2 text-xs text-red-400">
                                         Este post tem cooperações aceitas. Eleja um moderador antes de desistir.
                                     </p>
                                 {% else %}
-                                    <button type="button"
-                                            onclick="abrirModalDesistirFeed('{{ post.id }}')"
+                                    <button type="button" onclick="abrirModal('desistir-feed-{{ post.id }}')"
                                             class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
                                         😔 Desistir da Ideia
                                     </button>
@@ -182,67 +334,52 @@
                             </div>
 
                         {% elif post.visibilidade == 'universo' %}
-                            <!-- ── UNIVERSO ── -->
                             {% if post.tem_interacoes %}
-                                <div class="flex items-center gap-2 px-4 py-3 text-sm opacity-40 cursor-not-allowed">
+                                <button type="button" onclick="abrirModal('bloqueio-campo-{{ post.id }}')"
+                                        class="w-full text-left px-4 py-3 text-sm opacity-60 hover:bg-gray-50 transition flex items-center gap-2">
                                     👥 Retirar do Campo (ir para Feed)
-                                </div>
-                                <p class="px-4 pb-2 text-xs text-gray-400">Este post já tem interações.</p>
+                                </button>
                             {% else %}
-                                <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="visibilidade" value="feed">
-                                    <button type="submit"
-                                            class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
-                                        👥 Retirar do Campo (ir para Feed)
-                                    </button>
-                                </form>
+                                <button type="button" onclick="abrirModal('confirmar-retirar-campo-{{ post.id }}')"
+                                        class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                    👥 Retirar do Campo (ir para Feed)
+                                </button>
                             {% endif %}
-
                             <div class="border-t border-gray-100">
                                 {% if post.tem_moderador %}
-                                    <form method="POST" action="{% url 'desistir_ideia' post.id %}">
-                                        {% csrf_token %}
-                                        <button type="submit"
-                                                onclick="return confirm('Tem certeza? Esta ação não pode ser desfeita.')"
-                                                class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
-                                            😔 Desistir da Ideia
-                                        </button>
-                                    </form>
+                                    <button type="button" onclick="abrirModal('desistir-campo-{{ post.id }}')"
+                                            class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
+                                        😔 Desistir da Ideia
+                                    </button>
                                 {% else %}
-                                    <button type="button"
-                                            onclick="abrirModalBloqueio('{{ post.id }}')"
+                                    <button type="button" onclick="abrirModal('bloqueio-desistir-{{ post.id }}')"
                                             class="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-50 transition flex items-center gap-2">
                                         😔 Desistir da Ideia
                                     </button>
                                 {% endif %}
                             </div>
-
                         {% endif %}
                     </div>
                 </div>
                 {% endif %}
             </div>
 
-            <!-- Crédito autor original -->
             {% if post.autor_original %}
             <p class="text-xs text-gray-400 mb-4">
                 💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
             </p>
             {% endif %}
 
-            <!-- Badge Procura Moderador -->
             {% if post.procura_moderador %}
             <div class="mb-6 bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-sm text-yellow-800">
                 <p class="font-semibold mb-1">🤝 Procura-se Moderador</p>
                 <p class="text-xs mb-3">O autor está buscando alguém para assumir esta ideia.</p>
                 {% if user.is_authenticated and post.autor.usuario != user %}
-                    {% with ja=post.candidaturas.all %}
-                    {% if ja|length > 0 %}
+                    {% with candidaturas=post.candidaturas.all %}
+                    {% if candidaturas %}
                         <p class="text-xs text-yellow-700">✔ Você já se candidatou. Aguardando o aval do autor.</p>
                     {% else %}
-                        <form method="POST" action="{% url 'candidatar_moderador' post.id %}"
-                              onclick="event.stopPropagation()">
+                        <form method="POST" action="{% url 'candidatar_moderador' post.id %}" onclick="event.stopPropagation()">
                             {% csrf_token %}
                             <textarea name="mensagem" rows="2"
                                       placeholder="Por que você quer moderar esta ideia? (opcional)"
@@ -259,12 +396,12 @@
             </div>
             {% endif %}
 
-            <!-- Moderadores ativos -->
-            {% if post.moderadores.all %}
+            {% with moderadores=post.moderadores.all %}
+            {% if moderadores %}
             <div class="mb-6 border border-gray-200 rounded-xl p-4 bg-gray-50">
                 <h3 class="text-sm font-semibold text-gray-700 mb-2">👥 Moderadores</h3>
                 <div class="flex flex-wrap gap-2">
-                    {% for m in post.moderadores.all %}
+                    {% for m in moderadores %}
                     {% if m.ativo %}
                     <span class="bg-white border border-gray-300 text-gray-700 text-xs px-3 py-1 rounded-full">
                         {{ m.autor.nome_exibicao }}
@@ -275,11 +412,10 @@
                 </div>
             </div>
             {% endif %}
+            {% endwith %}
 
-            <!-- Conteúdo -->
             <div class="text-gray-700 leading-relaxed mb-8">{{ post.conteudo }}</div>
 
-            <!-- Rodapé do modal -->
             <div class="border-t pt-6 flex justify-between items-center">
                 {% if post.autor.usuario == user %}
                 <a href="{% url 'editar_post' post.id %}"
@@ -287,13 +423,10 @@
                     ✏️ Editar
                 </a>
                 {% else %}
-                    {% if post.procura_moderador %}
-                    <span class="text-sm text-gray-400">🙋 Candidate-se acima</span>
-                    {% else %}
-                    <span class="text-sm text-gray-400">💬 Colabore nos comentários</span>
-                    {% endif %}
+                    <span class="text-sm text-gray-400">
+                        {% if post.procura_moderador %}🙋 Candidate-se acima{% else %}💬 Colabore nos comentários{% endif %}
+                    </span>
                 {% endif %}
-
                 {% if post.visibilidade == 'universo' %}
                 <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
                 {% elif post.visibilidade == 'feed' %}
@@ -306,74 +439,110 @@
         </div>
     </div>
 
-    <!-- Modal confirmar exclusão (privado) -->
-    <div id="modal-excluir-{{ post.id }}"
-         class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+    <!-- MODAIS DE AÇÃO -->
+    <div id="modal-excluir-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
         <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
             <h2 class="text-lg font-semibold text-gray-800 mb-2">🗑️ Excluir post?</h2>
-            <p class="text-sm text-gray-600 mb-5">
-                Este post será excluído permanentemente e não poderá ser recuperado.
-            </p>
+            <p class="text-sm text-gray-600 mb-5">Este post será excluído permanentemente e não poderá ser recuperado.</p>
             <div class="flex gap-3">
-                <button onclick="fecharModalExcluir('{{ post.id }}')"
-                        class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
-                    Cancelar
-                </button>
+                <button onclick="fecharModal('excluir-{{ post.id }}')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">Cancelar</button>
                 <form method="POST" action="{% url 'desistir_ideia' post.id %}" class="flex-1">
                     {% csrf_token %}
-                    <button type="submit"
-                            class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">
-                        Excluir
-                    </button>
+                    <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">Excluir</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal desistir do feed (sem colaboração) -->
-    <div id="modal-desistir-feed-{{ post.id }}"
-         class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+    <div id="modal-confirmar-retirar-feed-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">🔒 Retirar do Feed?</h2>
+            <p class="text-sm text-gray-600 mb-5">Seus amigos não vão mais interagir com sua ideia.</p>
+            <div class="flex gap-3">
+                <button onclick="fecharModal('confirmar-retirar-feed-{{ post.id }}')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">Cancelar</button>
+                <form method="POST" action="{% url 'jogar_para_universo' post.id %}" class="flex-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="visibilidade" value="privado">
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded-xl transition">Retirar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-aviso-retirar-feed-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">⚠️ Atenção</h2>
+            <p class="text-sm text-gray-600 mb-5">Sua ideia já tem colaborações e debates. Seus amigos não poderão mais interagir com ela se você retirar do Feed.</p>
+            <div class="flex gap-3">
+                <button onclick="fecharModal('aviso-retirar-feed-{{ post.id }}')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">Cancelar</button>
+                <form method="POST" action="{% url 'jogar_para_universo' post.id %}" class="flex-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="visibilidade" value="privado">
+                    <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">Retirar mesmo assim</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-confirmar-retirar-campo-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">👥 Retirar do Campo?</h2>
+            <p class="text-sm text-gray-600 mb-5">O universo não vai mais interagir com sua ideia.</p>
+            <div class="flex gap-3">
+                <button onclick="fecharModal('confirmar-retirar-campo-{{ post.id }}')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">Cancelar</button>
+                <form method="POST" action="{% url 'jogar_para_universo' post.id %}" class="flex-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="visibilidade" value="feed">
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded-xl transition">Retirar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-bloqueio-campo-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">🌍 Ideia do universo</h2>
+            <p class="text-sm text-gray-600 mb-5">Sua ideia ganhou vida própria com multicolaborações e debates acalorados. A ideia pertence agora ao Campo das Ideias.</p>
+            <button onclick="fecharModal('bloqueio-campo-{{ post.id }}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded-xl transition">Entendido</button>
+        </div>
+    </div>
+
+    <div id="modal-desistir-feed-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
         <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
             <h2 class="text-lg font-semibold text-gray-800 mb-2">😔 Desistir da ideia?</h2>
-            <p class="text-sm text-gray-600 mb-2">
-                Ao desistir, este post voltará para o seu <strong>Notes Privado</strong> e ninguém mais poderá vê-lo.
-            </p>
-            <p class="text-xs text-gray-400 mb-5">
-                Lá você poderá excluí-lo definitivamente quando quiser.
-            </p>
+            <p class="text-sm text-gray-600 mb-2">Ao desistir, este post voltará para o seu <strong>Notes Privado</strong> e ninguém mais poderá vê-lo.</p>
+            <p class="text-xs text-gray-400 mb-5">Lá você poderá excluí-lo definitivamente quando quiser.</p>
             <div class="flex gap-3">
-                <button onclick="fecharModalDesistirFeed('{{ post.id }}')"
-                        class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
-                    Cancelar
-                </button>
+                <button onclick="fecharModal('desistir-feed-{{ post.id }}')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">Cancelar</button>
                 <form method="POST" action="{% url 'desistir_ideia' post.id %}" class="flex-1">
                     {% csrf_token %}
-                    <button type="submit"
-                            class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">
-                        Desistir
-                    </button>
+                    <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">Desistir</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal de bloqueio (universo sem moderador) -->
-    <div id="modal-bloqueio-{{ post.id }}"
-         class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+    <div id="modal-desistir-campo-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
         <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-2">
-                😔 Não é possível desistir ainda
-            </h2>
-            <p class="text-sm text-gray-600 mb-4">
-                Posts no Campo das Ideias exigem pelo menos um moderador antes de você poder desistir.
-            </p>
-            <p class="text-xs text-gray-400 mb-5">
-                Use a opção <strong>"Eleger Moderadores"</strong> para indicar alguém antes de se desvincular.
-            </p>
-            <button onclick="fecharModalBloqueio('{{ post.id }}')"
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded-xl transition">
-                Entendido
-            </button>
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">😔 Desistir da ideia?</h2>
+            <p class="text-sm text-gray-600 mb-2">O moderador assumirá como novo dono. Você ainda aparecerá como <strong>autor original</strong>.</p>
+            <p class="text-xs text-gray-400 mb-5">Esta ação não pode ser desfeita.</p>
+            <div class="flex gap-3">
+                <button onclick="fecharModal('desistir-campo-{{ post.id }}')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">Cancelar</button>
+                <form method="POST" action="{% url 'desistir_ideia' post.id %}" class="flex-1">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">Desistir</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-bloqueio-desistir-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+        <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">😔 Não é possível desistir ainda</h2>
+            <p class="text-sm text-gray-600 mb-4">Posts no Campo das Ideias exigem pelo menos um moderador antes de você poder desistir.</p>
+            <p class="text-xs text-gray-400 mb-5">Aguarde candidaturas ou indique alguém para moderar esta ideia.</p>
+            <button onclick="fecharModal('bloqueio-desistir-{{ post.id }}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded-xl transition">Entendido</button>
         </div>
     </div>
 
@@ -396,17 +565,36 @@
 {% endfor %}
 </div>
 
+{% endif %}
+
+<!-- MODAL DE PERFIL DE OUTRO USUÁRIO -->
+<div id="modal-perfil-externo"
+     class="fixed inset-0 backdrop-blur-sm bg-black/40 items-center justify-center z-[99999] hidden"
+     onclick="if(event.target===this){fecharModal('perfil-externo')}">
+    <div class="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-3xl mx-4 relative max-h-[90vh] overflow-y-auto">
+        <button onclick="fecharModal('perfil-externo')"
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">✕</button>
+        <div id="perfil-externo-conteudo" class="p-4 text-center text-gray-400">
+            Carregando...
+        </div>
+    </div>
+</div>
+
 <!-- JAVASCRIPT -->
 <script>
     let dropdownAberto = false;
 
     function abrirModal(id) {
-        document.getElementById('modal-' + id).classList.remove('hidden');
+        const el = document.getElementById('modal-' + id);
+        el.classList.remove('hidden');
+        el.classList.add('flex');
         document.body.style.overflow = 'hidden';
     }
 
     function fecharModal(id) {
-        document.getElementById('modal-' + id).classList.add('hidden');
+        const el = document.getElementById('modal-' + id);
+        el.classList.add('hidden');
+        el.classList.remove('flex');
         document.body.style.overflow = '';
     }
 
@@ -416,12 +604,33 @@
         }
     }
 
+    function abrirModalPerfil(username) {
+        const modal = document.getElementById('modal-perfil-externo');
+        const conteudo = document.getElementById('perfil-externo-conteudo');
+        conteudo.innerHTML = '<p class="py-12 text-gray-400">Carregando...</p>';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+
+        fetch(`/perfil/${username}/`)
+            .then(r => r.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const bloco = doc.querySelector('#perfil-conteudo');
+                conteudo.innerHTML = bloco ? bloco.innerHTML : '<p class="py-12 text-gray-400">Perfil não encontrado.</p>';
+            })
+            .catch(() => {
+                conteudo.innerHTML = '<p class="py-12 text-red-400">Erro ao carregar o perfil.</p>';
+            });
+    }
+
     function toggleDropdown(id) {
         const btn = document.querySelector(`#dropdown-container-${id} button`);
         const dropdown = document.getElementById('dropdown-' + id);
 
         document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
-            if (!d.id.includes('container') && !d.id.includes('bloqueio') && !d.id.includes('excluir') && !d.id.includes('desistir') && d.id !== 'dropdown-' + id) {
+            if (!d.id.includes('container') && d.id !== 'dropdown-' + id) {
                 d.classList.add('hidden');
             }
         });
@@ -439,63 +648,15 @@
         }
     }
 
-    function abrirModalBloqueio(postId) {
-        const dd = document.getElementById('dropdown-' + postId);
-        if (dd) dd.classList.add('hidden');
-        dropdownAberto = false;
-        const m = document.getElementById('modal-bloqueio-' + postId);
-        m.classList.remove('hidden');
-        m.classList.add('flex');
-    }
-    function fecharModalBloqueio(postId) {
-        const m = document.getElementById('modal-bloqueio-' + postId);
-        m.classList.add('hidden');
-        m.classList.remove('flex');
-    }
-
-    function abrirModalExcluir(postId) {
-        const dd = document.getElementById('dropdown-' + postId);
-        if (dd) dd.classList.add('hidden');
-        dropdownAberto = false;
-        const m = document.getElementById('modal-excluir-' + postId);
-        m.classList.remove('hidden');
-        m.classList.add('flex');
-    }
-    function fecharModalExcluir(postId) {
-        const m = document.getElementById('modal-excluir-' + postId);
-        m.classList.add('hidden');
-        m.classList.remove('flex');
-    }
-
-    function abrirModalDesistirFeed(postId) {
-        const dd = document.getElementById('dropdown-' + postId);
-        if (dd) dd.classList.add('hidden');
-        dropdownAberto = false;
-        const m = document.getElementById('modal-desistir-feed-' + postId);
-        m.classList.remove('hidden');
-        m.classList.add('flex');
-    }
-    function fecharModalDesistirFeed(postId) {
-        const m = document.getElementById('modal-desistir-feed-' + postId);
-        m.classList.add('hidden');
-        m.classList.remove('flex');
-    }
-
     document.addEventListener('click', function(event) {
-        if (dropdownAberto) {
-            const containers = document.querySelectorAll('[id^="dropdown-container-"]');
-            let clicouDentro = false;
-            containers.forEach(container => {
-                if (container.contains(event.target)) clicouDentro = true;
+        if (!dropdownAberto) return;
+        const clicouDentroDeContainer = [...document.querySelectorAll('[id^="dropdown-container-"]')]
+            .some(c => c.contains(event.target));
+        if (!clicouDentroDeContainer) {
+            document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+                if (!d.id.includes('container')) d.classList.add('hidden');
             });
-            if (!clicouDentro) {
-                document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
-                    if (!d.id.includes('container') && !d.id.includes('bloqueio') && !d.id.includes('excluir') && !d.id.includes('desistir')) {
-                        d.classList.add('hidden');
-                    }
-                });
-                dropdownAberto = false;
-            }
+            dropdownAberto = false;
         }
     });
 </script>
