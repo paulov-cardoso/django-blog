@@ -128,8 +128,8 @@
                 {% if post.visibilidade == 'universo' %}
                 <!-- Campo das Ideias — aberto para todos -->
                 <div class="rounded-xl p-5 shadow-sm border cursor-pointer hover:shadow-md transition"
-                     style="border-left: 4px solid {{ post.categorias.first.cor|default:'#8B5CF6' }};
-                            background-color: {{ post.categorias.first.cor|default:'#8B5CF6' }}10"
+                     style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
+                            background-color: {{ post.cor|default:'#8B5CF6' }}50"
                      onclick="abrirModalPerfil('{{ post.id }}')">
                     <div class="flex flex-wrap gap-1 mb-2">
                         {% for cat in post.categorias.all %}
@@ -148,8 +148,8 @@
                 <!-- Feed — só quem segue pode abrir -->
                 {% if segue or eh_proprio_perfil %}
                 <div class="rounded-xl p-5 shadow-sm border cursor-pointer hover:shadow-md transition"
-                     style="border-left: 4px solid {{ post.categorias.first.cor|default:'#8B5CF6' }};
-                            background-color: {{ post.categorias.first.cor|default:'#8B5CF6' }}10"
+                     style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
+                            background-color: {{ post.cor|default:'#8B5CF6' }}50"
                      onclick="abrirModalPerfil('{{ post.id }}')">
                     <div class="flex flex-wrap gap-1 mb-2">
                         {% for cat in post.categorias.all %}

@@ -31,7 +31,6 @@ def _pode_desistir(post):
 
 
 def _contexto_perfil(autor_perfil, usuario_logado):
-    """Monta o contexto reutilizável do card de perfil."""
     autor_logado = getattr(usuario_logado, 'autor', None) if usuario_logado.is_authenticated else None
 
     posts_publicos = Post.objects.filter(
@@ -46,16 +45,14 @@ def _contexto_perfil(autor_perfil, usuario_logado):
         Seguidor.objects.filter(seguidor=autor_logado, seguido=autor_perfil).exists()
     )
 
-    seguidores_do_usuario = set(
-        Seguidor.objects.filter(seguido=autor_logado).values_list('seguidor_id', flat=True)
-    ) if autor_logado else set()
+    eh_proprio_perfil = autor_logado == autor_perfil
 
     return {
-        'autor_perfil':        autor_perfil,
-        'posts_publicos':      posts_publicos,
-        'segue':               segue,
-        'eh_proprio_perfil':   autor_logado == autor_perfil,
-        'seguidores_do_usuario': seguidores_do_usuario,
+        'autor_perfil':      autor_perfil,
+        'posts_publicos':    posts_publicos,
+        'segue':             segue,
+        'eh_proprio_perfil': eh_proprio_perfil,
+        'total_privados':    Post.objects.filter(autor=autor_perfil,visibilidade='privado').count() if eh_proprio_perfil else 0,
     }
 
 

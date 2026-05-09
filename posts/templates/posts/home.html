@@ -25,160 +25,184 @@
 <!-- ═══════════════════════════════════════ -->
 <!-- ABA PERFIL                              -->
 <!-- ═══════════════════════════════════════ -->
+
 {% if aba == 'perfil' %}
 
-    <!-- CAPA -->
-    <div class="relative w-full h-48 rounded-2xl overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 mb-0">
-        {% if autor_perfil.foto_capa %}
-            <img src="{{ autor_perfil.foto_capa.url }}" alt="Capa" class="w-full h-full object-cover">
-        {% endif %}
-    </div>
+<div class="max-w-4xl mx-auto">
 
-    <!-- LOSANGO + STATS + AÇÕES -->
-    <div class="relative flex items-end gap-8 px-8 -mt-10 mb-6 flex-wrap">
+    <!-- CARD FLUTUANTE DO PERFIL -->
+    <div class="bg-white rounded-2xl shadow-xl overflow-visible mb-8">
 
-        <!-- Foto de perfil em losango -->
-        <div class="flex-shrink-0" style="width:100px; height:100px;">
-            <div style="width:100px; height:100px; transform:rotate(45deg); overflow:hidden;
-                        border:4px solid white; background:#e5e7eb; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
-                {% if autor_perfil.foto_perfil %}
-                    <img src="{{ autor_perfil.foto_perfil.url }}"
-                         alt="{{ autor_perfil.nome_exibicao }}"
-                         style="width:100%; height:100%; object-fit:cover; transform:rotate(-45deg) scale(1.5);">
-                {% else %}
-                    <div style="width:100%; height:100%; display:flex; align-items:center;
-                                justify-content:center; transform:rotate(-45deg);
-                                font-size:2rem; font-weight:bold; color:#6b7280;">
-                        {{ autor_perfil.nome_exibicao|first|upper }}
-                    </div>
-                {% endif %}
-            </div>
-        </div>
+        <!-- CAPA com botão editar sobreposto -->
+        <div class="relative w-full h-48 bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-2xl">
+            {% if autor_perfil.foto_capa %}
+                <img src="{{ autor_perfil.foto_capa.url }}" alt="Capa" class="w-full h-full object-cover rounded-t-2xl">
+            {% endif %}
 
-        <!-- Contadores -->
-        <div class="flex gap-6 pb-2 flex-wrap">
-            <div class="text-center">
-                <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguidores }}</p>
-                <p class="text-xs text-gray-500">Seguidores</p>
-            </div>
-            <div class="text-center">
-                <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguindo }}</p>
-                <p class="text-xs text-gray-500">Seguindo</p>
-            </div>
-            <div class="text-center">
-                <p class="text-xl font-bold text-gray-800">{{ posts_publicos|length }}</p>
-                <p class="text-xs text-gray-500">Ideias públicas</p>
-            </div>
-            <div class="text-center">
-                <p class="text-xl font-bold text-gray-800">
-                    {{ autor_perfil.posts.all|length }}
-                </p>
-                <p class="text-xs text-gray-500">Notes privados</p>
-            </div>
-        </div>
-
-        <!-- Botão editar perfil -->
-        <div class="ml-auto pb-2">
+             <!-- Botão editar perfil: canto inferior direito da capa, quase transparente -->
             <a href="#"
-               class="px-5 py-2 rounded-full text-sm font-semibold border border-gray-300
-                      text-gray-600 hover:bg-gray-50 transition">
-                ✏️ Editar perfil
-            </a>
+                class="absolute bottom-3 right-4 px-4 py-1.5 rounded-full text-xs font-semibold
+                        border border-white/40 text-white/40 bg-black/10
+                        hover:text-white hover:border-white hover:bg-black/30
+                        transition-all duration-300"> ✏️ Editar perfil </a>
         </div>
-    </div>
 
-    <!-- NOME E BIO -->
-    <div class="px-8 mb-8">
-        <h1 class="text-2xl font-bold text-gray-800">{{ autor_perfil.nome_exibicao }}</h1>
-        {% if autor_perfil.bio %}
-            <p class="text-gray-500 text-sm mt-1">{{ autor_perfil.bio }}</p>
-        {% endif %}
-    </div>
+        <!-- LOSANGO + STATS (alinhados à linha inferior da capa) -->
+    <div class="relative flex items-center px-8" style="height: 70px;">
 
-    <!-- PAINEL DE IDEIAS PÚBLICAS -->
-    <div class="px-8">
-        <h2 class="text-lg font-semibold text-gray-700 mb-4">💡 Minhas Ideias</h2>
-
-        {% if posts_publicos %}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {% for post in posts_publicos %}
-            <div class="rounded-xl p-5 shadow-sm border cursor-pointer hover:shadow-md transition"
-                 style="border-left: 4px solid {{ post.categorias.first.cor|default:'#8B5CF6' }};
-                        background-color: {{ post.categorias.first.cor|default:'#8B5CF6' }}10"
-                 onclick="abrirModal('perfil-{{ post.id }}')">
-                <div class="flex flex-wrap gap-1 mb-2">
-                    {% for cat in post.categorias.all %}
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
-                          style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
-                        {{ cat.nome }}
-                    </span>
-                    {% endfor %}
-                </div>
-                <h3 class="font-bold text-gray-800 mb-1">{{ post.titulo }}</h3>
-                <p class="text-gray-500 text-xs mb-2">{{ post.conteudo|truncatewords:15 }}</p>
-                {% if post.visibilidade == 'universo' %}
-                <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+            <!-- Losango: 50% sobreposto à capa, 50% fora -->
+            <div style="
+                position: absolute;
+                top: -65px;
+                left: 32px;
+                width: 130px;
+                height: 130px;
+                transform: rotate(45deg);
+                overflow: hidden;
+                border: 4px solid white;
+                background: #e5e7eb;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+                flex-shrink: 0;
+                z-index: 10;
+                ">
+                {% if autor_perfil.foto_perfil %}
+                 <img src="{{ autor_perfil.foto_perfil.url }}"
+                    alt="{{ autor_perfil.nome_exibicao }}"
+                    style="width:100%; height:100%; object-fit:cover; transform:rotate(-45deg) scale(1.5);">
                 {% else %}
-                <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
-                {% endif %}
-            </div>
+                <div style="width:100%; height:100%; display:flex; align-items:center;
+                        justify-content:center; transform:rotate(-45deg);
+                        font-size:2.5rem; font-weight:bold; color:#6b7280;">
+                    {{ autor_perfil.nome_exibicao|first|upper }}
+                </div>
+            {% endif %}
+    </div>
 
-            <!-- Modal do post no perfil próprio -->
-            <div id="modal-perfil-{{ post.id }}"
-                 class="fixed inset-0 backdrop-blur-sm bg-black/40 items-center justify-center z-50 hidden"
-                 onclick="fecharModalFora(event, 'perfil-{{ post.id }}')">
-                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
-                    <button onclick="fecharModal('perfil-{{ post.id }}')"
-                            class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">✕</button>
+    <!-- Stats-->
+    <div class="flex gap-8 ml-44">
+        <div class="text-center">
+            <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguidores }}</p>
+            <p class="text-xs text-gray-500">Seguidores</p>
+        </div>
+        <div class="text-center">
+            <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguindo }}</p>
+            <p class="text-xs text-gray-500">Seguindo</p>
+        </div>
+        <div class="text-center">
+            <p class="text-xl font-bold text-gray-800">{{ posts_publicos|length }}</p>
+            <p class="text-xs text-gray-500">Ideias públicas</p>
+        </div>
+        <div class="text-center">
+    <p class="text-xl font-bold text-gray-800">{{ total_privados }}</p>
+    <p class="text-xs text-gray-500">Notes privados</p>
+</div>
+    </div>
+</div>
 
-                    <div class="flex flex-wrap gap-2 mb-4">
+        <!-- NOME E BIO abaixo do losango -->
+        <div class="px-8 pt-10 pb-6">
+            <h1 class="text-2xl font-bold text-gray-800">{{ autor_perfil.nome_exibicao }}</h1>
+            {% if autor_perfil.bio %}
+                <p class="text-gray-500 text-sm mt-1">({{ autor_perfil.bio }})</p>
+            {% else %}
+                <p class="text-gray-300 text-sm mt-1 italic">(sem bio)</p>
+            {% endif %}
+        </div>
+
+
+        <!-- DIVISOR -->
+        <div class="border-t border-gray-100 mx-8"></div>
+
+        <!-- PAINEL DE IDEIAS -->
+        <div class="px-8 py-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">💡 Minhas Ideias</h2>
+
+            {% if posts_publicos %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for post in posts_publicos %}
+                <div class="rounded-xl p-5 shadow-md cursor-pointer hover:shadow-md transition"
+                     style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
+                            background-color: {{ post.cor|default:'#8B5CF6' }}50"
+                     onclick="abrirModal('perfil-{{ post.id }}')">
+                    <div class="flex flex-wrap gap-1 mb-2">
                         {% for cat in post.categorias.all %}
-                        <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
                               style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
                             {{ cat.nome }}
                         </span>
                         {% endfor %}
                     </div>
-
-                    <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
-
-                    <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
-                        <span>✍️ {{ post.autor.nome_exibicao }}</span>
-                        <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
-                    </div>
-
-                    {% if post.autor_original %}
-                    <p class="text-xs text-gray-400 mb-4">
-                        💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
-                    </p>
+                    <h3 class="font-bold text-gray-800 mb-1">{{ post.titulo }}</h3>
+                    <p class="text-gray-500 text-xs mb-2">{{ post.conteudo|truncatewords:15 }}</p>
+                    {% if post.visibilidade == 'universo' %}
+                    <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+                    {% else %}
+                    <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
                     {% endif %}
+                </div>
 
-                    <div class="text-gray-700 leading-relaxed mb-6">{{ post.conteudo }}</div>
+                <!-- Modal do post no perfil -->
+                <div id="modal-perfil-{{ post.id }}"
+                     class="fixed inset-0 backdrop-blur-sm bg-black/40 items-center justify-center z-50 hidden"
+                     onclick="fecharModalFora(event, 'perfil-{{ post.id }}')">
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
+                        <button onclick="fecharModal('perfil-{{ post.id }}')"
+                                class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">✕</button>
 
-                    <div class="border-t pt-4 flex justify-between items-center">
-                        <a href="{% url 'editar_post' post.id %}"
-                           class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
-                            ✏️ Editar
-                        </a>
-                        {% if post.visibilidade == 'universo' %}
-                        <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
-                        {% else %}
-                        <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            {% for cat in post.categorias.all %}
+                            <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                                  style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                                {{ cat.nome }}
+                            </span>
+                            {% endfor %}
+                        </div>
+
+                        <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
+
+                        <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
+                            <span>✍️ {{ post.autor.nome_exibicao }}</span>
+                            <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+                        </div>
+
+                        {% if post.autor_original %}
+                        <p class="text-xs text-gray-400 mb-4">
+                            💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
+                        </p>
                         {% endif %}
+
+                        <div class="text-gray-700 leading-relaxed mb-6">{{ post.conteudo }}</div>
+
+                        <div class="border-t pt-4 flex justify-between items-center">
+                            <a href="{% url 'editar_post' post.id %}"
+                               class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
+                                ✏️ Editar
+                            </a>
+                            {% if post.visibilidade == 'universo' %}
+                            <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+                            {% else %}
+                            <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
 
-        {% else %}
-        <div class="text-center text-gray-400 py-16">
-            <p class="text-4xl mb-3">💡</p>
-            <p class="font-semibold">Nenhuma ideia pública ainda.</p>
-            <p class="text-sm mt-1">Envie um note para o Feed ou Campo das Ideias!</p>
+            {% else %}
+            <div class="text-center text-gray-400 py-16">
+                <p class="text-4xl mb-3">💡</p>
+                <p class="font-semibold">Nenhuma ideia pública ainda.</p>
+                <p class="text-sm mt-1">Envie um note para o Feed ou Campo das Ideias!</p>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
+        <!-- FIM PAINEL DE IDEIAS -->
+
     </div>
+    <!-- FIM DO CARD FLUTUANTE -->
+
+</div>
 
 {% else %}
 
@@ -201,8 +225,8 @@
 
     <!-- CARD -->
     <div onclick="abrirModal('{{ aba }}-{{ post.id }}')"
-         style="border-left: 4px solid {{ post.categorias.first.cor|default:'#8B5CF6' }};
-                background-color: {{ post.categorias.first.cor|default:'#8B5CF6' }}15"
+         style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
+                background-color: {{ post.cor|default:'#8B5CF6' }}50"
          class="rounded-xl shadow-md hover:shadow-lg transition p-6 flex flex-col justify-between cursor-pointer relative">
 
         {% if post.procura_moderador %}
