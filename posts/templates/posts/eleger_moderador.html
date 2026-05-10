@@ -1,0 +1,161 @@
+{% extends 'posts/base.html' %}
+{% block titulo %}Eleger Moderador — {{ post.titulo }}{% endblock %}
+
+{% block conteudo %}
+<div class="max-w-2xl mx-auto">
+
+    <a href="/?aba=universo"
+       class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition">
+        ← Voltar
+    </a>
+
+    <h1 class="text-2xl font-bold text-gray-800 mb-1">👥 Eleger Moderador</h1>
+    <p class="text-sm text-gray-500 mb-6">
+        Escolha um dos seus seguidores para moderar
+        <strong>{{ post.titulo }}</strong>.
+    </p>
+
+    {% if erro %}
+    <div class="mb-4 bg-red-50 border border-red-300 text-red-700 text-sm px-4 py-3 rounded-xl">
+        ⚠️ {{ erro }}
+    </div>
+    {% endif %}
+
+    <!-- Busca -->
+    <form method="GET" class="mb-6">
+        <div class="flex gap-2">
+            <input type="text"
+                   name="q"
+                   value="{{ busca }}"
+                   placeholder="Buscar seguidor pelo nome..."
+                   class="flex-1 border border-gray-300 rounded-xl px-4 py-2 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            <button type="submit"
+                    class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm
+                           font-semibold hover:bg-indigo-700 transition">
+                Buscar
+            </button>
+            {% if busca %}
+            <a href="{% url 'pagina_eleger_moderador' post.id %}"
+               class="px-4 py-2 rounded-xl text-sm border border-gray-300
+                      text-gray-600 hover:bg-gray-50 transition">
+                Limpar
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Lista de seguidores -->
+    {% if seguidores %}
+    <div class="space-y-3">
+        {% for seguidor in seguidores %}
+        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    {% if seguidor.foto_perfil %}
+                    <img src="{{ seguidor.foto_perfil.url }}"
+                         alt="{{ seguidor.nome_exibicao }}"
+                         class="w-10 h-10 rounded-full object-cover">
+                    {% else %}
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center
+                                justify-center font-bold text-indigo-600">
+                        {{ seguidor.nome_exibicao|first|upper }}
+                    </div>
+                    {% endif %}
+                    <div>
+                        <p class="font-semibold text-gray-800 text-sm">{{ seguidor.nome_exibicao }}</p>
+                        <p class="text-xs text-gray-400">@{{ seguidor.usuario.username }}</p>
+                    </div>
+                </div>
+                <button onclick="abrirPainel('{{ seguidor.id }}')"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs
+                               px-4 py-2 rounded-full transition font-semibold">
+                    Eleger
+                </button>
+            </div>
+
+            <!-- Painel de privilégios (oculto até clicar em Eleger) -->
+            <div id="painel-{{ seguidor.id }}" class="hidden mt-4 border-t pt-4">
+                <p class="text-sm font-semibold text-gray-700 mb-3">
+                    Escolha o nível de acesso para <strong>{{ seguidor.nome_exibicao }}</strong>:
+                </p>
+                <form method="POST" action="{% url 'pagina_eleger_moderador' post.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="candidato_id" value="{{ seguidor.id }}">
+
+                    <div class="space-y-2 mb-4">
+                        {% for valor, rotulo in privilegios %}
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="radio"
+                                   name="privilegio"
+                                   value="{{ valor }}"
+                                   {% if valor == 'somente_edicao' %}checked{% endif %}
+                                   class="mt-0.5 accent-indigo-600">
+                            <div>
+                                <span class="text-sm font-medium text-gray-800
+                                             group-hover:text-indigo-700 transition">
+                                    {{ rotulo }}
+                                </span>
+                                {% if valor == 'novo_dono' %}
+                                <p class="text-xs text-red-500 mt-0.5">
+                                    ⚠️ Transfere a autoria permanentemente. Você vira autor original.
+                                </p>
+                                {% elif valor == 'edicao_e_moderacao' %}
+                                <p class="text-xs text-gray-400 mt-0.5">
+                                    Pode editar o post e moderar comentários.
+                                </p>
+                                {% elif valor == 'somente_edicao' %}
+                                <p class="text-xs text-gray-400 mt-0.5">
+                                    Pode apenas editar o conteúdo do post.
+                                </p>
+                                {% endif %}
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button type="button"
+                                onclick="fecharPainel('{{ seguidor.id }}')"
+                                class="flex-1 border border-gray-300 text-gray-600 text-sm
+                                       py-2 rounded-xl hover:bg-gray-50 transition">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                                class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white
+                                       text-sm py-2 rounded-xl font-semibold transition">
+                            Confirmar eleição
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="text-center text-gray-400 py-16">
+        <p class="text-4xl mb-3">🔍</p>
+        {% if busca %}
+        <p class="font-semibold">Nenhum seguidor encontrado para "{{ busca }}".</p>
+        {% else %}
+        <p class="font-semibold">Você ainda não tem seguidores elegíveis.</p>
+        <p class="text-sm mt-1">Apenas seguidores que ainda não são moderadores aparecem aqui.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+function abrirPainel(id) {
+    // Fecha qualquer painel aberto antes de abrir o novo
+    document.querySelectorAll('[id^="painel-"]').forEach(el => el.classList.add('hidden'));
+    document.getElementById('painel-' + id).classList.remove('hidden');
+}
+
+function fecharPainel(id) {
+    document.getElementById('painel-' + id).classList.add('hidden');
+}
+</script>
+{% endblock %}

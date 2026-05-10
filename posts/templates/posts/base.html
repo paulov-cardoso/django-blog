@@ -11,6 +11,7 @@
 
     {% tailwind_css %}
   </head>
+
   <body class="{% block body_class %}bg-gray-100{% endblock %} min-h-screen flex flex-col">
     {% block nav %}
     <nav
@@ -95,7 +96,100 @@
     </main>
 
     <footer class="{% block footer_class %}bg-gradient-to-r from-blue-900 via-purple-600 to-orange-500{% endblock %} text-white text-center py-4 text-sm">
-    <p>© 2026 Meu Blognotes — Feito com Django + Tailwind</p>
-</footer>
+        <p>© Copyright 2026 Meu Blognotes — Feito com Django + Tailwind</p>
+    </footer>
+
+
+
+   <!-- TOAST DE PUBLICAÇÃO E TRANSFERENCIA -->
+<div id="toast-overlay"
+     class="fixed inset-0 z-[999999] flex items-center justify-center
+            pointer-events-none opacity-0 transition-opacity duration-300"
+     style="background: rgba(0,0,0,0);">
+
+    <div id="toast-prg"
+         class="flex flex-col items-center gap-3 px-10 py-8 rounded-3xl shadow-2xl
+                bg-white border border-gray-100
+                translate-y-6 transition-all duration-500 opacity-0"
+         style="min-width: 280px;">
+
+        <div id="toast-lampada" class="text-6xl select-none" aria-hidden="true">💡</div>
+        <span id="toast-texto" class="text-base font-semibold text-gray-800 text-center"></span>
+    </div>
+</div>
+
+<style>
+@keyframes lampada-liga {
+    0%   { filter: drop-shadow(0 0 0px transparent);    transform: scale(1);    }
+    20%  { filter: drop-shadow(0 0 2px #fbbf24);        transform: scale(1.05); }
+    40%  { filter: drop-shadow(0 0 0px transparent);    transform: scale(1);    }
+    60%  { filter: drop-shadow(0 0 8px #fde68a);        transform: scale(1.08); }
+    75%  { filter: drop-shadow(0 0 18px #fcd34d);       transform: scale(1.12); }
+    100% { filter: drop-shadow(0 0 24px #fbbf24);       transform: scale(1.1);  }
+}
+
+#toast-lampada.ligando {
+    animation: lampada-liga 0.7s ease-out forwards;
+}
+</style>
+
+<script>
+(function () {
+    const MENSAGENS = {
+        note_criado:      { texto: 'Seu note foi criado!'                      },
+        ideia_feed:       { texto: 'Ideia enviada para o Feed!'                },
+        ideia_universo:   { texto: 'Ideia jogada para o Campo das Ideias!'     },
+        ideia_privada:    { texto: 'Ideia retirada para seus Notes privados.'  },
+        desistiu:         { texto: 'Você desistiu da ideia.'                   },
+        moderador_eleito: { texto: 'Moderador eleito com sucesso!'             },
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const chave  = params.get('msg');
+    const config = MENSAGENS[chave];
+    if (!config) return;
+
+    // Limpa ?msg= da URL sem recarregar
+    params.delete('msg');
+    const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
+    history.replaceState(null, '', novaUrl);
+
+    const overlay  = document.getElementById('toast-overlay');
+    const toast    = document.getElementById('toast-prg');
+    const lampada  = document.getElementById('toast-lampada');
+    const textoEl  = document.getElementById('toast-texto');
+
+    textoEl.textContent = config.texto;
+
+    // Fase 1 — aparece o overlay escurecendo o fundo
+    overlay.style.background     = 'rgba(0,0,0,0)';
+    overlay.style.pointerEvents  = 'all';
+    overlay.classList.remove('opacity-0');
+
+    requestAnimationFrame(() => {
+        overlay.style.transition   = 'background 0.4s ease';
+        overlay.style.background   = 'rgba(0,0,0,0.45)';
+
+        // Fase 2 — toast sobe e aparece
+        toast.classList.remove('opacity-0', 'translate-y-6');
+
+        // Fase 3 — animação da lâmpada (levemente atrasada para coincidir com o toast visível)
+        setTimeout(() => lampada.classList.add('ligando'), 200);
+    });
+
+    // Saída após 2.5s
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-6');
+        overlay.style.background  = 'rgba(0,0,0,0)';
+
+        setTimeout(() => {
+            overlay.style.pointerEvents = 'none';
+            overlay.classList.add('opacity-0');
+        }, 500);
+    }, 2500);
+})();
+</script>
+
+
   </body>
 </html>

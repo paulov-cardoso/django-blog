@@ -93,17 +93,26 @@ class ModeradorPost(models.Model):
         ('dono',      'Dono'),
     ]
 
-    post  = models.ForeignKey(Post,  on_delete=models.CASCADE, related_name='moderadores')
-    autor = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='moderacoes')
-    papel = models.CharField(max_length=20, choices=PAPEL_CHOICES, default='moderador')
-    ativo = models.BooleanField(default=True)
-    data  = models.DateTimeField(auto_now_add=True)
+    PRIVILEGIO_CHOICES = [
+        ('novo_dono',                   'Novo dono da ideia'),
+        ('edicao_e_moderacao',          'Edição e moderação de comentários'),
+        ('somente_edicao',              'Somente edição'),
+    ]
+
+    post      = models.ForeignKey(Post,  on_delete=models.CASCADE, related_name='moderadores')
+    autor     = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='moderacoes')
+    papel     = models.CharField(max_length=20, choices=PAPEL_CHOICES, default='moderador')
+    privilegio = models.CharField(
+        max_length=30, choices=PRIVILEGIO_CHOICES, default='somente_edicao'
+    )
+    ativo     = models.BooleanField(default=True)
+    data      = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ('post', 'autor')
 
     def __str__(self):
-        return f"{self.autor} — {self.papel} em '{self.post}'"
+        return f"{self.autor} — {self.papel} ({self.privilegio}) em '{self.post}'"
 
 
 class CandidaturaModerador(models.Model):
