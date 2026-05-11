@@ -70,9 +70,35 @@ class Post(models.Model):
     def tem_interacoes(self):
         # TODO Fase 8: adicionar checagem de 3+ comentadores distintos
         return self.candidaturas.filter(status='aceito').exists()
+    
+    @property
+    def total_curtidas(self):
+        return self.reacoes.filter(tipo='curtida').count()
+
+    @property
+    def total_clips(self):
+        return self.reacoes.filter(tipo='clip').count()
 
     def __str__(self):
         return self.titulo
+    
+
+class PostReacao(models.Model):
+    TIPO_CHOICES = [
+        ('curtida', 'Curtida'),
+        ('clip',    'Clip'),      # "salvar para acompanhar de perto"
+    ]
+
+    post   = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='reacoes')
+    autor  = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='reacoes')
+    tipo   = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    data   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('post', 'autor', 'tipo')
+
+    def __str__(self):
+        return f"{self.autor} → {self.tipo} em '{self.post}'"
 
 
 class Seguidor(models.Model):

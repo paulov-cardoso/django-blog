@@ -3,8 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.auth import login
 from django.contrib import messages
-
-from .models import Post, Autor, ModeradorPost, CandidaturaModerador, Seguidor
+from django.db.models import Q
+from .models import Post, Autor, ModeradorPost, CandidaturaModerador, Seguidor, PostReacao
 from .forms import PostForm, RegistroForm
 
 
@@ -125,7 +125,8 @@ def home(request):
         posts = Post.objects.filter(
             publicado=True,
             visibilidade='feed',
-            autor_id__in=seguindo_ids,
+        ).filter(
+            Q(autor=autor) | Q(autor_id__in=seguindo_ids)
         ).order_by('-data_criacao')
 
     elif aba == 'universo':
@@ -223,6 +224,12 @@ def jogar_para_universo(request, post_id):
 
 # ── editar post ───────────────────────────────────────────────────────────────
 
+_ABA_POR_VISIBILIDADE = {
+    'privado':  'meus_notes',
+    'feed':     'feed',
+    'universo': 'universo',
+}
+
 @login_required
 def editar_post(request, post_id):
     post = get_object_or_404(Post, id=post_id)
@@ -237,7 +244,8 @@ def editar_post(request, post_id):
             post.cor = request.POST.get('cor', post.cor)
             post.save()
             form.save_m2m()
-            return redirect('home')
+            aba = _ABA_POR_VISIBILIDADE.get(post.visibilidade, 'meus_notes')
+            return redirect(f'/?aba={aba}&msg=ideia_editada')
     else:
         form = PostForm(instance=post)
 
@@ -269,6 +277,30 @@ def detalhe_post(request, post_id):
         'ja_candidatou':          ja_candidatou,
         'bloqueio_retirar_feed':  post.visibilidade == 'universo' and post.tem_interacoes,
     })
+
+# ── curtir / clipar post ──────────────────────────────────────────────────────
+
+@login_required
+def reagir_post(request, post_id, tipo):
+    if request.method != 'POST':
+        return redirect('home')
+
+    TIPOS_VALIDOS = {'curtida', 'clip'}
+    if tipo not in TIPOS_VALIDOS:
+        return redirect('home')
+
+    post  = get_object_or_404(Post, id=post_id, publicado=True)
+    autor = request.user.autor
+
+    reacao = PostReacao.objects.filter(post=post, autor=autor, tipo=tipo)
+    if reacao.exists():
+        reacao.delete()   # toggle: desfaz se já reagiu
+    else:
+        PostReacao.objects.create(post=post, autor=autor, tipo=tipo)
+
+    # Retorna para a aba de origem passada via hidden input
+    aba = request.POST.get('aba', 'feed')
+    return redirect(f'/?aba={aba}')
 
 
 # ── desistir da ideia ─────────────────────────────────────────────────────────

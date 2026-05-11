@@ -136,12 +136,13 @@
 <script>
 (function () {
     const MENSAGENS = {
-        note_criado:      { texto: 'Seu note foi criado!'                      },
-        ideia_feed:       { texto: 'Ideia enviada para o Feed!'                },
-        ideia_universo:   { texto: 'Ideia jogada para o Campo das Ideias!'     },
-        ideia_privada:    { texto: 'Ideia retirada para seus Notes privados.'  },
-        desistiu:         { texto: 'Você desistiu da ideia.'                   },
-        moderador_eleito: { texto: 'Moderador eleito com sucesso!'             },
+    note_criado:     { icon: '💡', texto: 'Seu note foi criado!' },
+    ideia_editada:   { icon: '✏️', texto: 'Ideia editada com sucesso!' },
+    ideia_feed:      { icon: '👥', texto: 'Ideia enviada para o Feed!' },
+    ideia_universo:  { icon: '🌍', texto: 'Ideia jogada para o Campo das Ideias!' },
+    ideia_privada:   { icon: '🔒', texto: 'Ideia retirada para seus Notes privados.' },
+    moderador_eleito:{ icon: '🤝', texto: 'Moderador eleito com sucesso!' },
+    desistiu:        { icon: '😔', texto: 'Você desistiu da ideia.' },
     };
 
     const params = new URLSearchParams(window.location.search);
