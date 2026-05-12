@@ -79,27 +79,82 @@
 
 <!-- Senha -->
 <div class="relative mb-6">
-    <input type="password" name="password1" placeholder="Senha" required
-           class="w-full h-12 bg-transparent border-2 {% if form.password1.errors %}border-red-400{% else %}border-white/20{% endif %} rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light peer"
+    <input type="password" id="campo-senha" name="password1"
+           placeholder="Senha" required
+           autocomplete="new-password"
+           class="w-full h-12 bg-transparent border-2 {% if form.password1.errors %}border-red-400{% else %}border-white/20{% endif %}
+                  rounded-full text-white placeholder-white px-5 pr-20
+                  focus:outline-none focus:border-white/60 transition font-light"
            style="font-family: 'Poppins', sans-serif;"/>
-    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
-    <div class="hidden peer-focus:block absolute left-0 -top-10 bg-white/20 backdrop-blur-sm text-white text-xs rounded-lg px-3 py-2 w-full text-center">
-        Mínimo 8 caracteres. Não use senhas muito comuns.
-    </div>
+
+    <!-- Botão ver senha -->
+    <button type="button" onclick="toggleSenha('campo-senha', 'olho-1')"
+            class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50
+                   hover:text-white transition select-none text-lg"
+            tabindex="-1">
+        <span id="olho-1">🙈</span>
+    </button>
+
     {% if form.password1.errors %}
     <p class="text-red-300 text-xs mt-2 px-4">⚠️ {{ form.password1.errors.0 }}</p>
     {% endif %}
+
+    <!-- Validator flutuante -->
+    <div id="password-validator"
+         class="hidden absolute left-0 top-14 w-full z-50
+                rounded-2xl border border-white/20 px-5 py-4"
+         style="background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px);">
+
+        <p class="text-black/70 text-xs font-semibold mb-3 uppercase tracking-wider">
+            Força da senha
+        </p>
+
+        <div class="space-y-2">
+            <div class="flex items-center gap-2">
+                <span id="check-maiuscula" class="text-lg transition-all duration-300">❌</span>
+                <span class="text-black/70 text-xs">Letras maiúsculas e minúsculas</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="check-numero" class="text-lg transition-all duration-300">❌</span>
+                <span class="text-black/70 text-xs">Números</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="check-especial" class="text-lg transition-all duration-300">❌</span>
+                <span class="text-black/70 text-xs">Caracteres especiais (!@#$...)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="check-tamanho" class="text-lg transition-all duration-300">❌</span>
+                <span class="text-black/70 text-xs">Mínimo de 8 dígitos</span>
+            </div>
+        </div>
+
+        <!-- Barra de força -->
+        <div class="mt-4 h-1.5 rounded-full bg-black/10 overflow-hidden">
+            <div id="barra-forca"
+                 class="h-full rounded-full transition-all duration-500"
+                 style="width: 0%; background: #ef4444;"></div>
+        </div>
+        <p id="texto-forca" class="text-xs mt-1 text-black/50 text-right"></p>
+    </div>
 </div>
 
 <!-- Confirmar Senha -->
 <div class="relative mb-8">
-    <input type="password" name="password2" placeholder="Confirme a senha" required
-           class="w-full h-12 bg-transparent border-2 {% if form.password2.errors %}border-red-400{% else %}border-white/20{% endif %} rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light peer"
+    <input type="password" id="campo-confirma" name="password2"
+           placeholder="Confirme a senha" required
+           autocomplete="new-password"
+           class="w-full h-12 bg-transparent border-2 {% if form.password2.errors %}border-red-400{% else %}border-white/20{% endif %}
+                  rounded-full text-white placeholder-white px-5 pr-20
+                  focus:outline-none focus:border-white/60 transition font-light"
            style="font-family: 'Poppins', sans-serif;"/>
-    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
-    <div class="hidden peer-focus:block absolute left-0 -top-8 bg-white/20 backdrop-blur-sm text-white text-xs rounded-lg px-3 py-2 w-full text-center">
-        Digite a mesma senha novamente
-    </div>
+
+    <button type="button" onclick="toggleSenha('campo-confirma', 'olho-2')"
+            class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50
+                   hover:text-white transition select-none text-lg"
+            tabindex="-1">
+        <span id="olho-2">🙈</span>
+    </button>
+
     {% if form.password2.errors %}
     <p class="text-red-300 text-xs mt-2 px-4">⚠️ {{ form.password2.errors.0 }}</p>
     {% endif %}
@@ -128,38 +183,105 @@
 
 </div>
 
-<script>
-    const texto = "Comece a guardar suas ideias agora mesmo";
-    let i = 0;
-    let digitando = true;
 
-    function typeWriter() {
-        const slogan = document.getElementById('slogan');
-        if (digitando) {
-            if (i < texto.length) {
-                slogan.textContent += texto.charAt(i);
-                i++;
-                setTimeout(typeWriter, 60);
-            } else {
-                setTimeout(() => { digitando = false; typeWriter(); }, 2000);
-            }
+<script>
+
+// ── toggle ver/ocultar senha ──────────────────────────────────────────────────
+function toggleSenha(campoId, olhoId) {
+    const campo = document.getElementById(campoId);
+    const olho  = document.getElementById(olhoId);
+    const visivel = campo.type === 'text';
+    campo.type    = visivel ? 'password' : 'text';
+    olho.textContent = visivel ? '🙈' : '👁️';
+}
+
+// ── password validator ────────────────────────────────────────────────────────
+const campoSenha  = document.getElementById('campo-senha');
+const validator   = document.getElementById('password-validator');
+
+const REGRAS = [
+    { id: 'check-maiuscula', ok: v => /[a-z]/.test(v) && /[A-Z]/.test(v) },
+    { id: 'check-numero',    ok: v => /[0-9]/.test(v) },
+    { id: 'check-especial',  ok: v => /[^a-zA-Z0-9]/.test(v) },
+    { id: 'check-tamanho',   ok: v => v.length >= 8 },
+];
+
+const NIVEIS = [
+    { cor: '#ef4444', texto: 'Fraca' },
+    { cor: '#f97316', texto: 'Razoável' },
+    { cor: '#eab308', texto: 'Boa' },
+    { cor: '#22c55e', texto: 'Forte' },
+];
+
+function atualizarValidator(valor) {
+    let aprovados = 0;
+
+    REGRAS.forEach(regra => {
+        const el     = document.getElementById(regra.id);
+        const passou = regra.ok(valor);
+        if (passou) {
+            aprovados++;
+            // lâmpada ligando: adiciona brilho via CSS inline
+            el.textContent = '💡';
+            el.style.filter = 'drop-shadow(0 0 6px #fcd34d)';
         } else {
-            if (i > 0) {
-                slogan.textContent = texto.substring(0, i - 1);
-                i--;
-                setTimeout(typeWriter, 30);
-            } else {
-                setTimeout(() => { digitando = true; typeWriter(); }, 500);
-            }
+            el.textContent = '❌';
+            el.style.filter = 'none';
+        }
+    });
+
+    const nivel = aprovados === 0 ? 0 : aprovados - 1;
+    const barra = document.getElementById('barra-forca');
+    const texto = document.getElementById('texto-forca');
+
+    barra.style.width      = `${aprovados * 25}%`;
+    barra.style.background = NIVEIS[nivel].cor;
+    texto.textContent      = valor.length > 0 ? NIVEIS[nivel].texto : '';
+}
+
+campoSenha.addEventListener('focus', () => {
+    validator.classList.remove('hidden');
+});
+
+campoSenha.addEventListener('blur', () => {
+    // Fecha só se o clique não foi dentro do validator
+    setTimeout(() => validator.classList.add('hidden'), 150);
+});
+
+campoSenha.addEventListener('input', e => {
+    atualizarValidator(e.target.value);
+});
+
+// ── typewriter ────────────────────────────────────────────────────────────────
+const texto = "Comece a guardar suas ideias agora mesmo";
+let i = 0;
+let digitando = true;
+
+function typeWriter() {
+    const slogan = document.getElementById('slogan');
+    if (digitando) {
+        if (i < texto.length) {
+            slogan.textContent += texto.charAt(i++);
+            setTimeout(typeWriter, 60);
+        } else {
+            setTimeout(() => { digitando = false; typeWriter(); }, 2000);
+        }
+    } else {
+        if (i > 0) {
+            slogan.textContent = texto.substring(0, --i);
+            setTimeout(typeWriter, 30);
+        } else {
+            setTimeout(() => { digitando = true; typeWriter(); }, 500);
         }
     }
+}
 
-    setInterval(() => {
-        const cursor = document.getElementById('cursor');
-        cursor.style.opacity = cursor.style.opacity === '0' ? '1' : '0';
-    }, 500);
+setInterval(() => {
+    const cursor = document.getElementById('cursor');
+    cursor.style.opacity = cursor.style.opacity === '0' ? '1' : '0';
+}, 500);
 
-    typeWriter();
+typeWriter();
 </script>
 
 {% endblock %}

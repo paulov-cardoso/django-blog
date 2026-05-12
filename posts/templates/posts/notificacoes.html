@@ -1,0 +1,57 @@
+{% extends 'posts/base.html' %}
+{% block titulo %}Notificações{% endblock %}
+
+{% block conteudo %}
+<div class="max-w-xl mx-auto">
+
+    <h1 class="text-2xl font-bold text-gray-800 mb-1">
+        {% if canal == 'sino' %}🔔 Notificações{% else %}✉️ Colaborações e Moderação{% endif %}
+    </h1>
+    <p class="text-sm text-gray-400 mb-6">
+        {% if canal == 'sino' %}Curtidas, clips e comentários{% else %}Candidaturas e eleições de moderador{% endif %}
+    </p>
+
+    {% if itens %}
+    <div class="space-y-3">
+        {% for n in itens %}
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4
+                    flex items-start gap-4 {% if not n.lida %}border-l-4 border-l-indigo-400{% endif %}">
+            <div class="text-2xl mt-0.5">
+                {% if n.tipo == 'curtida' %}❤️
+                {% elif n.tipo == 'clip' %}📌
+                {% elif n.tipo == 'comentario' %}💬
+                {% elif n.tipo == 'candidatura' %}🙋
+                {% elif n.tipo == 'eleicao' %}🤝
+                {% elif n.tipo == 'recusa' %}❌
+                {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm text-gray-800">
+                    {% if n.remetente %}
+                    <strong>{{ n.remetente.nome_exibicao }}</strong>
+                    {% endif %}
+                    {% if n.tipo == 'curtida' %}curtiu sua ideia{% endif %}
+                    {% if n.tipo == 'clip' %}clipou sua ideia{% endif %}
+                    {% if n.tipo == 'comentario' %}comentou na sua ideia{% endif %}
+                    {% if n.tipo == 'candidatura' %}se candidatou a moderador{% endif %}
+                    {% if n.tipo == 'eleicao' %}te elegeu como moderador{% endif %}
+                    {% if n.tipo == 'recusa' %}recusou sua candidatura{% endif %}
+                    {% if n.post %}
+                    em <strong>{{ n.post.titulo|truncatechars:40 }}</strong>
+                    {% endif %}
+                </p>
+                <p class="text-xs text-gray-400 mt-1">{{ n.data|timesince }} atrás</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="text-center text-gray-400 py-20">
+        <p class="text-5xl mb-3">{% if canal == 'sino' %}🔔{% else %}✉️{% endif %}</p>
+        <p class="font-semibold">Nenhuma notificação ainda.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

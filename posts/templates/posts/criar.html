@@ -23,6 +23,8 @@
   <form method="POST">
     {% csrf_token %}
 
+    <input type="hidden" name="visibilidade" value="{{ visibilidade }}">
+
     <div class="mb-4">
       <label class="block text-sm font-semibold text-gray-600 mb-1">Título</label>
       {{ form.titulo }}

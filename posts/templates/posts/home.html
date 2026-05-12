@@ -2,25 +2,97 @@
 {% block titulo %}Blognotes{% endblock %}
 {% block conteudo %}
 
-<!-- ABAS DE NAVEGAÇÃO -->
-<div class="flex justify-center border-b border-gray-200 mb-8">
-    <a href="/?aba=perfil"
-       class="px-6 py-3 text-sm font-semibold transition border-b-2 {% if aba == 'perfil' %}border-indigo-600 text-indigo-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-        👤 Perfil
-    </a>
-    <a href="/?aba=meus_notes"
-       class="px-6 py-3 text-sm font-semibold transition border-b-2 {% if aba == 'meus_notes' %}border-blue-600 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-        📓 Meus Notes
-    </a>
-    <a href="/?aba=feed"
-       class="px-6 py-3 text-sm font-semibold transition border-b-2 {% if aba == 'feed' %}border-purple-600 text-purple-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-        👥 Feed de Ideias
-    </a>
-    <a href="/?aba=universo"
-       class="px-6 py-3 text-sm font-semibold transition border-b-2 {% if aba == 'universo' %}border-orange-500 text-orange-500{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-        🌍 Campo das Ideias
-    </a>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- ABAS DE NAVEGAÇÃO                       -->
+<!-- ═══════════════════════════════════════ -->
+
+
+<div id="barra-abas"
+     class="sticky top-[72px] z-30 bg-white/80 backdrop-blur-md
+            border-b border-gray-200 transition-all duration-300 
+            -mx-4 px-4 mb-8">
+
+    <div class="max-w-5xl mx-auto flex justify-center">
+
+        {% with aba_atual=aba|default:'perfil' %}
+
+        <a href="/?aba=perfil"
+           class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
+                  transition-all duration-300 flex flex-col items-center gap-0.5
+                  {% if aba_atual == 'perfil' %}text-indigo-600{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+            <span class="text-base leading-none">👤</span>
+            <span class="aba-label transition-all duration-300">Perfil</span>
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
+                         {% if aba_atual == 'perfil' %}bg-indigo-600 scale-x-100{% else %}bg-indigo-600 scale-x-0 group-hover:scale-x-75{% endif %}
+                         origin-center"></span>
+        </a>
+
+        <a href="/?aba=meus_notes"
+           class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
+                  transition-all duration-300 flex flex-col items-center gap-0.5
+                  {% if aba_atual == 'meus_notes' %}text-blue-600{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+            <span class="text-base leading-none">📓</span>
+            <span class="aba-label transition-all duration-300">Meus Notes</span>
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
+                         {% if aba_atual == 'meus_notes' %}bg-blue-600 scale-x-100{% else %}bg-blue-600 scale-x-0 group-hover:scale-x-75{% endif %}
+                         origin-center"></span>
+        </a>
+
+        <a href="/?aba=feed"
+           class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
+                  transition-all duration-300 flex flex-col items-center gap-0.5
+                  {% if aba_atual == 'feed' %}text-purple-600{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+            <span class="text-base leading-none">👥</span>
+            <span class="aba-label transition-all duration-300">Feed de Ideias</span>
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
+                         {% if aba_atual == 'feed' %}bg-purple-600 scale-x-100{% else %}bg-purple-600 scale-x-0 group-hover:scale-x-75{% endif %}
+                         origin-center"></span>
+        </a>
+
+        <a href="/?aba=universo"
+           class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
+                  transition-all duration-300 flex flex-col items-center gap-0.5
+                  {% if aba_atual == 'universo' %}text-orange-500{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+            <span class="text-base leading-none">🌍</span>
+            <span class="aba-label transition-all duration-300">Campo das Ideias</span>
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
+                         {% if aba_atual == 'universo' %}bg-orange-500 scale-x-100{% else %}bg-orange-500 scale-x-0 group-hover:scale-x-75{% endif %}
+                         origin-center"></span>
+        </a>
+
+        {% endwith %}
+    </div>
 </div>
+
+<style>
+.barra-compacta .aba-label {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+}
+.barra-compacta .aba-nav {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+</style>
+
+<script>
+(function () {
+    const barra = document.getElementById('barra-abas');
+    if (!barra) return;
+    let ultimo = 0;
+    window.addEventListener('scroll', () => {
+        const atual = window.scrollY;
+        if (atual > 60 && atual > ultimo) {
+            barra.classList.add('barra-compacta');
+        } else {
+            barra.classList.remove('barra-compacta');
+        }
+        ultimo = atual;
+    }, { passive: true });
+})();
+</script>
 
 <!-- ═══════════════════════════════════════ -->
 <!-- ABA PERFIL                              -->
@@ -238,8 +310,19 @@
 
         <div class="text-xs text-gray-400 flex justify-between items-center mt-4">
             <span>✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}</span>
-            <span>📅 {{ post.data_criacao|date:"d/m/Y" }}</span>
+            <div class="flex items-center gap-2">
+                <span>📅 {{ post.data_criacao|date:"d/m/Y" }}</span>
+                <span class="px-2 py-0.5 rounded-full font-semibold
+                        {% if post.visibilidade == 'privado' %}bg-gray-100 text-gray-500
+                        {% elif post.visibilidade == 'feed' %}bg-purple-50 text-purple-600
+                        {% else %}bg-orange-50 text-orange-500{% endif %}">
+                    {% if post.visibilidade == 'privado' %}🔒 Privado
+                    {% elif post.visibilidade == 'feed' %}👥 Feed
+                    {% else %}🌍 Campo{% endif %}
+                </span>
+             </div>
         </div>
+
     </div>
 
     <!-- Modal do post privado -->
@@ -342,14 +425,53 @@
 
 
 {# ═══════════════════════════════════════════════════════════ #}
-{# ABA FEED — layout estilo Instagram                          #}
+{# ABA FEED                                                    #}
 {# ═══════════════════════════════════════════════════════════ #}
 
 {% elif aba == 'feed' %}
 
 <div class="max-w-xl mx-auto">
-    <h2 class="text-2xl font-bold text-gray-800 mb-1">👥 Feed de Ideias</h2>
-    <p class="text-gray-400 text-sm mb-8">Ideias suas e de quem você segue</p>
+
+
+    <!-- COMPOSER BAR -->
+    <div class="flex items-center gap-3 mb-8 px-5 py-4 rounded-2xl border border-white/30 shadow-lg"
+         style="background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.08));
+         backdrop-filter: blur(8px);">
+
+        <!-- Avatar -->
+        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br
+                from-indigo-200 to-purple-200 flex items-center justify-center
+                font-bold text-indigo-700 text-sm shadow-sm overflow-hidden">
+            {% if request.user.autor.foto_perfil %}
+            <img src="{{ request.user.autor.foto_perfil.url }}"
+                 class="w-full h-full object-cover" alt="">
+            {% else %}
+                {{ request.user.autor.nome_exibicao|first|upper }}
+            {% endif %}
+        </div>
+
+        <!-- Form: título vai como query param para a página de criar -->
+        <form method="GET" action="{% url 'criar_post' %}" class="flex flex-1 items-center gap-3">
+            <input type="hidden" name="visibilidade" value="feed">
+            <input type="text" name="titulo_inicial"
+                    name="titulo_inicial"
+                    placeholder="Qual é a sua melhor ideia de hoje?"
+                    autocomplete="off"
+                    class="flex-1 bg-white/60 rounded-full px-5 py-2.5 text-sm
+                        text-gray-700 placeholder-gray-400 border border-gray-200/60
+                        focus:outline-none focus:border-indigo-300 focus:bg-white
+                        transition-all duration-300">
+
+            <button type="submit"
+                class="flex-shrink-0 bg-gradient-to-r from-indigo-600 to-purple-600
+                       text-white text-xs font-semibold px-4 py-2 rounded-full
+                       shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300">
+                + Novo Note
+            </button>
+        </form>
+    </div>
+
+    <p class="text-gray-400 text-sm mb-8">👥 Ideias suas e de quem você segue</p>
 
     {% if posts %}
     <div class="space-y-6">
@@ -640,11 +762,18 @@
         </div>
 
         <div class="text-xs text-gray-400 flex justify-between items-center mt-4">
-            <button onclick="event.stopPropagation(); abrirModalPerfil('{{ post.autor.usuario.username }}')"
-                    class="hover:underline hover:text-indigo-500 transition">
-                ✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}
-            </button>
-            <span>📅 {{ post.data_criacao|date:"d/m/Y" }}</span>
+            <span>✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}</span>
+            <div class="flex items-center gap-2">
+                <span>📅 {{ post.data_criacao|date:"d/m/Y" }}</span>
+                <span class="px-2 py-0.5 rounded-full font-semibold
+                        {% if post.visibilidade == 'privado' %}bg-gray-100 text-gray-500
+                        {% elif post.visibilidade == 'feed' %}bg-purple-50 text-purple-600
+                        {% else %}bg-orange-50 text-orange-500{% endif %}">
+                    {% if post.visibilidade == 'privado' %}🔒 Privado
+                    {% elif post.visibilidade == 'feed' %}👥 Feed
+                    {% else %}🌍 Publico{% endif %}
+                </span>
+            </div>
         </div>
     </div>
 

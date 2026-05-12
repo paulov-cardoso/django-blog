@@ -14,9 +14,7 @@
 
   <body class="{% block body_class %}bg-gray-100{% endblock %} min-h-screen flex flex-col">
     {% block nav %}
-    <nav
-      class="bg-gradient-to-r from-blue-900 via-purple-600 to-orange-500 bg-opacity-90 backdrop-blur-md text-white px-6 py-4 shadow-md"
-    >
+    <nav class="sticky top-0 z-40 bg-gradient-to-r from-blue-900 via-purple-600 to-orange-500 bg-opacity-90 backdrop-blur-md text-white px-6 py-4 shadow-md">
       {% block navbar %}
       <div class="max-w-5xl mx-auto flex justify-between items-center">
         
@@ -24,11 +22,37 @@
 
         <div class="flex gap-4 text-sm items-center">
           {% if user.is_authenticated %}
+
+          <!-- Notificações: sino (interações) -->
+<a href="{% url 'notificacoes' 'sino' %}"
+   class="relative hover:opacity-80 transition"
+   title="Notificações">
+    <span class="text-xl">🔔</span>
+    {% if notif_sino > 0 %}
+    <span class="absolute -top-1.5 -right-1.5 bg-red-500 text-white
+                 text-[10px] font-bold rounded-full w-4 h-4
+                 flex items-center justify-center leading-none">
+        {{ notif_sino }}
+    </span>
+    {% endif %}
+</a>
+
+<!-- Notificações: carta (colaboração/moderação) -->
+<a href="{% url 'notificacoes' 'carta' %}"
+   class="relative hover:opacity-80 transition"
+   title="Colaborações e Moderação">
+    <span class="text-xl">✉️</span>
+    {% if notif_carta > 0 %}
+    <span class="absolute -top-1.5 -right-1.5 bg-yellow-400 text-gray-900
+                 text-[10px] font-bold rounded-full w-4 h-4
+                 flex items-center justify-center leading-none">
+        {{ notif_carta }}
+    </span>
+    {% endif %}
+</a>
+
           <span class="text-sm opacity-80">Olá, {{ user.username }}</span>
-          <a
-            href="{% url 'criar_post' %}"
-            class="bg-white text-blue-700 px-4 py-1 rounded-full font-semibold hover:bg-blue-50 transition transform hover:scale-105 active:scale-95"
-          >
+          <a href="{% url 'criar_post' %}" class="bg-white text-blue-700 px-4 py-1 rounded-full font-semibold hover:bg-blue-50 transition transform hover:scale-105 active:scale-95">
             + Novo Note
           </a>
 
@@ -54,7 +78,8 @@
     </nav>
     {% endblock %}
 
-    <!-- Modal de confirmação -->
+
+    <!-- Modal de confirmação de loggout -->
           <div
             id="modal-logout"
             class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
@@ -133,16 +158,18 @@
 }
 </style>
 
+
 <script>
 (function () {
     const MENSAGENS = {
-    note_criado:     { icon: '💡', texto: 'Seu note foi criado!' },
-    ideia_editada:   { icon: '✏️', texto: 'Ideia editada com sucesso!' },
-    ideia_feed:      { icon: '👥', texto: 'Ideia enviada para o Feed!' },
-    ideia_universo:  { icon: '🌍', texto: 'Ideia jogada para o Campo das Ideias!' },
-    ideia_privada:   { icon: '🔒', texto: 'Ideia retirada para seus Notes privados.' },
-    moderador_eleito:{ icon: '🤝', texto: 'Moderador eleito com sucesso!' },
-    desistiu:        { icon: '😔', texto: 'Você desistiu da ideia.' },
+        note_criado:      { icon: '💡', texto: 'Seu note foi criado!' },
+        ideia_editada:    { icon: '✏️', texto: 'Ideia editada com sucesso!' },
+        ideia_feed:       { icon: '👥', texto: 'Ideia enviada para o Feed!' },
+        ideia_universo:   { icon: '🌍', texto: 'Ideia jogada para o Campo das Ideias!' },
+        ideia_privada:    { icon: '🔒', texto: 'Ideia retirada para seus Notes privados.' },
+        moderador_eleito: { icon: '🤝', texto: 'Moderador eleito com sucesso!' },
+        desistiu:         { icon: '😔', texto: 'Você desistiu da ideia.' },
+        bem_vindo:        { icon: '🌟', texto: 'Bem-vindo ao Blognotes!', especial: true },
     };
 
     const params = new URLSearchParams(window.location.search);
@@ -150,47 +177,48 @@
     const config = MENSAGENS[chave];
     if (!config) return;
 
-    // Limpa ?msg= da URL sem recarregar
     params.delete('msg');
     const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
     history.replaceState(null, '', novaUrl);
 
-    const overlay  = document.getElementById('toast-overlay');
-    const toast    = document.getElementById('toast-prg');
-    const lampada  = document.getElementById('toast-lampada');
-    const textoEl  = document.getElementById('toast-texto');
+    const overlay = document.getElementById('toast-overlay');
+    const toast   = document.getElementById('toast-prg');
+    const lampada = document.getElementById('toast-lampada');
+    const textoEl = document.getElementById('toast-texto');
 
     textoEl.textContent = config.texto;
 
-    // Fase 1 — aparece o overlay escurecendo o fundo
-    overlay.style.background     = 'rgba(0,0,0,0)';
-    overlay.style.pointerEvents  = 'all';
+    const duracao = config.especial ? 3000 : 2500;
+    if (config.especial) {
+        toast.style.padding    = '3rem 4rem';
+        textoEl.style.fontSize = '1.25rem';
+    }
+
+    overlay.style.background    = 'rgba(0,0,0,0)';
+    overlay.style.pointerEvents = 'all';
     overlay.classList.remove('opacity-0');
 
     requestAnimationFrame(() => {
-        overlay.style.transition   = 'background 0.4s ease';
-        overlay.style.background   = 'rgba(0,0,0,0.45)';
+        overlay.style.transition = 'background 0.4s ease';
+        overlay.style.background = config.especial
+            ? 'rgba(30,0,60,0.85)'
+            : 'rgba(0,0,0,0.45)';
 
-        // Fase 2 — toast sobe e aparece
         toast.classList.remove('opacity-0', 'translate-y-6');
-
-        // Fase 3 — animação da lâmpada (levemente atrasada para coincidir com o toast visível)
         setTimeout(() => lampada.classList.add('ligando'), 200);
     });
 
-    // Saída após 2.5s
     setTimeout(() => {
         toast.classList.add('opacity-0', 'translate-y-6');
-        overlay.style.background  = 'rgba(0,0,0,0)';
-
+        overlay.style.background = 'rgba(0,0,0,0)';
         setTimeout(() => {
             overlay.style.pointerEvents = 'none';
             overlay.classList.add('opacity-0');
         }, 500);
-    }, 2500);
+    }, duracao);
+
 })();
 </script>
-
 
   </body>
 </html>
