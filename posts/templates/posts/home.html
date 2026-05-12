@@ -106,18 +106,19 @@
     <div class="bg-white rounded-2xl shadow-xl overflow-visible mb-8">
 
         <!-- CAPA com botão editar sobreposto -->
-        <div class="relative w-full h-48 bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-2xl">
-            {% if autor_perfil.foto_capa %}
-                <img src="{{ autor_perfil.foto_capa.url }}" alt="Capa" class="w-full h-full object-cover rounded-t-2xl">
-            {% endif %}
+                <div class="relative w-full h-48 bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-2xl">
+                    {% if autor_perfil.foto_capa %}
+                     <img src="{{ autor_perfil.foto_capa.url }}" alt="Capa" class="w-full h-full object-cover rounded-t-2xl">
+                    {% endif %}
 
-             <!-- Botão editar perfil: canto inferior direito da capa, quase transparente -->
-            <a href="#"
-                class="absolute bottom-3 right-4 px-4 py-1.5 rounded-full text-xs font-semibold
+                    <!-- Botão editar perfil: canto inferior direito da capa, quase transparente -->
+                    <a href="{% url 'editar_perfil' %}"
+                        class="absolute bottom-3 right-4 px-4 py-1.5 rounded-full text-xs font-semibold
                         border border-white/40 text-white/40 bg-black/10
                         hover:text-white hover:border-white hover:bg-black/30
-                        transition-all duration-300"> ✏️ Editar perfil </a>
-        </div>
+                        transition-all duration-300"> ✏️ Editar perfil 
+                    </a>
+                </div>
 
         <!-- LOSANGO + STATS (alinhados à linha inferior da capa) -->
     <div class="relative flex items-center px-8" style="height: 70px;">

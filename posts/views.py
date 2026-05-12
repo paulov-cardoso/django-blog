@@ -5,7 +5,7 @@ from django.contrib.auth import login
 from django.contrib import messages
 from django.db.models import Q
 from .models import Post, Autor, ModeradorPost, CandidaturaModerador, Seguidor, PostReacao, Notificacao
-from .forms import PostForm, RegistroForm
+from .forms import PostForm, RegistroForm, AutorForm
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -147,6 +147,23 @@ def perfil(request, username):
     user_perfil  = get_object_or_404(User, username=username)
     autor_perfil = get_object_or_404(Autor, usuario=user_perfil)
     return render(request, 'posts/perfil.html', _contexto_perfil(autor_perfil, request.user))
+
+
+# ── editar perfil ─────────────────────────────────────────────────────────────
+
+@login_required
+def editar_perfil(request):
+    autor = get_object_or_404(Autor, usuario=request.user)
+
+    if request.method == 'POST':
+        form = AutorForm(request.POST, request.FILES, instance=autor)
+        if form.is_valid():
+            form.save()
+            return redirect('/?aba=perfil&msg=perfil_editado')
+    else:
+        form = AutorForm(instance=autor)
+
+    return render(request, 'posts/editar_perfil.html', {'form': form, 'autor': autor})
 
 
 # ── seguir / deixar de seguir ─────────────────────────────────────────────────
