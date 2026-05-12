@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import login
 from django.contrib import messages
 from django.db.models import Q
-from .models import Post, Autor, ModeradorPost, CandidaturaModerador, Seguidor, PostReacao
+from .models import Post, Autor, ModeradorPost, CandidaturaModerador, Seguidor, PostReacao, Notificacao
 from .forms import PostForm, RegistroForm
 
 
@@ -174,21 +174,47 @@ def seguir_autor(request, username):
 
 # ── criar post ────────────────────────────────────────────────────────────────
 
+_VISIBILIDADES_VALIDAS = {'privado', 'feed', 'universo'}
+
 @login_required
 def criar_post(request):
     if request.method == 'POST':
         form = PostForm(request.POST)
         if form.is_valid():
             post = form.save(commit=False)
-            post.cor    = request.POST.get('cor', '#3B82F6')
-            post.autor  = request.user.autor
+            post.cor          = request.POST.get('cor', '#3B82F6')
+            post.autor        = request.user.autor
+
+            # Visibilidade pré-definida pelo compositor (ou privado por padrão)
+            visibilidade = request.POST.get('visibilidade', 'privado')
+            if visibilidade not in _VISIBILIDADES_VALIDAS:
+                visibilidade = 'privado'
+
+            post.visibilidade = visibilidade
+            post.publicado    = visibilidade != 'privado'
             post.save()
             form.save_m2m()
-            return redirect('/?aba=meus_notes&msg=note_criado')
-    else:
-        form = PostForm()
 
-    return render(request, 'posts/criar.html', {'form': form})
+            DESTINO_MSG = {
+                'privado':  ('meus_notes', 'note_criado'),
+                'feed':     ('feed',       'ideia_feed'),
+                'universo': ('universo',   'ideia_universo'),
+            }
+            aba, msg = DESTINO_MSG[visibilidade]
+            return redirect(f'/?aba={aba}&msg={msg}')
+    else:
+        titulo_inicial = request.GET.get('titulo_inicial', '').strip()
+        visibilidade   = request.GET.get('visibilidade', 'privado')
+        if visibilidade not in _VISIBILIDADES_VALIDAS:
+            visibilidade = 'privado'
+
+        initial = {'titulo': titulo_inicial} if titulo_inicial else {}
+        form = PostForm(initial=initial)
+
+    return render(request, 'posts/criar.html', {
+        'form':        form,
+        'visibilidade': visibilidade,
+    })
 
 
 # ── mudar visibilidade ────────────────────────────────────────────────────────
@@ -521,8 +547,32 @@ def registrar(request):
             autor.nome_exibicao = nome_exibicao
             autor.save(update_fields=['nome', 'nome_exibicao'])
             login(request, user)
-            return redirect('home')
+            return redirect('/?aba=perfil&msg=bem_vindo')
     else:
         form = RegistroForm()
 
     return render(request, 'posts/registrar.html', {'form': form})
+
+
+# ── notificações ──────────────────────────────────────────────────────────────
+
+@login_required
+def notificacoes(request, canal):
+    """
+    canal = 'sino' (interações) ou 'carta' (colaboração/moderação)
+    GET  → lista notificações e marca como lidas
+    """
+    autor = request.user.autor
+    tipos = Notificacao.TIPOS_SINO if canal == 'sino' else Notificacao.TIPOS_CARTA
+
+    itens = Notificacao.objects.filter(
+        destinatario=autor, tipo__in=tipos
+    ).select_related('remetente', 'post')
+
+    # Marca todas como lidas ao abrir
+    itens.filter(lida=False).update(lida=True)
+
+    return render(request, 'posts/notificacoes.html', {
+        'itens': itens,
+        'canal': canal,
+    })
