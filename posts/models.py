@@ -159,3 +159,48 @@ class CandidaturaModerador(models.Model):
 
     def __str__(self):
         return f"{self.candidato} → '{self.post}' ({self.status})"
+    
+    
+class Notificacao(models.Model):
+    TIPO_CHOICES = [
+        ('curtida',      'Curtida'),
+        ('clip',         'Clip'),
+        ('comentario',   'Comentário'),
+        ('candidatura',  'Candidatura a moderador'),
+        ('eleicao',      'Eleito moderador'),
+        ('recusa',       'Candidatura recusada'),
+    ]
+
+    # Tipos que vão para o sino (interações)
+    TIPOS_SINO = {'curtida', 'clip', 'comentario'}
+    # Tipos que vão para a carta (colaboração/moderação)
+    TIPOS_CARTA = {'candidatura', 'eleicao', 'recusa'}
+
+    destinatario = models.ForeignKey(
+        Autor, on_delete=models.CASCADE, related_name='notificacoes'
+    )
+    remetente    = models.ForeignKey(
+        Autor, on_delete=models.CASCADE, related_name='notificacoes_enviadas',
+        null=True, blank=True
+    )
+    post         = models.ForeignKey(
+        Post, on_delete=models.CASCADE, related_name='notificacoes',
+        null=True, blank=True
+    )
+    tipo         = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    lida         = models.BooleanField(default=False)
+    data         = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-data']
+
+    def __str__(self):
+        return f"{self.tipo} → {self.destinatario} ({'lida' if self.lida else 'não lida'})"
+
+    @property
+    def eh_sino(self):
+        return self.tipo in self.TIPOS_SINO
+
+    @property
+    def eh_carta(self):
+        return self.tipo in self.TIPOS_CARTA
