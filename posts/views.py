@@ -150,7 +150,7 @@ def home(request):
 def perfil(request, username):
     user_perfil  = get_object_or_404(User, username=username)
     autor_perfil = get_object_or_404(Autor, usuario=user_perfil)
-    return render(request, 'posts/perfil.html', _contexto_perfil(autor_perfil, request.user))
+    return render(request, 'posts/perfil/perfil.html', _contexto_perfil(autor_perfil, request.user))
 
 
 # ── editar perfil ─────────────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ def editar_perfil(request):
     else:
         form = AutorForm(instance=autor)
 
-    return render(request, 'posts/editar_perfil.html', {'form': form, 'autor': autor})
+    return render(request, 'posts/perfil/editar_perfil.html', {'form': form, 'autor': autor})
 
 
 # ── seguir / deixar de seguir ─────────────────────────────────────────────────
@@ -224,9 +224,9 @@ def criar_post(request):
 
         form = PostForm(initial={'titulo': titulo_inicial} if titulo_inicial else {})
 
-    return render(request, 'posts/criar.html', {
-        'form':         form,
-        'visibilidade': visibilidade,
+    return render(request, 'posts/posts/criar.html', {
+    'form':         form,
+    'visibilidade': visibilidade,
     })
 
 
@@ -279,7 +279,7 @@ def editar_post(request, post_id):
     else:
         form = PostForm(instance=post)
 
-    return render(request, 'posts/editar.html', {'form': form, 'post': post})
+    return render(request, 'posts/posts/editar.html', {'form': form, 'post': post})
 
 
 # ── detalhe público do post ───────────────────────────────────────────────────
@@ -298,7 +298,7 @@ def detalhe_post(request, post_id):
         else:
             ja_candidatou = post.candidaturas.filter(candidato=autor_logado).exists()
 
-    return render(request, 'posts/detail.html', {
+    return render(request, 'posts/posts/detail.html', {
         'post':                   post,
         'pode_desistir':          pode,
         'motivo_bloqueio':        motivo,
@@ -472,7 +472,7 @@ def pagina_eleger_moderador(request, post_id):
         'limite_atingido':     f'Limite de {post.limite_moderadores} moderadores atingido.',
     }
 
-    return render(request, 'posts/eleger_moderador.html', {
+    return render(request, 'posts/moderacao/eleger_moderador.html', {
         'post':       post,
         'seguidores': seguidores,
         'busca':      busca,
@@ -550,7 +550,7 @@ def registrar(request):
     else:
         form = RegistroForm()
 
-    return render(request, 'posts/registrar.html', {'form': form})
+    return render(request, 'posts/auth/registrar.html', {'form': form})
 
 
 # ── notificações ──────────────────────────────────────────────────────────────
@@ -569,7 +569,7 @@ def notificacoes(request, canal):
 
     itens.filter(lida=False).update(lida=True)
 
-    return render(request, 'posts/notificacoes.html', {
-        'itens': itens,
-        'canal': canal,
+    return render(request, 'posts/notificacoes/notificacoes.html', {
+    'itens': itens,
+    'canal': canal,
     })
