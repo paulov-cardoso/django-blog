@@ -1,0 +1,65 @@
+<div id="modal-confirmar-retirar-feed-{{ post.id }}"
+     class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">🔒 Retirar do Feed?</h2>
+        <p class="text-sm text-gray-600 mb-5">Seus seguidores não verão mais esta ideia.</p>
+        <div class="flex gap-3">
+            <button onclick="fecharModal('confirmar-retirar-feed-{{ post.id }}')"
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
+                Cancelar
+            </button>
+            <form method="POST" action="{% url 'alterar_visibilidade' post.id %}" class="flex-1">
+                {% csrf_token %}
+                <input type="hidden" name="visibilidade" value="privado">
+                <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded-xl transition">
+                    Retirar
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="modal-aviso-retirar-feed-{{ post.id }}"
+     class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">⚠️ Atenção</h2>
+        <p class="text-sm text-gray-600 mb-5">Sua ideia já tem colaborações. Seus seguidores não poderão mais interagir se você retirar.</p>
+        <div class="flex gap-3">
+            <button onclick="fecharModal('aviso-retirar-feed-{{ post.id }}')"
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
+                Cancelar
+            </button>
+            <form method="POST" action="{% url 'alterar_visibilidade' post.id %}" class="flex-1">
+                {% csrf_token %}
+                <input type="hidden" name="visibilidade" value="privado">
+                <button type="submit"
+                        class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">
+                    Retirar mesmo assim
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="modal-desistir-feed-{{ post.id }}"
+     class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">😔 Desistir da ideia?</h2>
+        <p class="text-sm text-gray-600 mb-2">O post voltará para seus <strong>Notes Privados</strong>.</p>
+        <p class="text-xs text-gray-400 mb-5">Lá você pode excluí-lo definitivamente.</p>
+        <div class="flex gap-3">
+            <button onclick="fecharModal('desistir-feed-{{ post.id }}')"
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
+                Cancelar
+            </button>
+            <form method="POST" action="{% url 'desistir_ideia' post.id %}" class="flex-1">
+                {% csrf_token %}
+                <button type="submit"
+                        class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">
+                    Desistir
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

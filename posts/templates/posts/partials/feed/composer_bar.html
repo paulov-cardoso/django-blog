@@ -1,0 +1,32 @@
+<div class="flex items-center gap-3 mb-8 px-5 py-4 rounded-2xl border border-white/30 shadow-lg"
+     style="background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.08));
+            backdrop-filter: blur(8px);">
+
+    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br
+                from-indigo-200 to-purple-200 flex items-center justify-center
+                font-bold text-indigo-700 text-sm shadow-sm overflow-hidden">
+        {% if request.user.autor.foto_perfil %}
+            <img src="{{ request.user.autor.foto_perfil.url }}"
+                 class="w-full h-full object-cover" alt="">
+        {% else %}
+            {{ request.user.autor.nome_exibicao|first|upper }}
+        {% endif %}
+    </div>
+
+    <form method="GET" action="{% url 'criar_post' %}" class="flex flex-1 items-center gap-3">
+        <input type="hidden" name="visibilidade" value="feed">
+        <input type="text" name="titulo_inicial"
+               placeholder="Qual é a sua melhor ideia de hoje?"
+               autocomplete="off"
+               class="flex-1 bg-white/60 rounded-full px-5 py-2.5 text-sm
+                      text-gray-700 placeholder-gray-400 border border-gray-200/60
+                      focus:outline-none focus:border-indigo-300 focus:bg-white
+                      transition-all duration-300">
+        <button type="submit"
+                class="flex-shrink-0 bg-gradient-to-r from-indigo-600 to-purple-600
+                       text-white text-xs font-semibold px-4 py-2 rounded-full
+                       shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300">
+            + Novo Note
+        </button>
+    </form>
+</div>

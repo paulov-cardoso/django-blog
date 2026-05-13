@@ -1,0 +1,133 @@
+{% for post in posts %}
+
+<div onclick="abrirModal('campo-{{ post.id }}')"
+     style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
+            background-color: {{ post.cor|default:'#8B5CF6' }}50"
+     class="rounded-xl shadow-md hover:shadow-lg transition p-6 flex flex-col justify-between cursor-pointer relative">
+
+    {% if post.procura_moderador %}
+    <div class="absolute top-3 right-3 bg-orange-100 text-orange-600 text-xs px-2 py-1 rounded-full font-semibold">
+        🤝 Procura Moderador
+    </div>
+    {% endif %}
+
+    <div>
+        <div class="flex flex-wrap gap-2 mb-3">
+            {% for cat in post.categorias.all %}
+            <span class="text-xs font-semibold px-2 py-1 rounded-full"
+                  style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                {{ cat.nome }}
+            </span>
+            {% endfor %}
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">{{ post.titulo }}</h3>
+        <p class="text-gray-500 text-sm mb-4">{{ post.conteudo|truncatewords:20 }}</p>
+    </div>
+
+    <div class="text-xs text-gray-400 flex justify-between items-center mt-4">
+        <span>✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}</span>
+        <div class="flex items-center gap-2">
+            <span>📅 {{ post.data_criacao|date:"d/m/Y" }}</span>
+            <span class="px-2 py-0.5 rounded-full font-semibold bg-orange-50 text-orange-500">
+                🌍 Campo
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Modal do post no campo -->
+<div id="modal-campo-{{ post.id }}"
+     class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
+     onclick="fecharModalFora(event, 'campo-{{ post.id }}')">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
+
+        <button onclick="fecharModal('campo-{{ post.id }}')"
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">✕</button>
+
+        <div class="flex flex-wrap gap-2 mb-4">
+            {% for cat in post.categorias.all %}
+            <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                  style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                {{ cat.nome }}
+            </span>
+            {% endfor %}
+        </div>
+
+        <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
+
+        <div class="flex justify-between items-center text-sm text-gray-400 mb-6 border-b pb-4">
+            <div class="flex gap-4">
+                <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
+                        class="hover:underline hover:text-indigo-500 transition">
+                    ✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}
+                </button>
+                <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+            </div>
+
+            {% if post.autor.usuario == user %}
+            {% include 'posts/partials/shared/dropdown_post.html' with aba='campo' %}
+            {% endif %}
+        </div>
+
+        {% if post.autor_original %}
+        <p class="text-xs text-gray-400 mb-4">
+            💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
+        </p>
+        {% endif %}
+
+        {% include 'posts/partials/shared/moderadores_painel.html' %}
+
+        {% if post.procura_moderador %}
+        <div class="mb-6 bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-sm text-yellow-800">
+            <p class="font-semibold mb-1">🤝 Procura-se Moderador</p>
+            <p class="text-xs mb-3">O autor está buscando alguém para assumir esta ideia.</p>
+            {% if user.is_authenticated and post.autor.usuario != user %}
+                {% with candidaturas=post.candidaturas.all %}
+                {% if candidaturas %}
+                    <p class="text-xs text-yellow-700">✔ Você já se candidatou. Aguardando o aval do autor.</p>
+                {% else %}
+                    <form method="POST" action="{% url 'candidatar_moderador' post.id %}"
+                          onclick="event.stopPropagation()">
+                        {% csrf_token %}
+                        <textarea name="mensagem" rows="2"
+                                  placeholder="Por que você quer moderar esta ideia? (opcional)"
+                                  class="w-full border border-yellow-300 rounded-lg p-2 text-sm mb-2 bg-white"
+                                  onclick="event.stopPropagation()"></textarea>
+                        <button type="submit"
+                                class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 text-sm px-4 py-1.5 rounded-full transition">
+                            🙋 Quero moderar esta ideia
+                        </button>
+                    </form>
+                {% endif %}
+                {% endwith %}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="text-gray-700 leading-relaxed mb-8">{{ post.conteudo }}</div>
+
+        <div class="border-t pt-6 flex justify-between items-center">
+            {% if post.autor.usuario == user %}
+            <a href="{% url 'editar_post' post.id %}"
+               class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
+                ✏️ Editar
+            </a>
+            {% else %}
+            <span class="text-sm text-gray-400">
+                {% if post.procura_moderador %}🙋 Candidate-se acima{% else %}💬 Colabore nos comentários{% endif %}
+            </span>
+            {% endif %}
+            <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+        </div>
+    </div>
+</div>
+
+{% include 'posts/partials/campo/modais_campo.html' %}
+
+{% empty %}
+<div class="col-span-3 text-center text-gray-400 py-20">
+    <p class="text-6xl mb-4">🌍</p>
+    <p class="text-xl font-semibold">O Campo das Ideias está vazio</p>
+    <p class="text-sm mt-2">Seja o primeiro a idealizar no campo das ideias</p>
+</div>
+{% endfor %}

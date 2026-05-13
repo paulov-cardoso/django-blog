@@ -1,0 +1,83 @@
+<h2 class="text-lg font-semibold text-gray-700 mb-4">💡 Minhas Ideias</h2>
+
+{% if posts_publicos %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for post in posts_publicos %}
+
+    <div class="rounded-xl p-5 shadow-md cursor-pointer hover:shadow-md transition"
+         style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
+                background-color: {{ post.cor|default:'#8B5CF6' }}50"
+         onclick="abrirModal('perfil-{{ post.id }}')">
+        <div class="flex flex-wrap gap-1 mb-2">
+            {% for cat in post.categorias.all %}
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                  style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                {{ cat.nome }}
+            </span>
+            {% endfor %}
+        </div>
+        <h3 class="font-bold text-gray-800 mb-1">{{ post.titulo }}</h3>
+        <p class="text-gray-500 text-xs mb-2">{{ post.conteudo|truncatewords:15 }}</p>
+        {% if post.visibilidade == 'campo' %}
+            <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+        {% else %}
+            <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+        {% endif %}
+    </div>
+
+    <!-- Modal do post no perfil -->
+    <div id="modal-perfil-{{ post.id }}"
+         class="fixed inset-0 backdrop-blur-sm bg-black/40 items-center justify-center z-50 hidden"
+         onclick="fecharModalFora(event, 'perfil-{{ post.id }}')">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
+            <button onclick="fecharModal('perfil-{{ post.id }}')"
+                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">✕</button>
+
+            <div class="flex flex-wrap gap-2 mb-4">
+                {% for cat in post.categorias.all %}
+                <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                      style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                    {{ cat.nome }}
+                </span>
+                {% endfor %}
+            </div>
+
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
+
+            <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
+                <span>✍️ {{ post.autor.nome_exibicao }}</span>
+                <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+            </div>
+
+            {% if post.autor_original %}
+            <p class="text-xs text-gray-400 mb-4">
+                💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
+            </p>
+            {% endif %}
+
+            <div class="text-gray-700 leading-relaxed mb-6">{{ post.conteudo }}</div>
+
+            <div class="border-t pt-4 flex justify-between items-center">
+                <a href="{% url 'editar_post' post.id %}"
+                   class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
+                    ✏️ Editar
+                </a>
+                {% if post.visibilidade == 'campo' %}
+                    <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
+                {% else %}
+                    <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="text-center text-gray-400 py-16">
+    <p class="text-4xl mb-3">💡</p>
+    <p class="font-semibold">Nenhuma ideia pública ainda.</p>
+    <p class="text-sm mt-1">Envie um note para o Feed ou Campo das Ideias!</p>
+</div>
+{% endif %}

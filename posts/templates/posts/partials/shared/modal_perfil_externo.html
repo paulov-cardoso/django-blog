@@ -1,0 +1,93 @@
+<div id="modal-perfil-externo"
+     class="fixed inset-0 backdrop-blur-sm bg-black/40 items-center justify-center z-[99999] hidden"
+     onclick="if(event.target===this){fecharModal('perfil-externo')}">
+    <div class="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-3xl mx-4 relative max-h-[90vh] overflow-y-auto">
+        <button onclick="fecharModal('perfil-externo')"
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">✕</button>
+        <div id="perfil-externo-conteudo" class="p-4 text-center text-gray-400">
+            Carregando...
+        </div>
+    </div>
+</div>
+
+<script>
+    let dropdownAberto = false;
+
+    function abrirModal(id) {
+        const el = document.getElementById('modal-' + id);
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function fecharModal(id) {
+        const el = document.getElementById('modal-' + id);
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+
+    function fecharModalFora(event, id) {
+        if (event.target === document.getElementById('modal-' + id)) {
+            fecharModal(id);
+        }
+    }
+
+    function abrirModalPerfil(username) {
+        const modal = document.getElementById('modal-perfil-externo');
+        const conteudo = document.getElementById('perfil-externo-conteudo');
+        conteudo.innerHTML = '<p class="py-12 text-gray-400">Carregando...</p>';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+
+        fetch(`/perfil/${username}/`)
+            .then(r => r.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const bloco = doc.querySelector('#perfil-conteudo');
+                conteudo.innerHTML = bloco
+                    ? bloco.innerHTML
+                    : '<p class="py-12 text-gray-400">Perfil não encontrado.</p>';
+            })
+            .catch(() => {
+                conteudo.innerHTML = '<p class="py-12 text-red-400">Erro ao carregar o perfil.</p>';
+            });
+    }
+
+    function toggleDropdown(id) {
+        const btn = document.querySelector(`#dropdown-container-${id} button`);
+        const dropdown = document.getElementById('dropdown-' + id);
+
+        document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+            if (!d.id.includes('container') && d.id !== 'dropdown-' + id) {
+                d.classList.add('hidden');
+            }
+        });
+
+        const estaFechado = dropdown.classList.contains('hidden');
+        if (estaFechado) {
+            const rect = btn.getBoundingClientRect();
+            dropdown.style.top  = (rect.bottom + 8) + 'px';
+            dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+            dropdown.classList.remove('hidden');
+            dropdownAberto = true;
+        } else {
+            dropdown.classList.add('hidden');
+            dropdownAberto = false;
+        }
+    }
+
+    document.addEventListener('click', function (event) {
+        if (!dropdownAberto) return;
+        const clicouDentroDeContainer = [...document.querySelectorAll('[id^="dropdown-container-"]')]
+            .some(c => c.contains(event.target));
+        if (!clicouDentroDeContainer) {
+            document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+                if (!d.id.includes('container')) d.classList.add('hidden');
+            });
+            dropdownAberto = false;
+        }
+    });
+</script>

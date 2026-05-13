@@ -1,0 +1,82 @@
+{% for post in posts %}
+
+<div onclick="abrirModal('meus_notes-{{ post.id }}')"
+     style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
+            background-color: {{ post.cor|default:'#8B5CF6' }}50"
+     class="rounded-xl shadow-md hover:shadow-lg transition p-6 flex flex-col justify-between cursor-pointer relative">
+
+    <div>
+        <div class="flex flex-wrap gap-2 mb-3">
+            {% for cat in post.categorias.all %}
+            <span class="text-xs font-semibold px-2 py-1 rounded-full"
+                  style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                {{ cat.nome }}
+            </span>
+            {% endfor %}
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">{{ post.titulo }}</h3>
+        <p class="text-gray-500 text-sm mb-4">{{ post.conteudo|truncatewords:20 }}</p>
+    </div>
+
+    <div class="text-xs text-gray-400 flex justify-between items-center mt-4">
+        <span>✍️ {{ post.autor.nome_exibicao|default:post.autor.nome }}</span>
+        <div class="flex items-center gap-2">
+            <span>📅 {{ post.data_criacao|date:"d/m/Y" }}</span>
+            <span class="px-2 py-0.5 rounded-full font-semibold
+                    {% if post.visibilidade == 'privado' %}bg-gray-100 text-gray-500
+                    {% elif post.visibilidade == 'feed' %}bg-purple-50 text-purple-600
+                    {% else %}bg-orange-50 text-orange-500{% endif %}">
+                {% if post.visibilidade == 'privado' %}🔒 Privado
+                {% elif post.visibilidade == 'feed' %}👥 Feed
+                {% else %}🌍 Campo{% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Modal do note -->
+<div id="modal-meus_notes-{{ post.id }}"
+     class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
+     onclick="fecharModalFora(event, 'meus_notes-{{ post.id }}')">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
+
+        <button onclick="fecharModal('meus_notes-{{ post.id }}')"
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">✕</button>
+
+        <div class="flex flex-wrap gap-2 mb-4">
+            {% for cat in post.categorias.all %}
+            <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                  style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                {{ cat.nome }}
+            </span>
+            {% endfor %}
+        </div>
+
+        <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
+
+        <div class="flex justify-between items-center text-sm text-gray-400 mb-6 border-b pb-4">
+            <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+            {% include 'posts/partials/shared/dropdown_post.html' with aba='meus_notes' %}
+        </div>
+
+        <div class="text-gray-700 leading-relaxed mb-8">{{ post.conteudo }}</div>
+
+        <div class="border-t pt-4 flex justify-between items-center">
+            <a href="{% url 'editar_post' post.id %}"
+               class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
+                ✏️ Editar
+            </a>
+            <span class="text-xs text-gray-400 font-semibold">🔒 Privado</span>
+        </div>
+    </div>
+</div>
+
+{% include 'posts/partials/notes/modais_notes.html' %}
+
+{% empty %}
+<div class="col-span-3 text-center text-gray-400 py-20">
+    <p class="text-6xl mb-4">📓</p>
+    <p class="text-xl font-semibold">Nenhum note ainda</p>
+    <p class="text-sm mt-2">Clique em <strong>+ Novo Note</strong> para começar!</p>
+</div>
+{% endfor %}

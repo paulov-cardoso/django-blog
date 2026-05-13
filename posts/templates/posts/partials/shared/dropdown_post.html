@@ -1,0 +1,117 @@
+{# Recebe: post, aba #}
+{# aba pode ser 'meus_notes', 'feed' ou 'campo'             #}
+
+<div class="relative" id="dropdown-container-{{ post.id }}">
+    <button onclick="toggleDropdown('{{ post.id }}')"
+            class="{% if aba == 'feed' %}
+                       text-gray-400 hover:text-gray-700 transition p-1.5 rounded-full hover:bg-gray-100 text-lg leading-none
+                   {% else %}
+                       bg-gradient-to-r from-blue-600 to-purple-600 text-white
+                       px-3 py-1 rounded-full text-xs font-semibold hover:opacity-90
+                       transition flex items-center gap-1
+                   {% endif %}">
+        {% if aba == 'feed' %}···{% else %}O que fazer com a ideia? ▼{% endif %}
+    </button>
+
+    <div id="dropdown-{{ post.id }}"
+         class="hidden fixed bg-white rounded-xl shadow-xl border border-gray-100 w-64 z-[9999] overflow-hidden">
+
+        {# ── MEUS NOTES ─────────────────────────────────────── #}
+        {% if aba == 'meus_notes' %}
+            <form method="POST" action="{% url 'alterar_visibilidade' post.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="visibilidade" value="feed">
+                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                    👥 Enviar para o Feed de Ideias
+                </button>
+            </form>
+            <form method="POST" action="{% url 'alterar_visibilidade' post.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="visibilidade" value="campo">
+                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                    🌍 Enviar para o Campo das Ideias
+                </button>
+            </form>
+            <div class="border-t border-gray-100">
+                <button type="button"
+                        onclick="abrirModal('excluir-{{ post.id }}')"
+                        class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
+                    🗑️ Excluir
+                </button>
+            </div>
+
+        {# ── FEED ────────────────────────────────────────────── #}
+        {% elif aba == 'feed' %}
+            <form method="POST" action="{% url 'alterar_visibilidade' post.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="visibilidade" value="campo">
+                <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                    🌍 Enviar para o Campo das Ideias
+                </button>
+            </form>
+            {% if post.tem_interacoes_feed %}
+                <button type="button"
+                        onclick="abrirModal('aviso-retirar-feed-{{ post.id }}')"
+                        class="w-full text-left px-4 py-3 text-sm opacity-60 hover:bg-gray-50 transition flex items-center gap-2">
+                    🔒 Retirar do Feed
+                </button>
+            {% else %}
+                <button type="button"
+                        onclick="abrirModal('confirmar-retirar-feed-{{ post.id }}')"
+                        class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                    🔒 Retirar do Feed
+                </button>
+            {% endif %}
+            <div class="border-t border-gray-100">
+                {% if post.tem_interacoes_feed %}
+                    <div class="px-4 py-3 text-sm opacity-40 cursor-not-allowed flex items-center gap-2">
+                        😔 Desistir da Ideia
+                    </div>
+                    <p class="px-4 pb-2 text-xs text-red-400">Eleja um moderador antes de desistir.</p>
+                {% else %}
+                    <button type="button"
+                            onclick="abrirModal('desistir-feed-{{ post.id }}')"
+                            class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
+                        😔 Desistir da Ideia
+                    </button>
+                {% endif %}
+            </div>
+
+        {# ── CAMPO DAS IDEIAS ────────────────────────────────── #}
+        {% elif aba == 'campo' %}
+            {% if post.tem_interacoes %}
+                <button type="button"
+                        onclick="abrirModal('bloqueio-campo-{{ post.id }}')"
+                        class="w-full text-left px-4 py-3 text-sm opacity-60 hover:bg-gray-50 transition flex items-center gap-2">
+                    👥 Retirar do Campo (ir para Feed)
+                </button>
+            {% else %}
+                <button type="button"
+                        onclick="abrirModal('confirmar-retirar-campo-{{ post.id }}')"
+                        class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+                    👥 Retirar do Campo (ir para Feed)
+                </button>
+            {% endif %}
+            <a href="{% url 'pagina_eleger_moderador' post.id %}"
+               class="w-full text-left px-4 py-3 text-sm text-indigo-600 hover:bg-indigo-50 transition flex items-center gap-2">
+                🤝 Eleger Moderador
+            </a>
+            <div class="border-t border-gray-100">
+                {% if post.tem_moderador %}
+                    <button type="button"
+                            onclick="abrirModal('desistir-campo-{{ post.id }}')"
+                            class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2">
+                        😔 Desistir da Ideia
+                    </button>
+                {% else %}
+                    <button type="button"
+                            onclick="abrirModal('bloqueio-desistir-{{ post.id }}')"
+                            class="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-50 transition flex items-center gap-2">
+                        😔 Desistir da Ideia
+                    </button>
+                {% endif %}
+            </div>
+        {% endif %}
+
+    </div>
+</div>

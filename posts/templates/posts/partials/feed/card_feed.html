@@ -1,0 +1,143 @@
+{% if posts %}
+<div class="space-y-6">
+{% for post in posts %}
+
+    <article class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+
+        <!-- Cabeçalho -->
+        <div class="flex items-center justify-between px-5 py-4">
+            <div class="flex items-center gap-3">
+                <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
+                        class="flex-shrink-0 w-10 h-10 rounded-full bg-gray-200 overflow-hidden
+                               border-2 border-white shadow-sm hover:opacity-80 transition">
+                    {% if post.autor.foto_perfil %}
+                        <img src="{{ post.autor.foto_perfil.url }}"
+                             alt="{{ post.autor.nome_exibicao }}"
+                             class="w-full h-full object-cover">
+                    {% else %}
+                        <div class="w-full h-full flex items-center justify-center
+                                    text-gray-600 font-bold text-sm
+                                    bg-gradient-to-br from-indigo-100 to-purple-100">
+                            {{ post.autor.nome_exibicao|first|upper }}
+                        </div>
+                    {% endif %}
+                </button>
+                <div>
+                    <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
+                            class="font-bold text-gray-800 text-sm hover:text-indigo-600 transition leading-tight block">
+                        {{ post.autor.nome_exibicao }}
+                    </button>
+                    <p class="text-xs text-gray-400 leading-tight">
+                        postou uma ideia · {{ post.data_criacao|timesince }} atrás
+                    </p>
+                </div>
+            </div>
+
+            {% if post.autor.usuario == user %}
+            {% include 'posts/partials/shared/dropdown_post.html' with aba='feed' %}
+            {% endif %}
+        </div>
+
+        <!-- Corpo -->
+        <div class="px-5 pb-4 cursor-pointer" onclick="abrirModal('feed-{{ post.id }}')">
+            <div class="flex flex-wrap gap-1 mb-2">
+                {% for cat in post.categorias.all %}
+                <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                      style="background-color: {{ cat.cor }}20; color: {{ cat.cor }}">
+                    {{ cat.nome }}
+                </span>
+                {% endfor %}
+            </div>
+            <h3 class="text-lg font-bold text-gray-800 mb-2 leading-snug">{{ post.titulo }}</h3>
+            <p class="text-gray-500 text-sm leading-relaxed line-clamp-3">
+                {{ post.conteudo|truncatewords:30 }}
+            </p>
+            <div class="mt-4 h-1 rounded-full"
+                 style="background-color: {{ post.cor|default:'#8B5CF6' }}; opacity: 0.4;"></div>
+        </div>
+
+        <!-- Reações -->
+        <div class="px-5 py-3 border-t border-gray-50 flex items-center gap-6">
+            <form method="POST" action="{% url 'reagir_post' post.id 'curtida' %}">
+                {% csrf_token %}
+                <input type="hidden" name="aba" value="feed">
+                <button type="submit" class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition">
+                    ❤️ <span class="font-semibold text-gray-600">{{ post.total_curtidas }}</span>
+                </button>
+            </form>
+            <button onclick="abrirModal('feed-{{ post.id }}')"
+                    class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition">
+                💬 <span class="font-semibold text-gray-600">0</span>
+            </button>
+            <form method="POST" action="{% url 'reagir_post' post.id 'clip' %}" class="ml-auto">
+                {% csrf_token %}
+                <input type="hidden" name="aba" value="feed">
+                <button type="submit" class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition">
+                    📌 <span class="font-semibold text-gray-600">{{ post.total_clips }}</span>
+                    <span class="text-xs">clips</span>
+                </button>
+            </form>
+        </div>
+    </article>
+
+    <!-- Modal conteúdo completo -->
+    <div id="modal-feed-{{ post.id }}"
+         class="fixed inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center z-50 hidden"
+         onclick="fecharModalFora(event, 'feed-{{ post.id }}')">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
+            <button onclick="fecharModal('feed-{{ post.id }}')"
+                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">✕</button>
+
+            <div class="flex flex-wrap gap-2 mb-4">
+                {% for cat in post.categorias.all %}
+                <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                      style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
+                    {{ cat.nome }}
+                </span>
+                {% endfor %}
+            </div>
+
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
+
+            <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
+                <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
+                        class="hover:underline hover:text-indigo-500 transition font-medium">
+                    ✍️ {{ post.autor.nome_exibicao }}
+                </button>
+                <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
+            </div>
+
+            {% if post.autor_original %}
+            <p class="text-xs text-gray-400 mb-4">
+                💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
+            </p>
+            {% endif %}
+
+            <div class="text-gray-700 leading-relaxed mb-8">{{ post.conteudo }}</div>
+
+            <div class="border-t pt-4 flex justify-between items-center">
+                {% if post.autor.usuario == user %}
+                <a href="{% url 'editar_post' post.id %}"
+                   class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
+                    ✏️ Editar
+                </a>
+                {% else %}
+                <span class="text-sm text-gray-400">💬 Colabore nos comentários</span>
+                {% endif %}
+                <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+            </div>
+        </div>
+    </div>
+
+    {% include 'posts/partials/feed/modais_feed.html' %}
+
+{% endfor %}
+</div>
+
+{% else %}
+<div class="text-center text-gray-400 py-20">
+    <p class="text-6xl mb-4">👥</p>
+    <p class="text-xl font-semibold">Seu feed está vazio</p>
+    <p class="text-sm mt-2">Siga usuários para ver as ideias deles aqui!</p>
+</div>
+{% endif %}

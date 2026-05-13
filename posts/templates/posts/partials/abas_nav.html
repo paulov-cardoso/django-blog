@@ -1,0 +1,84 @@
+<div id="barra-abas"
+     class="sticky top-[72px] z-30 bg-white/80 backdrop-blur-md
+            border-b border-gray-200 transition-all duration-300
+            -mx-4 px-4 mb-8">
+
+    <div class="max-w-5xl mx-auto flex justify-center">
+        {% with aba_atual=aba|default:'perfil' %}
+
+        <a href="/?aba=perfil"
+           class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
+                  transition-all duration-300 flex flex-col items-center gap-0.5
+                  {% if aba_atual == 'perfil' %}text-indigo-600{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+            <span class="text-base leading-none">👤</span>
+            <span class="aba-label transition-all duration-300">Perfil</span>
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
+                         {% if aba_atual == 'perfil' %}bg-indigo-600 scale-x-100{% else %}bg-indigo-600 scale-x-0 group-hover:scale-x-75{% endif %}
+                         origin-center"></span>
+        </a>
+
+        <a href="/?aba=meus_notes"
+           class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
+                  transition-all duration-300 flex flex-col items-center gap-0.5
+                  {% if aba_atual == 'meus_notes' %}text-blue-600{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+            <span class="text-base leading-none">📓</span>
+            <span class="aba-label transition-all duration-300">Meus Notes</span>
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
+                         {% if aba_atual == 'meus_notes' %}bg-blue-600 scale-x-100{% else %}bg-blue-600 scale-x-0 group-hover:scale-x-75{% endif %}
+                         origin-center"></span>
+        </a>
+
+        <a href="/?aba=feed"
+           class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
+                  transition-all duration-300 flex flex-col items-center gap-0.5
+                  {% if aba_atual == 'feed' %}text-purple-600{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+            <span class="text-base leading-none">👥</span>
+            <span class="aba-label transition-all duration-300">Feed de Ideias</span>
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
+                         {% if aba_atual == 'feed' %}bg-purple-600 scale-x-100{% else %}bg-purple-600 scale-x-0 group-hover:scale-x-75{% endif %}
+                         origin-center"></span>
+        </a>
+
+        <a href="/?aba=campo"
+           class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
+                  transition-all duration-300 flex flex-col items-center gap-0.5
+                  {% if aba_atual == 'campo' %}text-orange-500{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+            <span class="text-base leading-none">🌍</span>
+            <span class="aba-label transition-all duration-300">Campo das Ideias</span>
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
+                         {% if aba_atual == 'campo' %}bg-orange-500 scale-x-100{% else %}bg-orange-500 scale-x-0 group-hover:scale-x-75{% endif %}
+                         origin-center"></span>
+        </a>
+
+        {% endwith %}
+    </div>
+</div>
+
+<style>
+.barra-compacta .aba-label {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+}
+.barra-compacta .aba-nav {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+</style>
+
+<script>
+(function () {
+    const barra = document.getElementById('barra-abas');
+    if (!barra) return;
+    let ultimo = 0;
+    window.addEventListener('scroll', () => {
+        const atual = window.scrollY;
+        if (atual > 60 && atual > ultimo) {
+            barra.classList.add('barra-compacta');
+        } else {
+            barra.classList.remove('barra-compacta');
+        }
+        ultimo = atual;
+    }, { passive: true });
+})();
+</script>
