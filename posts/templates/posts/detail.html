@@ -41,7 +41,7 @@
 
         <!-- ── PRIVADO ──────────────────────────────────────────── -->
         {% if post.visibilidade == 'privado' %}
-          <form method="post" action="{% url 'jogar_para_universo' post.id %}">
+          <form method="post" action="{% url 'alterar_visibilidade' post.id %}">
             {% csrf_token %}
             <input type="hidden" name="visibilidade" value="feed">
             <button type="submit"
@@ -49,9 +49,9 @@
               👥 Enviar para o Feed de Ideias
             </button>
           </form>
-          <form method="post" action="{% url 'jogar_para_universo' post.id %}">
+          <form method="post" action="{% url 'alterar_visibilidade' post.id %}">
             {% csrf_token %}
-            <input type="hidden" name="visibilidade" value="universo">
+            <input type="hidden" name="visibilidade" value="campo">
             <button type="submit"
                     class="w-full text-left flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50">
               🌍 Jogar para o Campo das Ideias
@@ -72,9 +72,9 @@
 
         <!-- ── FEED ─────────────────────────────────────────────── -->
         {% if post.visibilidade == 'feed' %}
-          <form method="post" action="{% url 'jogar_para_universo' post.id %}">
+          <form method="post" action="{% url 'alterar_visibilidade' post.id %}">
             {% csrf_token %}
-            <input type="hidden" name="visibilidade" value="universo">
+            <input type="hidden" name="visibilidade" value="campo">
             <button type="submit"
                     class="w-full text-left flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50">
               🌍 Jogar para o Campo das Ideias
@@ -83,7 +83,7 @@
 
           <!-- Retirar do Feed — bloqueado se tiver cooperação aceita -->
           {% if pode_desistir %}
-            <form method="post" action="{% url 'jogar_para_universo' post.id %}">
+            <form method="post" action="{% url 'alterar_visibilidade' post.id %}">
               {% csrf_token %}
               <input type="hidden" name="visibilidade" value="privado">
               <button type="submit"
@@ -120,8 +120,8 @@
           </div>
         {% endif %}
 
-        <!-- ── UNIVERSO ──────────────────────────────────────────── -->
-        {% if post.visibilidade == 'universo' %}
+        <!-- ── CAMPO DAS IDÉIAS ──────────────────────────────────────────── -->
+        {% if post.visibilidade == 'campo' %}
 
           <!-- Retirar do Campo — bloqueado se tiver interações -->
           {% if bloqueio_retirar_feed %}
@@ -132,7 +132,7 @@
               Este post já tem interações e não pode retornar ao Feed.
             </p>
           {% else %}
-            <form method="post" action="{% url 'jogar_para_universo' post.id %}">
+            <form method="post" action="{% url 'alterar_visibilidade' post.id %}">
               {% csrf_token %}
               <input type="hidden" name="visibilidade" value="feed">
               <button type="submit"

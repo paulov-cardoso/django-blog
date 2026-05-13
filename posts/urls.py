@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     home, perfil, seguir_autor,
     criar_post, editar_post, detalhe_post,
-    jogar_para_universo, desistir_ideia,
+    alterar_visibilidade, desistir_ideia,
     candidatar_moderador, eleger_moderador,
     pagina_eleger_moderador, recusar_candidatura,
     registrar, reagir_post, notificacoes,
@@ -16,9 +16,9 @@ urlpatterns = [
     path('registrar/', registrar, name='registrar'),
 
     # visibilidade
-    path('post/<int:post_id>/jogar/',    jogar_para_universo, name='jogar_para_universo'),
-    path('post/<int:post_id>/desistir/', desistir_ideia,      name='desistir_ideia'),
-    path('post/<int:post_id>/editar/',   editar_post,         name='editar_post'),
+    path('post/<int:post_id>/visibilidade/', alterar_visibilidade, name='alterar_visibilidade'),
+    path('post/<int:post_id>/desistir/',     desistir_ideia,       name='desistir_ideia'),
+    path('post/<int:post_id>/editar/',       editar_post,          name='editar_post'),
 
     # moderação
     path('post/<int:post_id>/candidatar/',                   candidatar_moderador,    name='candidatar_moderador'),
@@ -26,10 +26,14 @@ urlpatterns = [
     path('post/<int:post_id>/eleger/<int:candidatura_id>/',  eleger_moderador,        name='eleger_moderador'),
     path('post/<int:post_id>/recusar/<int:candidatura_id>/', recusar_candidatura,     name='recusar_candidatura'),
 
+    # reações
+    path('post/<int:post_id>/reagir/<str:tipo>/', reagir_post, name='reagir_post'),
+
+    # notificações
+    path('notificacoes/<str:canal>/', notificacoes, name='notificacoes'),
+
     # perfil e social
-    path('perfil/editar/',                          editar_perfil,    name='editar_perfil'),
-    path('perfil/<str:username>/',                  perfil,           name='perfil'),
-    path('perfil/<str:username>/seguir/',           seguir_autor,     name='seguir_autor'),
-    path('post/<int:post_id>/reagir/<str:tipo>/',   reagir_post,      name='reagir_post'),
-    path('notificacoes/<str:canal>/',               notificacoes,     name='notificacoes'),
-    ]
+    path('perfil/editar/',                editar_perfil,    name='editar_perfil'),
+    path('perfil/<str:username>/',        perfil,           name='perfil'),
+    path('perfil/<str:username>/seguir/', seguir_autor,     name='seguir_autor'),
+]

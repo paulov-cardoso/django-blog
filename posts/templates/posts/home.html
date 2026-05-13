@@ -50,14 +50,14 @@
                          origin-center"></span>
         </a>
 
-        <a href="/?aba=universo"
+        <a href="/?aba=campo"
            class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
                   transition-all duration-300 flex flex-col items-center gap-0.5
-                  {% if aba_atual == 'universo' %}text-orange-500{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+                  {% if aba_atual == 'campo' %}text-orange-500{% else %}text-gray-400 hover:text-gray-700{% endif %}">
             <span class="text-base leading-none">🌍</span>
             <span class="aba-label transition-all duration-300">Campo das Ideias</span>
             <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
-                         {% if aba_atual == 'universo' %}bg-orange-500 scale-x-100{% else %}bg-orange-500 scale-x-0 group-hover:scale-x-75{% endif %}
+                         {% if aba_atual == 'campo' %}bg-orange-500 scale-x-100{% else %}bg-orange-500 scale-x-0 group-hover:scale-x-75{% endif %}
                          origin-center"></span>
         </a>
 
@@ -207,7 +207,7 @@
                     </div>
                     <h3 class="font-bold text-gray-800 mb-1">{{ post.titulo }}</h3>
                     <p class="text-gray-500 text-xs mb-2">{{ post.conteudo|truncatewords:15 }}</p>
-                    {% if post.visibilidade == 'universo' %}
+                    {% if post.visibilidade == 'campo' %}
                     <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
                     {% else %}
                     <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
@@ -251,7 +251,7 @@
                                class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition">
                                 ✏️ Editar
                             </a>
-                            {% if post.visibilidade == 'universo' %}
+                            {% if post.visibilidade == 'campo' %}
                             <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
                             {% else %}
                             <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
@@ -359,16 +359,16 @@
                     <div id="dropdown-{{ post.id }}"
                          class="hidden fixed bg-white rounded-xl shadow-xl border border-gray-100
                                 w-64 z-[9999] overflow-hidden">
-                        <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
+                        <form method="POST" action="{% url 'alterar_visibilidade' post.id %}">
                             {% csrf_token %}
                             <input type="hidden" name="visibilidade" value="feed">
                             <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
                                 👥 Enviar para o Feed de Ideias
                             </button>
                         </form>
-                        <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
+                        <form method="POST" action="{% url 'alterar_visibilidade' post.id %}">
                             {% csrf_token %}
-                            <input type="hidden" name="visibilidade" value="universo">
+                            <input type="hidden" name="visibilidade" value="campo">
                             <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
                                 🌍 Enviar para o Campo das Ideias
                             </button>
@@ -521,9 +521,9 @@
                     <div id="dropdown-{{ post.id }}"
                          class="hidden fixed bg-white rounded-xl shadow-xl border border-gray-100
                                 w-64 z-[9999] overflow-hidden">
-                        <form method="POST" action="{% url 'jogar_para_universo' post.id %}">
+                        <form method="POST" action="{% url 'alterar_visibilidade' post.id %}">
                             {% csrf_token %}
-                            <input type="hidden" name="visibilidade" value="universo">
+                            <input type="hidden" name="visibilidade" value="campo">
                             <button type="submit" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition flex items-center gap-2">
                                 🌍 Enviar para o Campo das Ideias
                             </button>
@@ -661,7 +661,7 @@
                             class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
                         Cancelar
                     </button>
-                    <form method="POST" action="{% url 'jogar_para_universo' post.id %}" class="flex-1">
+                    <form method="POST" action="{% url 'alterar_visibilidade' post.id %}" class="flex-1">
                         {% csrf_token %}
                         <input type="hidden" name="visibilidade" value="privado">
                         <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded-xl transition">
@@ -681,7 +681,7 @@
                             class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
                         Cancelar
                     </button>
-                    <form method="POST" action="{% url 'jogar_para_universo' post.id %}" class="flex-1">
+                    <form method="POST" action="{% url 'alterar_visibilidade' post.id %}" class="flex-1">
                         {% csrf_token %}
                         <input type="hidden" name="visibilidade" value="privado">
                         <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white text-sm py-2 rounded-xl transition">
@@ -727,10 +727,10 @@
 
 
 {# ═══════════════════════════════════════════════════════════ #}
-{# ABA UNIVERSO                                                #}
+{# ABA CAMPO DAS IDÉIAS                                        #}
 {# ═══════════════════════════════════════════════════════════ #}
 
-{% elif aba == 'universo' %}
+{% elif aba == 'campo' %}
 
 <h2 class="text-3xl font-bold text-gray-800 mb-6">🌍 Campo das Ideias</h2>
 <p class="text-gray-500 -mt-4 mb-6 text-sm">Ideias abertas para toda a comunidade colaborar</p>
@@ -738,7 +738,7 @@
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 {% for post in posts %}
 
-    <div onclick="abrirModal('universo-{{ post.id }}')"
+    <div onclick="abrirModal('campo-{{ post.id }}')"
          style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
                 background-color: {{ post.cor|default:'#8B5CF6' }}50"
          class="rounded-xl shadow-md hover:shadow-lg transition p-6 flex flex-col justify-between cursor-pointer relative">
@@ -778,13 +778,13 @@
         </div>
     </div>
 
-    <!-- Modal do post no universo -->
-    <div id="modal-universo-{{ post.id }}"
+    <!-- Modal do post no campo das ideias -->
+    <div id="modal-campo-{{ post.id }}"
          class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
-         onclick="fecharModalFora(event, 'universo-{{ post.id }}')">
+         onclick="fecharModalFora(event, 'campo-{{ post.id }}')">
         <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
 
-            <button onclick="fecharModal('universo-{{ post.id }}')"
+            <button onclick="fecharModal('campo-{{ post.id }}')"
                     class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">✕</button>
 
             <div class="flex flex-wrap gap-2 mb-4">
@@ -922,7 +922,7 @@
         </div>
     </div>
 
-    <!-- Modais de ação do universo -->
+    <!-- Modais de ação do campo das idéias -->
     <div id="modal-confirmar-retirar-campo-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
         <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
             <h2 class="text-lg font-semibold text-gray-800 mb-2">👥 Retirar do Campo?</h2>
@@ -932,7 +932,7 @@
                         class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
                     Cancelar
                 </button>
-                <form method="POST" action="{% url 'jogar_para_universo' post.id %}" class="flex-1">
+                <form method="POST" action="{% url 'alterar_visibilidade' post.id %}" class="flex-1">
                     {% csrf_token %}
                     <input type="hidden" name="visibilidade" value="feed">
                     <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded-xl transition">
@@ -945,7 +945,7 @@
 
     <div id="modal-bloqueio-campo-{{ post.id }}" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
         <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-2">🌍 Ideia do universo</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">🌍 Ideia do Campo das Ideias</h2>
             <p class="text-sm text-gray-600 mb-5">Sua ideia ganhou vida própria. Ela pertence agora ao Campo das Ideias.</p>
             <button onclick="fecharModal('bloqueio-campo-{{ post.id }}')"
                     class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded-xl transition">
@@ -996,8 +996,8 @@
 {% empty %}
     <div class="col-span-3 text-center text-gray-400 py-20">
         <p class="text-6xl mb-4">🌍</p>
-        <p class="text-xl font-semibold">O universo está vazio</p>
-        <p class="text-sm mt-2">Seja o primeiro a jogar uma ideia para o universo!</p>
+        <p class="text-xl font-semibold">O Campo das Idéias está vazio</p>
+        <p class="text-sm mt-2">Seja o primeiro a idealizar no campo das idéias</p>
     </div>
 {% endfor %}
 </div>

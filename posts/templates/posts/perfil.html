@@ -121,7 +121,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             {% for post in posts_publicos %}
 
-                {% if post.visibilidade == 'universo' %}
+                {% if post.visibilidade == 'campo' %}
                 <!-- Campo das Ideias — aberto para todos -->
                 <div class="rounded-xl p-5 shadow-sm border cursor-pointer hover:shadow-md transition"
                      style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
@@ -209,7 +209,7 @@
 
                         <div class="border-t pt-4 flex justify-between items-center">
                             <span class="text-sm text-gray-400">💬 Colabore nos comentários</span>
-                            {% if post.visibilidade == 'universo' %}
+                            {% if post.visibilidade == 'campo' %}
                             <span class="text-xs text-orange-500 font-semibold">🌍 Campo das Ideias</span>
                             {% else %}
                             <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
@@ -229,9 +229,8 @@
         {% endif %}
     </div>
 
+    </div>
 </div>
-</div>
-{% endblock %}
 
 
 <script>
@@ -253,3 +252,4 @@
 </script>
 
 {% endblock %}
+

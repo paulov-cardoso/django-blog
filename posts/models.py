@@ -34,9 +34,9 @@ class Categoria(models.Model):
 
 class Post(models.Model):
     VISIBILIDADE_CHOICES = [
-        ('privado',  'Privado'),
-        ('feed',     'Feed de Ideias'),
-        ('universo', 'Campo das Ideias'),
+    ('privado', 'Privado'),
+    ('feed',    'Feed de Ideias'),
+    ('campo',   'Campo das Ideias'),
     ]
 
     titulo             = models.CharField(max_length=200)
