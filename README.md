@@ -60,6 +60,8 @@ Ideias públicas que "pairam" esperando colaboração. Comentários infinitos es
 ### ✅ Implementadas
 
 - Autenticação completa — login, cadastro, recuperação de senha
+- Password validator animado com checks de força no cadastro
+- Toast de boas-vindas animado pós-cadastro
 - Sistema de visibilidade em 3 níveis: **Privado → Feed de Ideias → Campo das Ideias**
 - Dropdown *"O que fazer com a ideia?"* com modais de confirmação por cenário
 - Sistema de moderação com candidatura, eleição de moderadores e privilégios configuráveis
@@ -68,8 +70,12 @@ Ideias públicas que "pairam" esperando colaboração. Comentários infinitos es
 - Badge *"Procura-se Moderador"* e proteção de ideias com vida coletiva
 - Página de eleição de moderadores com busca de seguidores e seleção de privilégios
 - Perfil de usuário com foto de capa e foto de perfil em losango
-- Sistema de seguidores e feed personalizado
+- Sistema de seguidores e feed personalizado (próprios posts + posts de quem você segue)
+- Feed estilo Instagram com avatar, tempo relativo, reações e composer bar
+- Reações em posts — curtida ❤️ e clip 📌 com toggle
+- Composer bar no feed com título pré-preenchido e visibilidade automática
 - Modal de perfil externo carregado via `fetch` com botão Seguir/Deixar de seguir
+- Sistema de notificações — sino 🔔 (interações) e carta ✉️ (colaboração/moderação)
 - Toast PRG animado com lâmpada ao completar ações
 
 ### 🔄 Em desenvolvimento
@@ -80,7 +86,6 @@ Ideias públicas que "pairam" esperando colaboração. Comentários infinitos es
 - Modo TDAH — tunnel vision, Pomodoro, micro-steps, gamificação
 - Kanban de ideias com drag and drop
 - Aba Trending
-- Curtir e reagir ideias
 - Busca global
 - Login social (Google, GitHub)
 - Deploy no Railway
@@ -195,25 +200,58 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 
 ```
 django-blog/
-├── blog/                   # Configurações do projeto Django
-│   ├── settings.py         # Banco dinâmico (PostgreSQL/SQLite via .env)
+├── django_blog/                  # Configurações do projeto Django
+│   ├── settings.py               # Banco dinâmico (PostgreSQL/SQLite via .env)
 │   ├── urls.py
 │   └── wsgi.py
-├── posts/                  # App principal
-│   ├── models.py           # Post, Autor, Seguidor, ModeradorPost, CandidaturaModerador
+├── posts/                        # App principal
+│   ├── models.py                 # Post, Autor, Seguidor, ModeradorPost, CandidaturaModerador, PostReacao, Notificacao
 │   ├── views.py
 │   ├── urls.py
 │   ├── forms.py
+│   ├── context_processors.py     # Contadores de notificação injetados globalmente
 │   └── templates/posts/
-│       ├── base.html
-│       ├── home.html       # 4 abas: Perfil / Meus Notes / Feed / Campo das Ideias
-│       ├── criar.html
-│       ├── editar.html
-│       ├── detail.html
-│       ├── perfil.html
-│       ├── eleger_moderador.html
-│       └── registrar.html
-├── media/                  # Uploads de fotos (gitignored)
+│       ├── base.html             # Layout global — navbar, toast, abas
+│       ├── home.html             # Orquestrador das 4 abas (~30 linhas)
+│       ├── auth/                 # Autenticação
+│       │   ├── login.html
+│       │   ├── registrar.html
+│       │   ├── senha_reset.html
+│       │   ├── senha_reset_confirmar.html
+│       │   ├── senha_reset_enviado.html
+│       │   └── senha_reset_concluido.html
+│       ├── perfil/               # Perfil de usuário
+│       │   ├── perfil.html
+│       │   └── editar_perfil.html
+│       ├── posts/                # Posts individuais
+│       │   ├── criar.html
+│       │   ├── editar.html
+│       │   ├── detail.html
+│       │   └── listar.html
+│       ├── moderacao/
+│       │   └── eleger_moderador.html
+│       ├── notificacoes/
+│       │   └── notificacoes.html
+│       └── partials/             # Componentes reutilizáveis
+│           ├── abas_nav.html
+│           ├── perfil/
+│           │   ├── card_perfil.html
+│           │   └── painel_ideias.html
+│           ├── feed/
+│           │   ├── composer_bar.html
+│           │   ├── card_feed.html
+│           │   └── modais_feed.html
+│           ├── notes/
+│           │   ├── card_note.html
+│           │   └── modais_notes.html
+│           ├── campo/
+│           │   ├── card_campo.html
+│           │   └── modais_campo.html
+│           └── shared/
+│               ├── dropdown_post.html
+│               ├── modal_perfil_externo.html
+│               └── moderadores_painel.html
+├── media/                        # Uploads de fotos (gitignored)
 ├── .env.example
 ├── manage.py
 └── requirements.txt
