@@ -63,7 +63,7 @@
         <div class="px-8 pt-10 pb-6">
             <h1 class="text-2xl font-bold text-gray-800">{{ autor_perfil.nome_exibicao }}</h1>
             {% if autor_perfil.bio %}
-                <p class="text-gray-500 text-sm mt-1">({{ autor_perfil.bio }})</p>
+                <p class="text-gray-500 text-sm mt-1">"{{ autor_perfil.bio }}"</p>
             {% else %}
                 <p class="text-gray-300 text-sm mt-1 italic">(sem bio)</p>
             {% endif %}

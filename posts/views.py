@@ -2,10 +2,13 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.auth import login
+from django.http import JsonResponse
+from django.utils.text import slugify
 from django.db.models import Q
 
-from .models import Post, Autor, ModeradorPost, CandidaturaModerador, Seguidor, PostReacao, Notificacao
+from .models import Post, Autor, ModeradorPost, CandidaturaModerador, Seguidor, PostReacao, Notificacao, Categoria
 from .forms import PostForm, RegistroForm, AutorForm
+from django.http import JsonResponse
 
 
 # ── constantes ────────────────────────────────────────────────────────────────
@@ -200,33 +203,56 @@ def criar_post(request):
     if request.method == 'POST':
         form = PostForm(request.POST)
         if form.is_valid():
-            post              = form.save(commit=False)
-            post.cor          = request.POST.get('cor', '#3B82F6')
-            post.autor        = request.user.autor
-            visibilidade      = request.POST.get('visibilidade', 'privado')
+            post         = form.save(commit=False)
+            post.cor     = request.POST.get('cor', '#3B82F6')
+            post.autor   = request.user.autor
+            visibilidade = request.POST.get('visibilidade', 'privado')
 
             if visibilidade not in _VISIBILIDADES_VALIDAS:
                 visibilidade = 'privado'
 
+            ids = request.POST.getlist('categorias_selecionadas')
+
+            # Bloqueia criação pública sem categoria — sem criar o post
+            if visibilidade in ('feed', 'campo') and not ids:
+                titulo   = request.POST.get('titulo', '')
+                conteudo = request.POST.get('conteudo', '')
+                return redirect(
+                    f'/novo/?titulo_inicial={titulo}'
+                    f'&conteudo_inicial={conteudo}'
+                    f'&visibilidade={visibilidade}'
+                    f'&erro=sem_categoria'
+                )
+
             post.visibilidade = visibilidade
             post.publicado    = visibilidade != 'privado'
             post.save()
-            form.save_m2m()
+
+            if ids:
+                post.categorias.set(Categoria.objects.filter(id__in=ids, aprovada=True))
 
             aba, msg = _DESTINO_MSG_VISIBILIDADE[visibilidade]
             return redirect(f'/?aba={aba}&msg={msg}')
+
     else:
-        titulo_inicial = request.GET.get('titulo_inicial', '').strip()
-        visibilidade   = request.GET.get('visibilidade', 'privado')
+        titulo_inicial   = request.GET.get('titulo_inicial', '').strip()
+        conteudo_inicial = request.GET.get('conteudo_inicial', '').strip()
+        visibilidade     = request.GET.get('visibilidade', 'privado')
 
         if visibilidade not in _VISIBILIDADES_VALIDAS:
             visibilidade = 'privado'
 
-        form = PostForm(initial={'titulo': titulo_inicial} if titulo_inicial else {})
+        initial = {}
+        if titulo_inicial:
+            initial['titulo'] = titulo_inicial
+        if conteudo_inicial:
+            initial['conteudo'] = conteudo_inicial
+
+        form = PostForm(initial=initial if initial else {})
 
     return render(request, 'posts/posts/criar.html', {
-    'form':         form,
-    'visibilidade': visibilidade,
+        'form':         form,
+        'visibilidade': visibilidade,
     })
 
 
@@ -234,9 +260,6 @@ def criar_post(request):
 
 @login_required
 def alterar_visibilidade(request, post_id):
-    """
-    Transição de visibilidade: privado ↔ feed ↔ campo.
-    """
     if request.method != 'POST':
         return redirect('home')
 
@@ -246,15 +269,25 @@ def alterar_visibilidade(request, post_id):
         return redirect('home')
 
     nova_visibilidade = request.POST.get('visibilidade', 'campo')
+    opcoes_validas = {'privado', 'feed', 'campo'}
 
-    if nova_visibilidade not in _VISIBILIDADES_VALIDAS:
+    if nova_visibilidade not in opcoes_validas:
         return redirect('home')
+
+    # Bloqueia publicação sem categoria
+    if nova_visibilidade in ('feed', 'campo') and not post.categorias.exists():
+        return redirect(f'/?aba=notes_privados&erro=sem_categoria&post_id={post_id}')
 
     post.visibilidade = nova_visibilidade
     post.publicado    = nova_visibilidade != 'privado'
     post.save(update_fields=['visibilidade', 'publicado'])
 
-    aba, msg = _DESTINO_MSG_VISIBILIDADE[nova_visibilidade]
+    _DESTINO_MSG = {
+        'privado': ('notes_privados', 'ideia_privada'),
+        'feed':    ('feed',           'ideia_feed'),
+        'campo':   ('campo',          'ideia_campo'),
+    }
+    aba, msg = _DESTINO_MSG[nova_visibilidade]
     return redirect(f'/?aba={aba}&msg={msg}')
 
 
@@ -273,7 +306,11 @@ def editar_post(request, post_id):
             post     = form.save(commit=False)
             post.cor = request.POST.get('cor', post.cor)
             post.save()
-            form.save_m2m()
+            
+            ids = request.POST.getlist('categorias_selecionadas')
+            if ids:
+                post.categorias.set(Categoria.objects.filter(id__in=ids, aprovada=True))
+
             aba = _ABA_POR_VISIBILIDADE.get(post.visibilidade, 'notes_privados')
             return redirect(f'/?aba={aba}&msg=ideia_editada')
     else:
@@ -531,6 +568,91 @@ def recusar_candidatura(request, post_id, candidatura_id):
     candidatura.status = 'recusado'
     candidatura.save(update_fields=['status'])
     return redirect('/?aba=campo')
+
+
+
+
+# ── API DE CATEGORIAS ─────────────────────────────────────────────────────────
+
+import json
+import re
+
+@login_required
+def buscar_categorias(request):
+    """Retorna categorias aprovadas que contenham o termo buscado."""
+    termo = request.GET.get('q', '').strip()
+    if len(termo) < 2:
+        return JsonResponse({'categorias': []})
+
+    categorias = Categoria.objects.filter(
+        nome__icontains=termo,
+        aprovada=True,
+    ).values('id', 'nome', 'cor')[:10]
+
+    return JsonResponse({'categorias': list(categorias)})
+
+
+@login_required
+def criar_categoria(request):
+    """Cria uma nova categoria validada. Retorna JSON."""
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON inválido.'}, status=400)
+
+    nome = dados.get('nome', '').strip()
+
+    # Validator
+    erros = _validar_nome_categoria(nome)
+    if erros:
+        return JsonResponse({'erro': erros[0]}, status=422)
+
+    slug = slugify(nome)
+
+    # Evita duplicata case-insensitive
+    if Categoria.objects.filter(nome__iexact=nome).exists():
+        categoria = Categoria.objects.get(nome__iexact=nome)
+        return JsonResponse({
+            'id':   categoria.id,
+            'nome': categoria.nome,
+            'cor':  categoria.cor,
+            'ja_existia': True,
+        })
+
+    autor = get_object_or_404(Autor, usuario=request.user)
+    categoria = Categoria.objects.create(
+        nome=nome,
+        slug=slug,
+        criada_por=autor,
+    )
+    return JsonResponse({
+        'id':   categoria.id,
+        'nome': categoria.nome,
+        'cor':  categoria.cor,
+        'ja_existia': False,
+    }, status=201)
+
+
+def _validar_nome_categoria(nome: str) -> list[str]:
+    """
+    Retorna lista de erros. Lista vazia = válido.
+    Regras: só letras (incluindo acentos), uma palavra, 3–30 chars.
+    """
+    erros = []
+    if len(nome) < 3:
+        erros.append('Mínimo de 3 caracteres.')
+    if len(nome) > 30:
+        erros.append('Máximo de 30 caracteres.')
+    if ' ' in nome:
+        erros.append('Apenas uma palavra, sem espaços.')
+    if not re.fullmatch(r'[A-Za-zÀ-ÿ]+', nome):
+        erros.append('Apenas letras, sem números ou caracteres especiais.')
+    return erros
+
+
 
 
 # ── registro ──────────────────────────────────────────────────────────────────

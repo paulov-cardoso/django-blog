@@ -35,10 +35,278 @@
       {{ form.conteudo }}
     </div>
 
+    <!--BLOCO DE CATEGORIAS COM A API DE CATEGORIAS-->
+
     <div class="mb-4">
-      <label class="block text-sm font-semibold text-gray-600 mb-2">Categorias</label>
-      <div class="flex flex-wrap gap-2">{{ form.categorias }}</div>
+    <label class="block text-sm font-semibold text-gray-600 mb-2">
+        Categorias
+        <span class="text-gray-400 font-normal text-xs ml-1">(opcional para notes privados)</span>
+    </label>
+
+    <!-- Tags selecionadas -->
+    <div id="categorias-selecionadas"
+         class="flex flex-wrap gap-2 mb-3 min-h-[28px]">
+        {# populado via JS #}
     </div>
+
+    <!-- Busca -->
+    <div class="flex gap-2">
+        <div class="relative flex-1">
+            <input type="text"
+                   id="input-busca-categoria"
+                   placeholder="Buscar categoria..."
+                   autocomplete="off"
+                   class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-400">
+
+            <!-- Dropdown de sugestões -->
+            <div id="dropdown-categorias"
+                 class="hidden absolute z-50 w-full bg-white border border-gray-200
+                        rounded-xl shadow-lg mt-1 overflow-hidden">
+            </div>
+        </div>
+
+        <button type="button"
+                onclick="abrirValidatorCategoria()"
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white
+                       text-sm font-semibold rounded-lg transition">
+            + Nova
+        </button>
+    </div>
+</div>
+
+<!-- Modal validator de nova categoria -->
+<div id="modal-categoria"
+     class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+
+        <h3 class="text-lg font-bold text-gray-800 mb-1">💡 Nova Categoria</h3>
+        <p class="text-xs text-gray-400 mb-4">
+            Apenas uma palavra, somente letras, entre 3 e 30 caracteres.
+        </p>
+
+        <input type="text"
+               id="input-nova-categoria"
+               placeholder="Ex: Tecnologia"
+               maxlength="30"
+               class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-4
+                      focus:outline-none focus:ring-2 focus:ring-indigo-400">
+
+        <!-- Checklist do validator -->
+        <ul class="space-y-2 mb-5 text-sm">
+            <li id="check-letras"    class="flex items-center gap-2 text-gray-400">
+                <span class="text-lg">💡</span> Somente letras
+            </li>
+            <li id="check-palavra"   class="flex items-center gap-2 text-gray-400">
+                <span class="text-lg">💡</span> Uma única palavra
+            </li>
+            <li id="check-minimo"    class="flex items-center gap-2 text-gray-400">
+                <span class="text-lg">💡</span> Mínimo 3 caracteres
+            </li>
+            <li id="check-maximo"    class="flex items-center gap-2 text-gray-400">
+                <span class="text-lg">💡</span> Máximo 30 caracteres
+            </li>
+        </ul>
+
+        <div id="feedback-categoria" class="text-sm mb-4 hidden"></div>
+
+        <div class="flex gap-3">
+            <button type="button"
+                    onclick="fecharValidatorCategoria()"
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700
+                           text-sm py-2 rounded-xl transition">
+                Cancelar
+            </button>
+            <button type="button"
+                    id="btn-salvar-categoria"
+                    onclick="salvarNovaCategoria()"
+                    disabled
+                    class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white
+                           text-sm font-semibold py-2 rounded-xl transition
+                           disabled:opacity-40 disabled:cursor-not-allowed">
+                Criar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+const categoriasIds = new Set();
+
+// ── Busca com autocomplete ────────────────────────────────────────────────────
+
+const inputBusca   = document.getElementById('input-busca-categoria');
+const dropdown     = document.getElementById('dropdown-categorias');
+
+inputBusca.addEventListener('input', async function () {
+    const termo = this.value.trim();
+    if (termo.length < 2) { dropdown.classList.add('hidden'); return; }
+
+    const res  = await fetch(`/api/categorias/buscar/?q=${encodeURIComponent(termo)}`);
+    const data = await res.json();
+
+    if (!data.categorias.length) { dropdown.classList.add('hidden'); return; }
+
+    dropdown.innerHTML = data.categorias.map(cat => `
+        <button type="button"
+                onclick="selecionarCategoria(${cat.id}, '${cat.nome}', '${cat.cor}')"
+                class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition
+                       flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full flex-shrink-0"
+                  style="background:${cat.cor}"></span>
+            ${cat.nome}
+        </button>
+    `).join('');
+
+    dropdown.classList.remove('hidden');
+});
+
+document.addEventListener('click', function (e) {
+    if (!inputBusca.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.add('hidden');
+    }
+});
+
+// ── Selecionar / remover categoria ───────────────────────────────────────────
+
+function selecionarCategoria(id, nome, cor) {
+    if (categoriasIds.has(id)) return;
+    categoriasIds.add(id);
+
+    const container = document.getElementById('categorias-selecionadas');
+    const tag = document.createElement('span');
+    tag.className = 'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer';
+    tag.style.backgroundColor = cor + '25';
+    tag.style.color = cor;
+    tag.dataset.id = id;
+    tag.innerHTML = `${nome} <span onclick="removerCategoria(${id}, this.parentElement)" class="ml-1 hover:text-red-500">✕</span>`;
+    container.appendChild(tag);
+
+    // Hidden input para o form
+    const hidden = document.createElement('input');
+    hidden.type  = 'hidden';
+    hidden.name  = 'categorias_selecionadas';
+    hidden.value = id;
+    hidden.id    = `hidden-cat-${id}`;
+    container.appendChild(hidden);
+
+    inputBusca.value = '';
+    dropdown.classList.add('hidden');
+}
+
+function removerCategoria(id, tagEl) {
+    categoriasIds.delete(id);
+    tagEl.remove();
+    const hidden = document.getElementById(`hidden-cat-${id}`);
+    if (hidden) hidden.remove();
+}
+
+// ── Validator de nova categoria ───────────────────────────────────────────────
+
+function abrirValidatorCategoria() {
+    document.getElementById('modal-categoria').classList.remove('hidden');
+    document.getElementById('modal-categoria').classList.add('flex');
+    document.getElementById('input-nova-categoria').focus();
+}
+
+function fecharValidatorCategoria() {
+    document.getElementById('modal-categoria').classList.add('hidden');
+    document.getElementById('modal-categoria').classList.remove('flex');
+    document.getElementById('input-nova-categoria').value = '';
+    resetarChecks();
+}
+
+const REGEX_LETRAS = /^[A-Za-zÀ-ÿ]+$/;
+
+document.getElementById('input-nova-categoria').addEventListener('input', function () {
+    const v = this.value.trim();
+    const ok = validarChecks(v);
+    document.getElementById('btn-salvar-categoria').disabled = !ok;
+});
+
+function validarChecks(v) {
+    const checks = {
+        'check-letras':  REGEX_LETRAS.test(v),
+        'check-palavra': !v.includes(' '),
+        'check-minimo':  v.length >= 3,
+        'check-maximo':  v.length <= 30,
+    };
+    let tudo = true;
+    for (const [id, valido] of Object.entries(checks)) {
+        const li   = document.getElementById(id);
+        const lamp = li.querySelector('span');
+        if (valido) {
+            li.classList.replace('text-gray-400', 'text-green-600');
+            lamp.textContent = '💡';
+            lamp.style.filter = 'drop-shadow(0 0 6px #fbbf24)';
+        } else {
+            li.classList.replace('text-green-600', 'text-gray-400');
+            lamp.textContent = '💡';
+            lamp.style.filter = 'none';
+            tudo = false;
+        }
+    }
+    return tudo;
+}
+
+function resetarChecks() {
+    ['check-letras','check-palavra','check-minimo','check-maximo'].forEach(id => {
+        const li = document.getElementById(id);
+        li.className = 'flex items-center gap-2 text-gray-400';
+        li.querySelector('span').style.filter = 'none';
+    });
+    document.getElementById('btn-salvar-categoria').disabled = true;
+}
+
+async function salvarNovaCategoria() {
+    const nome     = document.getElementById('input-nova-categoria').value.trim();
+    const feedback = document.getElementById('feedback-categoria');
+    const btn      = document.getElementById('btn-salvar-categoria');
+
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+        const res  = await fetch('/api/categorias/criar/', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+            body:    JSON.stringify({ nome }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            feedback.textContent = data.erro;
+            feedback.className   = 'text-sm mb-4 text-red-500';
+            feedback.classList.remove('hidden');
+            btn.disabled    = false;
+            btn.textContent = 'Criar';
+            return;
+        }
+
+        fecharValidatorCategoria();
+        selecionarCategoria(data.id, data.nome, data.cor);
+
+        if (data.ja_existia) {
+            feedback.textContent = `"${data.nome}" já existia e foi selecionada.`;
+            feedback.className   = 'text-sm mb-4 text-indigo-500';
+            feedback.classList.remove('hidden');
+        }
+
+    } catch {
+        feedback.textContent = 'Erro de conexão. Tente novamente.';
+        feedback.className   = 'text-sm mb-4 text-red-500';
+        feedback.classList.remove('hidden');
+        btn.disabled    = false;
+        btn.textContent = 'Criar';
+    }
+}
+
+function getCsrf() {
+    return document.cookie.split(';')
+        .find(c => c.trim().startsWith('csrftoken='))
+        ?.split('=')[1] ?? '';
+}
+</script>
 
     <div class="mb-6">
       <label class="block text-sm font-semibold text-gray-600 mb-2">Cor do card</label>
@@ -57,5 +325,53 @@
     </button>
   </form>
 </div>
+
+
+<!-- Alerta: sem categoria ao tentar publicar -->
+
+<div id="modal-alerta-sem-categoria"
+     class="fixed inset-0 z-[999999] hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">🏷️ Categoria obrigatória</h2>
+        <p class="text-sm text-gray-600 mb-2">
+            Para publicar no <strong>Feed de Ideias</strong> ou no
+            <strong>Campo das Ideias</strong>, seu note precisa ter
+            ao menos uma categoria.
+        </p>
+        <p class="text-xs text-gray-400 mb-5">
+            Adicione uma categoria abaixo e clique em Salvar Note.
+        </p>
+        <button onclick="fecharAlertaCategoria()"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white
+                       text-sm font-semibold py-2.5 rounded-xl transition">
+            Entendido, vou adicionar
+        </button>
+    </div>
+</div>
+
+<script>
+(function () {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('erro') === 'sem_categoria') {
+        params.delete('erro');
+        const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
+        history.replaceState(null, '', novaUrl);
+
+        const modal = document.getElementById('modal-alerta-sem-categoria');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    }
+})();
+
+function fecharAlertaCategoria() {
+    const modal = document.getElementById('modal-alerta-sem-categoria');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+</script>
 
 {% endblock %}

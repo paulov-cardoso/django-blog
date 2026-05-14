@@ -90,4 +90,41 @@
             dropdownAberto = false;
         }
     });
+
+    // Exibe modal de bloqueio se vier ?erro=sem_categoria
+    (function () {
+    const params       = new URLSearchParams(window.location.search);
+    const erro         = params.get('erro');
+    const titulo       = params.get('titulo') || '';
+    const conteudo     = params.get('conteudo_inicial') || '';
+    const visibilidade = params.get('visibilidade') || 'feed';
+
+    if (erro === 'sem_categoria') {
+        params.delete('erro');
+        params.delete('titulo');
+        params.delete('conteudo_inicial');
+        params.delete('visibilidade');
+        const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
+        history.replaceState(null, '', novaUrl);
+
+        const btn = document.getElementById('btn-adicionar-categoria');
+        if (btn) {
+            btn.href = `/novo/?titulo_inicial=${encodeURIComponent(titulo)}&conteudo_inicial=${encodeURIComponent(conteudo)}&visibilidade=${visibilidade}`;
+        }
+
+        const alerta = document.getElementById('modal-alerta-sem-categoria');
+        if (alerta) {
+            alerta.classList.remove('hidden');
+            alerta.classList.add('flex');
+        }
+    }
+})();
+
+function fecharModalAlertaCategoria() {
+    const alerta = document.getElementById('modal-alerta-sem-categoria');
+    if (alerta) {
+        alerta.classList.add('hidden');
+        alerta.classList.remove('flex');
+    }
+}
 </script>

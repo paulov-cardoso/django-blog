@@ -24,9 +24,20 @@ class Autor(models.Model):
 
 
 class Categoria(models.Model):
-    nome = models.CharField(max_length=50)
-    slug = models.SlugField(unique=True)
-    cor  = models.CharField(max_length=7, default='#3B82F6')
+    nome       = models.CharField(max_length=30, unique=True)
+    slug       = models.SlugField(unique=True)
+    cor        = models.CharField(max_length=7, default='#3B82F6')
+    criada_por = models.ForeignKey(
+        'Autor',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='categorias_criadas',
+    )
+    aprovada   = models.BooleanField(default=True)
+    data       = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['nome']
 
     def __str__(self):
         return self.nome

@@ -8,7 +8,7 @@ from .models import Post, Autor
 class PostForm(forms.ModelForm):
     class Meta:
         model  = Post
-        fields = ['titulo', 'conteudo', 'categorias', 'publicado']
+        fields = ['titulo', 'conteudo', 'publicado']
         widgets = {
             'titulo': forms.TextInput(attrs={
                 'class':       'w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500',
@@ -19,7 +19,6 @@ class PostForm(forms.ModelForm):
                 'rows':        6,
                 'placeholder': 'Escreva seu note aqui...',
             }),
-            'categorias': forms.CheckboxSelectMultiple(),
         }
 
 
