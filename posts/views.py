@@ -13,13 +13,13 @@ from .forms import PostForm, RegistroForm, AutorForm
 _VISIBILIDADES_VALIDAS = {'privado', 'feed', 'campo'}
 
 _ABA_POR_VISIBILIDADE = {
-    'privado': 'meus_notes',
-    'feed':    'feed',
-    'campo':   'campo',
+    'privado':  'notes_privados',
+    'feed':     'feed',
+    'campo':    'campo',
 }
 
 _DESTINO_MSG_VISIBILIDADE = {
-    'privado': ('meus_notes', 'ideia_privada'),
+    'privado': ('notes_privados', 'ideia_privada'),
     'feed':    ('feed',       'ideia_feed'),
     'campo':   ('campo',      'ideia_campo'),
 }
@@ -115,7 +115,7 @@ def home(request):
             **_contexto_perfil(autor, request.user),
         })
 
-    if aba == 'meus_notes':
+    if aba == 'notes_privados':
         posts = Post.objects.filter(
             autor=autor,
             visibilidade='privado',
@@ -274,7 +274,7 @@ def editar_post(request, post_id):
             post.cor = request.POST.get('cor', post.cor)
             post.save()
             form.save_m2m()
-            aba = _ABA_POR_VISIBILIDADE.get(post.visibilidade, 'meus_notes')
+            aba = _ABA_POR_VISIBILIDADE.get(post.visibilidade, 'notes_privados')
             return redirect(f'/?aba={aba}&msg=ideia_editada')
     else:
         form = PostForm(instance=post)
@@ -352,7 +352,7 @@ def desistir_ideia(request, post_id):
 
     if post.visibilidade == 'privado':
         post.delete()
-        return redirect('/?aba=meus_notes&msg=desistiu')
+        return redirect('/?aba=notes_privados&msg=desistiu')
 
     if post.visibilidade == 'feed':
         tem_cooperacao = post.candidaturas.filter(status='aceito').exists()
@@ -360,7 +360,7 @@ def desistir_ideia(request, post_id):
             post.visibilidade = 'privado'
             post.publicado    = False
             post.save(update_fields=['visibilidade', 'publicado'])
-            return redirect('/?aba=meus_notes&msg=desistiu')
+            return redirect('/?aba=notes_privados&msg=desistiu')
 
     # Feed com cooperação ou campo com moderador: transfere autoria
     moderadores_ativos = post.moderadores.filter(ativo=True)

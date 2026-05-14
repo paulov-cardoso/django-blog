@@ -1,6 +1,6 @@
 {% for post in posts %}
 
-<div onclick="abrirModal('meus_notes-{{ post.id }}')"
+<div onclick="abrirModal('notes_privados-{{ post.id }}')"
      style="border-left: 4px solid {{ post.cor|default:'#8B5CF6' }};
             background-color: {{ post.cor|default:'#8B5CF6' }}50"
      class="rounded-xl shadow-md hover:shadow-lg transition p-6 flex flex-col justify-between cursor-pointer relative">
@@ -35,12 +35,12 @@
 </div>
 
 <!-- Modal do note -->
-<div id="modal-meus_notes-{{ post.id }}"
+<div id="modal-notes_privados-{{ post.id }}"
      class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
-     onclick="fecharModalFora(event, 'meus_notes-{{ post.id }}')">
+     onclick="fecharModalFora(event, 'notes_privados-{{ post.id }}')">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto p-8">
 
-        <button onclick="fecharModal('meus_notes-{{ post.id }}')"
+        <button onclick="fecharModal('notes_privados-{{ post.id }}')"
                 class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">✕</button>
 
         <div class="flex flex-wrap gap-2 mb-4">
@@ -56,7 +56,7 @@
 
         <div class="flex justify-between items-center text-sm text-gray-400 mb-6 border-b pb-4">
             <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
-            {% include 'posts/partials/shared/dropdown_post.html' with aba='meus_notes' %}
+            {% include 'posts/partials/shared/dropdown_post.html' with aba='notes_privados' %}
         </div>
 
         <div class="text-gray-700 leading-relaxed mb-8">{{ post.conteudo }}</div>

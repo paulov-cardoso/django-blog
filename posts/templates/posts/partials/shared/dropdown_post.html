@@ -17,7 +17,7 @@
          class="hidden fixed bg-white rounded-xl shadow-xl border border-gray-100 w-64 z-[9999] overflow-hidden">
 
         {# ── MEUS NOTES ─────────────────────────────────────── #}
-        {% if aba == 'meus_notes' %}
+        {% if aba == 'notes_privados' %}
             <form method="POST" action="{% url 'alterar_visibilidade' post.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="visibilidade" value="feed">

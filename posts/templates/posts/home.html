@@ -8,8 +8,8 @@
 {% if aba == 'perfil' %}
     {% include 'posts/partials/perfil/card_perfil.html' %}
 
-{% elif aba == 'meus_notes' %}
-    <h2 class="text-3xl font-bold text-gray-800 mb-6">📓 Meus Notes</h2>
+{% elif aba == 'notes_privados' %}
+    <p class="text-gray-500 -mt-4 mb-6 text-sm">📓 Guarde desde seus lembretes, ideias e rascunhos aqui. Ninguém vai ler.</p>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% include 'posts/partials/notes/card_note.html' %}
     </div>
