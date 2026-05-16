@@ -201,7 +201,7 @@ def seguir_autor(request, username):
 @login_required
 def criar_post(request):
     if request.method == 'POST':
-        form = PostForm(request.POST)
+        form = PostForm(request.POST, request.FILES)
         if form.is_valid():
             post         = form.save(commit=False)
             post.cor     = request.POST.get('cor', '#3B82F6')
@@ -213,7 +213,7 @@ def criar_post(request):
 
             ids = request.POST.getlist('categorias_selecionadas')
 
-            # Bloqueia criação pública sem categoria — sem criar o post
+            # Bloqueia criação pública sem categoria
             if visibilidade in ('feed', 'campo') and not ids:
                 titulo   = request.POST.get('titulo', '')
                 conteudo = request.POST.get('conteudo', '')
@@ -224,8 +224,25 @@ def criar_post(request):
                     f'&erro=sem_categoria'
                 )
 
+            # Bloqueia publicação no feed sem capa
+            if visibilidade == 'feed' and not request.FILES.get('imagem_capa_1'):
+                titulo   = request.POST.get('titulo', '')
+                conteudo = request.POST.get('conteudo', '')
+                return redirect(
+                    f'/novo/?titulo_inicial={titulo}'
+                    f'&conteudo_inicial={conteudo}'
+                    f'&visibilidade={visibilidade}'
+                    f'&erro=sem_capa'
+                )
+
             post.visibilidade = visibilidade
             post.publicado    = visibilidade != 'privado'
+
+            if request.FILES.get('imagem_capa_1'):
+                post.imagem_capa_1 = request.FILES['imagem_capa_1']
+            if request.FILES.get('imagem_capa_2'):
+                post.imagem_capa_2 = request.FILES['imagem_capa_2']
+
             post.save()
 
             if ids:
@@ -269,25 +286,23 @@ def alterar_visibilidade(request, post_id):
         return redirect('home')
 
     nova_visibilidade = request.POST.get('visibilidade', 'campo')
-    opcoes_validas = {'privado', 'feed', 'campo'}
 
-    if nova_visibilidade not in opcoes_validas:
+    if nova_visibilidade not in _VISIBILIDADES_VALIDAS:
         return redirect('home')
 
     # Bloqueia publicação sem categoria
     if nova_visibilidade in ('feed', 'campo') and not post.categorias.exists():
         return redirect(f'/?aba=notes_privados&erro=sem_categoria&post_id={post_id}')
 
+    # Bloqueia publicação no feed sem capa
+    if nova_visibilidade == 'feed' and not post.tem_capa:
+        return redirect(f'/?aba=notes_privados&erro=sem_capa&post_id={post_id}')
+
     post.visibilidade = nova_visibilidade
     post.publicado    = nova_visibilidade != 'privado'
     post.save(update_fields=['visibilidade', 'publicado'])
 
-    _DESTINO_MSG = {
-        'privado': ('notes_privados', 'ideia_privada'),
-        'feed':    ('feed',           'ideia_feed'),
-        'campo':   ('campo',          'ideia_campo'),
-    }
-    aba, msg = _DESTINO_MSG[nova_visibilidade]
+    aba, msg = _DESTINO_MSG_VISIBILIDADE[nova_visibilidade]
     return redirect(f'/?aba={aba}&msg={msg}')
 
 
@@ -301,12 +316,18 @@ def editar_post(request, post_id):
         return redirect('home')
 
     if request.method == 'POST':
-        form = PostForm(request.POST, instance=post)
+        form = PostForm(request.POST, request.FILES, instance=post)
         if form.is_valid():
             post     = form.save(commit=False)
             post.cor = request.POST.get('cor', post.cor)
+
+            if request.FILES.get('imagem_capa_1'):
+                post.imagem_capa_1 = request.FILES['imagem_capa_1']
+            if request.FILES.get('imagem_capa_2'):
+                post.imagem_capa_2 = request.FILES['imagem_capa_2']
+
             post.save()
-            
+
             ids = request.POST.getlist('categorias_selecionadas')
             if ids:
                 post.categorias.set(Categoria.objects.filter(id__in=ids, aprovada=True))

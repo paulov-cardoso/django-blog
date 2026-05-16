@@ -3,13 +3,13 @@ from django.contrib.auth.models import User
 
 
 class Autor(models.Model):
-    usuario      = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
-    nome         = models.CharField(max_length=100)
+    usuario       = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    nome          = models.CharField(max_length=100)
     nome_exibicao = models.CharField(max_length=100, blank=True, default='')
-    email        = models.EmailField(unique=True)
-    bio          = models.TextField(blank=True)
-    foto_perfil  = models.ImageField(upload_to='fotos/perfil/', null=True, blank=True)
-    foto_capa    = models.ImageField(upload_to='fotos/capa/', null=True, blank=True)
+    email         = models.EmailField(unique=True)
+    bio           = models.TextField(blank=True)
+    foto_perfil   = models.ImageField(upload_to='fotos/perfil/', null=True, blank=True)
+    foto_capa     = models.ImageField(upload_to='fotos/capa/', null=True, blank=True)
 
     def __str__(self):
         return self.nome_exibicao or self.nome
@@ -33,8 +33,8 @@ class Categoria(models.Model):
         on_delete=models.SET_NULL,
         related_name='categorias_criadas',
     )
-    aprovada   = models.BooleanField(default=True)
-    data       = models.DateTimeField(auto_now_add=True)
+    aprovada = models.BooleanField(default=True)
+    data     = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['nome']
@@ -45,9 +45,9 @@ class Categoria(models.Model):
 
 class Post(models.Model):
     VISIBILIDADE_CHOICES = [
-    ('privado', 'Privado'),
-    ('feed',    'Feed de Ideias'),
-    ('campo',   'Campo das Ideias'),
+        ('privado', 'Privado'),
+        ('feed',    'Feed de Ideias'),
+        ('campo',   'Campo das Ideias'),
     ]
 
     titulo             = models.CharField(max_length=200)
@@ -68,20 +68,31 @@ class Post(models.Model):
     procura_moderador  = models.BooleanField(default=False)
     limite_moderadores = models.PositiveIntegerField(default=5)
 
+    # ── Capa (obrigatória no Feed de Ideias) ──────────────────────────────────
+    imagem_capa_1 = models.ImageField(upload_to='posts/capas/', null=True, blank=True)
+    imagem_capa_2 = models.ImageField(upload_to='posts/capas/', null=True, blank=True)
+    titulo_capa   = models.CharField(max_length=120, blank=True, default='')
+
+    # ── Properties ────────────────────────────────────────────────────────────
+
+    @property
+    def tem_capa(self):
+        return bool(self.imagem_capa_1)
+
     @property
     def tem_moderador(self):
         return self.moderadores.filter(ativo=True).exists()
 
     @property
     def tem_interacoes_feed(self):
-        # TODO Fase 8: adicionar checagem de 3+ comentadores distintos
+        # TODO Fase 9: adicionar checagem de 3+ comentadores distintos
         return self.candidaturas.filter(status='aceito').exists()
 
     @property
     def tem_interacoes(self):
-        # TODO Fase 8: adicionar checagem de 3+ comentadores distintos
+        # TODO Fase 9: adicionar checagem de 3+ comentadores distintos
         return self.candidaturas.filter(status='aceito').exists()
-    
+
     @property
     def total_curtidas(self):
         return self.reacoes.filter(tipo='curtida').count()
@@ -92,18 +103,18 @@ class Post(models.Model):
 
     def __str__(self):
         return self.titulo
-    
+
 
 class PostReacao(models.Model):
     TIPO_CHOICES = [
         ('curtida', 'Curtida'),
-        ('clip',    'Clip'),      # "salvar para acompanhar de perto"
+        ('clip',    'Clip'),
     ]
 
-    post   = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='reacoes')
-    autor  = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='reacoes')
-    tipo   = models.CharField(max_length=10, choices=TIPO_CHOICES)
-    data   = models.DateTimeField(auto_now_add=True)
+    post  = models.ForeignKey(Post,  on_delete=models.CASCADE, related_name='reacoes')
+    autor = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='reacoes')
+    tipo  = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    data  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ('post', 'autor', 'tipo')
@@ -131,19 +142,17 @@ class ModeradorPost(models.Model):
     ]
 
     PRIVILEGIO_CHOICES = [
-        ('novo_dono',                   'Novo dono da ideia'),
-        ('edicao_e_moderacao',          'Edição e moderação de comentários'),
-        ('somente_edicao',              'Somente edição'),
+        ('novo_dono',          'Novo dono da ideia'),
+        ('edicao_e_moderacao', 'Edição e moderação de comentários'),
+        ('somente_edicao',     'Somente edição'),
     ]
 
-    post      = models.ForeignKey(Post,  on_delete=models.CASCADE, related_name='moderadores')
-    autor     = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='moderacoes')
-    papel     = models.CharField(max_length=20, choices=PAPEL_CHOICES, default='moderador')
-    privilegio = models.CharField(
-        max_length=30, choices=PRIVILEGIO_CHOICES, default='somente_edicao'
-    )
-    ativo     = models.BooleanField(default=True)
-    data      = models.DateTimeField(auto_now_add=True)
+    post       = models.ForeignKey(Post,  on_delete=models.CASCADE, related_name='moderadores')
+    autor      = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='moderacoes')
+    papel      = models.CharField(max_length=20, choices=PAPEL_CHOICES, default='moderador')
+    privilegio = models.CharField(max_length=30, choices=PRIVILEGIO_CHOICES, default='somente_edicao')
+    ativo      = models.BooleanField(default=True)
+    data       = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ('post', 'autor')
@@ -170,37 +179,35 @@ class CandidaturaModerador(models.Model):
 
     def __str__(self):
         return f"{self.candidato} → '{self.post}' ({self.status})"
-    
-    
+
+
 class Notificacao(models.Model):
     TIPO_CHOICES = [
-        ('curtida',      'Curtida'),
-        ('clip',         'Clip'),
-        ('comentario',   'Comentário'),
-        ('candidatura',  'Candidatura a moderador'),
-        ('eleicao',      'Eleito moderador'),
-        ('recusa',       'Candidatura recusada'),
+        ('curtida',     'Curtida'),
+        ('clip',        'Clip'),
+        ('comentario',  'Comentário'),
+        ('candidatura', 'Candidatura a moderador'),
+        ('eleicao',     'Eleito moderador'),
+        ('recusa',      'Candidatura recusada'),
     ]
 
-    # Tipos que vão para o sino (interações)
-    TIPOS_SINO = {'curtida', 'clip', 'comentario'}
-    # Tipos que vão para a carta (colaboração/moderação)
+    TIPOS_SINO  = {'curtida', 'clip', 'comentario'}
     TIPOS_CARTA = {'candidatura', 'eleicao', 'recusa'}
 
     destinatario = models.ForeignKey(
         Autor, on_delete=models.CASCADE, related_name='notificacoes'
     )
-    remetente    = models.ForeignKey(
+    remetente = models.ForeignKey(
         Autor, on_delete=models.CASCADE, related_name='notificacoes_enviadas',
-        null=True, blank=True
+        null=True, blank=True,
     )
-    post         = models.ForeignKey(
+    post = models.ForeignKey(
         Post, on_delete=models.CASCADE, related_name='notificacoes',
-        null=True, blank=True
+        null=True, blank=True,
     )
-    tipo         = models.CharField(max_length=20, choices=TIPO_CHOICES)
-    lida         = models.BooleanField(default=False)
-    data         = models.DateTimeField(auto_now_add=True)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    lida = models.BooleanField(default=False)
+    data = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-data']

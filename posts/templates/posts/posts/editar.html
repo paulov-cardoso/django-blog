@@ -5,340 +5,414 @@
 {% block conteudo %}
 
 <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-8">
-    <h2 class="text-3xl font-bold text-gray-800 mb-6">✏️ Editar Note</h2>
+  <h2 class="text-3xl font-bold text-gray-800 mb-6">✏️ Editar Note</h2>
 
-    {% if form.errors %}
-    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-        <strong>Erro ao enviar:</strong>
-        <ul>
-            {% for field in form %}
-                {% for error in field.errors %}
-                <li>{{ error }}</li>
-                {% endfor %}
-            {% endfor %}
-        </ul>
+  {% if form.errors %}
+  <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+    <strong>Erro ao enviar:</strong>
+    <ul>
+      {% for field in form %}
+        {% for error in field.errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {# Pré-popula categorias existentes #}
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const existentes = [
+          {% for cat in post.categorias.all %}
+          { id: {{ cat.id }}, nome: "{{ cat.nome }}", cor: "{{ cat.cor }}" },
+          {% endfor %}
+        ];
+        existentes.forEach(cat => selecionarCategoria(cat.id, cat.nome, cat.cor));
+      });
+    </script>
+
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-gray-600 mb-1">Título</label>
+      {{ form.titulo }}
     </div>
-    {% endif %}
 
-    <form method="POST">
-        {% csrf_token %}
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-gray-600 mb-1">Conteúdo</label>
+      {{ form.conteudo }}
+    </div>
 
-        {# Pré-popula categorias existentes ao editar #}
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-            const existentes = [
-                {% for cat in post.categorias.all %}
-                { id: {{ cat.id }}, nome: "{{ cat.nome }}", cor: "{{ cat.cor }}" },
-                {% endfor %}
-            ];
-            existentes.forEach(cat => selecionarCategoria(cat.id, cat.nome, cat.cor));
-            });
-        </script>
-
-        <div class="mb-4">
-            <label class="block text-sm font-semibold text-gray-600 mb-1">Título</label>
-            {{ form.titulo }}
-        </div>
-
-        <div class="mb-4">
-            <label class="block text-sm font-semibold text-gray-600 mb-1">Conteúdo</label>
-            {{ form.conteudo }}
-        </div>
-
-        <!--BLOCO DE CATEGORIAS RODANDO COM API DE CATEGORIAS-->
-        <div class="mb-4">
-    <label class="block text-sm font-semibold text-gray-600 mb-2">
+    <!-- BLOCO DE CATEGORIAS -->
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-gray-600 mb-2">
         Categorias
         <span class="text-gray-400 font-normal text-xs ml-1">(opcional para notes privados)</span>
-    </label>
-
-    <!-- Tags selecionadas -->
-    <div id="categorias-selecionadas"
-         class="flex flex-wrap gap-2 mb-3 min-h-[28px]">
-        {# populado via JS #}
-    </div>
-
-    <!-- Busca -->
-    <div class="flex gap-2">
+      </label>
+      <div id="categorias-selecionadas" class="flex flex-wrap gap-2 mb-3 min-h-[28px]"></div>
+      <div class="flex gap-2">
         <div class="relative flex-1">
-            <input type="text"
-                   id="input-busca-categoria"
-                   placeholder="Buscar categoria..."
-                   autocomplete="off"
-                   class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-blue-400">
-
-            <!-- Dropdown de sugestões -->
-            <div id="dropdown-categorias"
-                 class="hidden absolute z-50 w-full bg-white border border-gray-200
-                        rounded-xl shadow-lg mt-1 overflow-hidden">
-            </div>
+          <input type="text"
+                 id="input-busca-categoria"
+                 placeholder="Buscar categoria..."
+                 autocomplete="off"
+                 class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm
+                        focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <div id="dropdown-categorias"
+               class="hidden absolute z-50 w-full bg-white border border-gray-200
+                      rounded-xl shadow-lg mt-1 overflow-hidden"></div>
         </div>
-
         <button type="button"
                 onclick="abrirValidatorCategoria()"
                 class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white
                        text-sm font-semibold rounded-lg transition">
-            + Nova
+          + Nova
         </button>
+      </div>
     </div>
-</div>
 
-<!-- Modal validator de nova categoria -->
-<div id="modal-categoria"
-     class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
-    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+    <!-- BLOCO DE CAPA -->
+    <div class="mb-6">
+      <label class="block text-sm font-semibold text-gray-600 mb-2">
+        Capa
+        <span class="text-gray-400 font-normal text-xs ml-1">(obrigatória para o Feed de Ideias)</span>
+      </label>
 
+      <!-- Imagem 1 -->
+      <div class="mb-3">
+        <div id="preview-capa-1"
+             class="relative w-full h-48 rounded-xl border-2 border-dashed border-gray-300
+                    bg-gray-50 flex items-center justify-center overflow-hidden cursor-pointer
+                    hover:border-indigo-400 transition"
+             onclick="document.getElementById('input-capa-1').click()">
+          {% if post.imagem_capa_1 %}
+            <img id="img-preview-1"
+                 src="{{ post.imagem_capa_1.url }}"
+                 class="w-full h-full object-cover" alt="Capa atual">
+            <div id="placeholder-capa-1" class="hidden text-center text-gray-400 select-none">
+              <p class="text-3xl mb-1">🖼️</p>
+              <p class="text-sm font-semibold">Imagem principal</p>
+              <p class="text-xs">Clique para substituir</p>
+            </div>
+          {% else %}
+            <img id="img-preview-1" class="hidden w-full h-full object-cover" alt="Capa 1">
+            <div id="placeholder-capa-1" class="text-center text-gray-400 select-none">
+              <p class="text-3xl mb-1">🖼️</p>
+              <p class="text-sm font-semibold">Imagem principal</p>
+              <p class="text-xs">Clique para selecionar</p>
+            </div>
+          {% endif %}
+          <button type="button"
+                  id="btn-remover-capa-1"
+                  onclick="removerImagem(event, 1)"
+                  class="{% if not post.imagem_capa_1 %}hidden {% endif %}absolute top-2 right-2
+                         bg-black/50 hover:bg-black/70 text-white rounded-full w-7 h-7 text-sm font-bold transition">
+            ✕
+          </button>
+        </div>
+        <input type="file" id="input-capa-1" name="imagem_capa_1"
+               accept="image/*" class="hidden"
+               onchange="previewImagem(this, 1)">
+      </div>
+
+      <!-- Imagem 2 -->
+      <div class="mb-3">
+        <div id="preview-capa-2"
+             class="relative w-full h-32 rounded-xl border-2 border-dashed border-gray-200
+                    bg-gray-50 flex items-center justify-center overflow-hidden cursor-pointer
+                    hover:border-indigo-300 transition"
+             onclick="document.getElementById('input-capa-2').click()">
+          {% if post.imagem_capa_2 %}
+            <img id="img-preview-2"
+                 src="{{ post.imagem_capa_2.url }}"
+                 class="w-full h-full object-cover" alt="Capa 2 atual">
+            <div id="placeholder-capa-2" class="hidden text-center text-gray-300 select-none">
+              <p class="text-2xl mb-1">➕</p>
+              <p class="text-xs">Segunda imagem (opcional)</p>
+            </div>
+          {% else %}
+            <img id="img-preview-2" class="hidden w-full h-full object-cover" alt="Capa 2">
+            <div id="placeholder-capa-2" class="text-center text-gray-300 select-none">
+              <p class="text-2xl mb-1">➕</p>
+              <p class="text-xs">Segunda imagem (opcional)</p>
+            </div>
+          {% endif %}
+          <button type="button"
+                  id="btn-remover-capa-2"
+                  onclick="removerImagem(event, 2)"
+                  class="{% if not post.imagem_capa_2 %}hidden {% endif %}absolute top-2 right-2
+                         bg-black/50 hover:bg-black/70 text-white rounded-full w-7 h-7 text-sm font-bold transition">
+            ✕
+          </button>
+        </div>
+        <input type="file" id="input-capa-2" name="imagem_capa_2"
+               accept="image/*" class="hidden"
+               onchange="previewImagem(this, 2)">
+      </div>
+
+      <!-- Título de capa -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">
+          Título de capa
+          <span class="text-gray-400 font-normal">(sobreposto à imagem no feed)</span>
+        </label>
+        {{ form.titulo_capa }}
+      </div>
+    </div>
+
+    <!-- Modal validator de nova categoria -->
+    <div id="modal-categoria"
+         class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50">
+      <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
         <h3 class="text-lg font-bold text-gray-800 mb-1">💡 Nova Categoria</h3>
         <p class="text-xs text-gray-400 mb-4">
-            Apenas uma palavra, somente letras, entre 3 e 30 caracteres.
+          Apenas uma palavra, somente letras, entre 3 e 30 caracteres.
         </p>
-
-        <input type="text"
-               id="input-nova-categoria"
-               placeholder="Ex: Tecnologia"
+        <input type="text" id="input-nova-categoria" placeholder="Ex: Tecnologia"
                maxlength="30"
                class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-4
                       focus:outline-none focus:ring-2 focus:ring-indigo-400">
-
-        <!-- Checklist do validator -->
         <ul class="space-y-2 mb-5 text-sm">
-            <li id="check-letras"    class="flex items-center gap-2 text-gray-400">
-                <span class="text-lg">💡</span> Somente letras
-            </li>
-            <li id="check-palavra"   class="flex items-center gap-2 text-gray-400">
-                <span class="text-lg">💡</span> Uma única palavra
-            </li>
-            <li id="check-minimo"    class="flex items-center gap-2 text-gray-400">
-                <span class="text-lg">💡</span> Mínimo 3 caracteres
-            </li>
-            <li id="check-maximo"    class="flex items-center gap-2 text-gray-400">
-                <span class="text-lg">💡</span> Máximo 30 caracteres
-            </li>
+          <li id="check-letras"  class="flex items-center gap-2 text-gray-400"><span class="text-lg">💡</span> Somente letras</li>
+          <li id="check-palavra" class="flex items-center gap-2 text-gray-400"><span class="text-lg">💡</span> Uma única palavra</li>
+          <li id="check-minimo"  class="flex items-center gap-2 text-gray-400"><span class="text-lg">💡</span> Mínimo 3 caracteres</li>
+          <li id="check-maximo"  class="flex items-center gap-2 text-gray-400"><span class="text-lg">💡</span> Máximo 30 caracteres</li>
         </ul>
-
         <div id="feedback-categoria" class="text-sm mb-4 hidden"></div>
-
         <div class="flex gap-3">
-            <button type="button"
-                    onclick="fecharValidatorCategoria()"
-                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700
-                           text-sm py-2 rounded-xl transition">
-                Cancelar
-            </button>
-            <button type="button"
-                    id="btn-salvar-categoria"
-                    onclick="salvarNovaCategoria()"
-                    disabled
-                    class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white
-                           text-sm font-semibold py-2 rounded-xl transition
-                           disabled:opacity-40 disabled:cursor-not-allowed">
-                Criar
-            </button>
+          <button type="button" onclick="fecharValidatorCategoria()"
+                  class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
+            Cancelar
+          </button>
+          <button type="button" id="btn-salvar-categoria" onclick="salvarNovaCategoria()" disabled
+                  class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
+                         py-2 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed">
+            Criar
+          </button>
         </div>
+      </div>
     </div>
+
+    <div class="mb-6">
+      <label class="block text-sm font-semibold text-gray-600 mb-2">Cor do card</label>
+      <input type="color" name="cor" value="{{ post.cor }}"
+             class="w-full h-12 rounded-lg cursor-pointer border border-gray-300"/>
+    </div>
+
+    <div class="mb-6 flex items-center gap-2">
+      {{ form.publicado }}
+      <label class="text-sm font-semibold text-gray-600">Publicado</label>
+    </div>
+
+    <div class="flex gap-4">
+      <button type="submit"
+              class="flex-1 bg-blue-700 text-white py-3 rounded-lg font-semibold hover:bg-blue-800 transition">
+        Salvar Alterações
+      </button>
+      <a href="/?aba=notes_privados"
+         class="flex-1 text-center bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition">
+        Cancelar
+      </a>
+    </div>
+  </form>
 </div>
 
 <script>
+// ── Preview de imagens de capa ────────────────────────────────────────────────
+
+function previewImagem(input, numero) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const img         = document.getElementById(`img-preview-${numero}`);
+  const placeholder = document.getElementById(`placeholder-capa-${numero}`);
+  const btnRemover  = document.getElementById(`btn-remover-capa-${numero}`);
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    img.src = e.target.result;
+    img.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+    btnRemover.classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removerImagem(event, numero) {
+  event.stopPropagation();
+  const input       = document.getElementById(`input-capa-${numero}`);
+  const img         = document.getElementById(`img-preview-${numero}`);
+  const placeholder = document.getElementById(`placeholder-capa-${numero}`);
+  const btnRemover  = document.getElementById(`btn-remover-capa-${numero}`);
+
+  input.value = '';
+  img.src     = '';
+  img.classList.add('hidden');
+  placeholder.classList.remove('hidden');
+  btnRemover.classList.add('hidden');
+}
+
+// ── Categorias ────────────────────────────────────────────────────────────────
+
 const categoriasIds = new Set();
-
-// ── Busca com autocomplete ────────────────────────────────────────────────────
-
-const inputBusca   = document.getElementById('input-busca-categoria');
-const dropdown     = document.getElementById('dropdown-categorias');
+const inputBusca    = document.getElementById('input-busca-categoria');
+const dropdown      = document.getElementById('dropdown-categorias');
 
 inputBusca.addEventListener('input', async function () {
-    const termo = this.value.trim();
-    if (termo.length < 2) { dropdown.classList.add('hidden'); return; }
+  const termo = this.value.trim();
+  if (termo.length < 2) { dropdown.classList.add('hidden'); return; }
 
-    const res  = await fetch(`/api/categorias/buscar/?q=${encodeURIComponent(termo)}`);
-    const data = await res.json();
+  const res  = await fetch(`/api/categorias/buscar/?q=${encodeURIComponent(termo)}`);
+  const data = await res.json();
 
-    if (!data.categorias.length) { dropdown.classList.add('hidden'); return; }
+  if (!data.categorias.length) { dropdown.classList.add('hidden'); return; }
 
-    dropdown.innerHTML = data.categorias.map(cat => `
-        <button type="button"
-                onclick="selecionarCategoria(${cat.id}, '${cat.nome}', '${cat.cor}')"
-                class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition
-                       flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full flex-shrink-0"
-                  style="background:${cat.cor}"></span>
-            ${cat.nome}
-        </button>
-    `).join('');
+  dropdown.innerHTML = data.categorias.map(cat => `
+    <button type="button"
+            onclick="selecionarCategoria(${cat.id}, '${cat.nome}', '${cat.cor}')"
+            class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition flex items-center gap-2">
+      <span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${cat.cor}"></span>
+      ${cat.nome}
+    </button>
+  `).join('');
 
-    dropdown.classList.remove('hidden');
+  dropdown.classList.remove('hidden');
 });
 
 document.addEventListener('click', function (e) {
-    if (!inputBusca.contains(e.target) && !dropdown.contains(e.target)) {
-        dropdown.classList.add('hidden');
-    }
+  if (!inputBusca.contains(e.target) && !dropdown.contains(e.target)) {
+    dropdown.classList.add('hidden');
+  }
 });
 
-// ── Selecionar / remover categoria ───────────────────────────────────────────
-
 function selecionarCategoria(id, nome, cor) {
-    if (categoriasIds.has(id)) return;
-    categoriasIds.add(id);
+  if (categoriasIds.has(id)) return;
+  categoriasIds.add(id);
 
-    const container = document.getElementById('categorias-selecionadas');
-    const tag = document.createElement('span');
-    tag.className = 'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer';
-    tag.style.backgroundColor = cor + '25';
-    tag.style.color = cor;
-    tag.dataset.id = id;
-    tag.innerHTML = `${nome} <span onclick="removerCategoria(${id}, this.parentElement)" class="ml-1 hover:text-red-500">✕</span>`;
-    container.appendChild(tag);
+  const container = document.getElementById('categorias-selecionadas');
+  const tag       = document.createElement('span');
+  tag.className   = 'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer';
+  tag.style.backgroundColor = cor + '25';
+  tag.style.color           = cor;
+  tag.dataset.id            = id;
+  tag.innerHTML = `${nome} <span onclick="removerCategoria(${id}, this.parentElement)" class="ml-1 hover:text-red-500">✕</span>`;
+  container.appendChild(tag);
 
-    // Hidden input para o form
-    const hidden = document.createElement('input');
-    hidden.type  = 'hidden';
-    hidden.name  = 'categorias_selecionadas';
-    hidden.value = id;
-    hidden.id    = `hidden-cat-${id}`;
-    container.appendChild(hidden);
+  const hidden   = document.createElement('input');
+  hidden.type    = 'hidden';
+  hidden.name    = 'categorias_selecionadas';
+  hidden.value   = id;
+  hidden.id      = `hidden-cat-${id}`;
+  container.appendChild(hidden);
 
-    inputBusca.value = '';
-    dropdown.classList.add('hidden');
+  inputBusca.value = '';
+  dropdown.classList.add('hidden');
 }
 
 function removerCategoria(id, tagEl) {
-    categoriasIds.delete(id);
-    tagEl.remove();
-    const hidden = document.getElementById(`hidden-cat-${id}`);
-    if (hidden) hidden.remove();
+  categoriasIds.delete(id);
+  tagEl.remove();
+  const hidden = document.getElementById(`hidden-cat-${id}`);
+  if (hidden) hidden.remove();
 }
 
 // ── Validator de nova categoria ───────────────────────────────────────────────
 
 function abrirValidatorCategoria() {
-    document.getElementById('modal-categoria').classList.remove('hidden');
-    document.getElementById('modal-categoria').classList.add('flex');
-    document.getElementById('input-nova-categoria').focus();
+  document.getElementById('modal-categoria').classList.remove('hidden');
+  document.getElementById('modal-categoria').classList.add('flex');
+  document.getElementById('input-nova-categoria').focus();
 }
 
 function fecharValidatorCategoria() {
-    document.getElementById('modal-categoria').classList.add('hidden');
-    document.getElementById('modal-categoria').classList.remove('flex');
-    document.getElementById('input-nova-categoria').value = '';
-    resetarChecks();
+  document.getElementById('modal-categoria').classList.add('hidden');
+  document.getElementById('modal-categoria').classList.remove('flex');
+  document.getElementById('input-nova-categoria').value = '';
+  resetarChecks();
 }
 
 const REGEX_LETRAS = /^[A-Za-zÀ-ÿ]+$/;
 
 document.getElementById('input-nova-categoria').addEventListener('input', function () {
-    const v = this.value.trim();
-    const ok = validarChecks(v);
-    document.getElementById('btn-salvar-categoria').disabled = !ok;
+  document.getElementById('btn-salvar-categoria').disabled = !validarChecks(this.value.trim());
 });
 
 function validarChecks(v) {
-    const checks = {
-        'check-letras':  REGEX_LETRAS.test(v),
-        'check-palavra': !v.includes(' '),
-        'check-minimo':  v.length >= 3,
-        'check-maximo':  v.length <= 30,
-    };
-    let tudo = true;
-    for (const [id, valido] of Object.entries(checks)) {
-        const li   = document.getElementById(id);
-        const lamp = li.querySelector('span');
-        if (valido) {
-            li.classList.replace('text-gray-400', 'text-green-600');
-            lamp.textContent = '💡';
-            lamp.style.filter = 'drop-shadow(0 0 6px #fbbf24)';
-        } else {
-            li.classList.replace('text-green-600', 'text-gray-400');
-            lamp.textContent = '💡';
-            lamp.style.filter = 'none';
-            tudo = false;
-        }
+  const checks = {
+    'check-letras':  REGEX_LETRAS.test(v),
+    'check-palavra': !v.includes(' '),
+    'check-minimo':  v.length >= 3,
+    'check-maximo':  v.length <= 30,
+  };
+  let tudo = true;
+  for (const [id, valido] of Object.entries(checks)) {
+    const li   = document.getElementById(id);
+    const lamp = li.querySelector('span');
+    if (valido) {
+      li.classList.replace('text-gray-400', 'text-green-600');
+      lamp.style.filter = 'drop-shadow(0 0 6px #fbbf24)';
+    } else {
+      li.classList.replace('text-green-600', 'text-gray-400');
+      lamp.style.filter = 'none';
+      tudo = false;
     }
-    return tudo;
+  }
+  return tudo;
 }
 
 function resetarChecks() {
-    ['check-letras','check-palavra','check-minimo','check-maximo'].forEach(id => {
-        const li = document.getElementById(id);
-        li.className = 'flex items-center gap-2 text-gray-400';
-        li.querySelector('span').style.filter = 'none';
-    });
-    document.getElementById('btn-salvar-categoria').disabled = true;
+  ['check-letras','check-palavra','check-minimo','check-maximo'].forEach(id => {
+    const li = document.getElementById(id);
+    li.className = 'flex items-center gap-2 text-gray-400';
+    li.querySelector('span').style.filter = 'none';
+  });
+  document.getElementById('btn-salvar-categoria').disabled = true;
 }
 
 async function salvarNovaCategoria() {
-    const nome     = document.getElementById('input-nova-categoria').value.trim();
-    const feedback = document.getElementById('feedback-categoria');
-    const btn      = document.getElementById('btn-salvar-categoria');
+  const nome     = document.getElementById('input-nova-categoria').value.trim();
+  const feedback = document.getElementById('feedback-categoria');
+  const btn      = document.getElementById('btn-salvar-categoria');
 
-    btn.disabled = true;
-    btn.textContent = 'Salvando...';
+  btn.disabled    = true;
+  btn.textContent = 'Salvando...';
 
-    try {
-        const res  = await fetch('/api/categorias/criar/', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-            body:    JSON.stringify({ nome }),
-        });
-        const data = await res.json();
+  try {
+    const res  = await fetch('/api/categorias/criar/', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body:    JSON.stringify({ nome }),
+    });
+    const data = await res.json();
 
-        if (!res.ok) {
-            feedback.textContent = data.erro;
-            feedback.className   = 'text-sm mb-4 text-red-500';
-            feedback.classList.remove('hidden');
-            btn.disabled    = false;
-            btn.textContent = 'Criar';
-            return;
-        }
-
-        fecharValidatorCategoria();
-        selecionarCategoria(data.id, data.nome, data.cor);
-
-        if (data.ja_existia) {
-            feedback.textContent = `"${data.nome}" já existia e foi selecionada.`;
-            feedback.className   = 'text-sm mb-4 text-indigo-500';
-            feedback.classList.remove('hidden');
-        }
-
-    } catch {
-        feedback.textContent = 'Erro de conexão. Tente novamente.';
-        feedback.className   = 'text-sm mb-4 text-red-500';
-        feedback.classList.remove('hidden');
-        btn.disabled    = false;
-        btn.textContent = 'Criar';
+    if (!res.ok) {
+      feedback.textContent = data.erro;
+      feedback.className   = 'text-sm mb-4 text-red-500';
+      feedback.classList.remove('hidden');
+      btn.disabled    = false;
+      btn.textContent = 'Criar';
+      return;
     }
+
+    fecharValidatorCategoria();
+    selecionarCategoria(data.id, data.nome, data.cor);
+
+  } catch {
+    feedback.textContent = 'Erro de conexão. Tente novamente.';
+    feedback.className   = 'text-sm mb-4 text-red-500';
+    feedback.classList.remove('hidden');
+    btn.disabled    = false;
+    btn.textContent = 'Criar';
+  }
 }
 
 function getCsrf() {
-    return document.cookie.split(';')
-        .find(c => c.trim().startsWith('csrftoken='))
-        ?.split('=')[1] ?? '';
+  return document.cookie.split(';')
+    .find(c => c.trim().startsWith('csrftoken='))
+    ?.split('=')[1] ?? '';
 }
 </script>
-
-        <div class="mb-6">
-            <label class="block text-sm font-semibold text-gray-600 mb-2">Cor do card</label>
-            <input type="color" name="cor" value="{{ post.cor }}"
-                   class="w-full h-12 rounded-lg cursor-pointer border border-gray-300"/>
-        </div>
-
-        <div class="mb-6 flex items-center gap-2">
-            {{ form.publicado }}
-            <label class="text-sm font-semibold text-gray-600">Publicado</label>
-        </div>
-
-        <div class="flex gap-4">
-            <button type="submit"
-                    class="flex-1 bg-blue-700 text-white py-3 rounded-lg font-semibold hover:bg-blue-800 transition">
-                Salvar Alterações
-            </button>
-            <a href="/?aba=meus_notes"
-               class="flex-1 text-center bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition">
-                Cancelar
-            </a>
-        </div>
-    </form>
-</div>
 
 {% endblock %}

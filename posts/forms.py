@@ -8,7 +8,7 @@ from .models import Post, Autor
 class PostForm(forms.ModelForm):
     class Meta:
         model  = Post
-        fields = ['titulo', 'conteudo', 'publicado']
+        fields = ['titulo', 'conteudo', 'titulo_capa', 'publicado']
         widgets = {
             'titulo': forms.TextInput(attrs={
                 'class':       'w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500',
@@ -18,6 +18,11 @@ class PostForm(forms.ModelForm):
                 'class':       'w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500',
                 'rows':        6,
                 'placeholder': 'Escreva seu note aqui...',
+            }),
+            'titulo_capa': forms.TextInput(attrs={
+                'class':       'w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Chamada de capa — pode ser provocadora ou curiosa...',
+                'maxlength':   '120',
             }),
         }
 
