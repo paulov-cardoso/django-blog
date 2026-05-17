@@ -5,10 +5,12 @@ from django.contrib.auth import login
 from django.http import JsonResponse
 from django.utils.text import slugify
 from django.db.models import Q
-
-from .models import Post, Autor, ModeradorPost, CandidaturaModerador, Seguidor, PostReacao, Notificacao, Categoria
+from .models import (
+    Post, Autor, ModeradorPost, CandidaturaModerador,
+    Seguidor, PostReacao, Notificacao, Categoria,
+    Comentario, VotoComentario,
+)
 from .forms import PostForm, RegistroForm, AutorForm
-from django.http import JsonResponse
 
 
 # ── constantes ────────────────────────────────────────────────────────────────
@@ -361,6 +363,41 @@ def detalhe_post(request, post_id):
         else:
             ja_candidatou = post.candidaturas.filter(candidato=autor_logado).exists()
 
+    # ── Comentários ───────────────────────────────────────────────────────────
+
+    comentarios_raiz_qs = (
+        post.comentarios
+        .filter(pai__isnull=True)
+        .select_related('autor', 'autor__usuario')
+        .prefetch_related('respostas__autor', 'respostas__autor__usuario', 'votos')
+    )
+
+    meus_votos = {}
+    if autor_logado:
+        ids_raiz = list(comentarios_raiz_qs.values_list('id', flat=True))
+        ids_respostas = list(
+            Comentario.objects.filter(pai_id__in=ids_raiz).values_list('id', flat=True)
+        )
+        todos_ids = ids_raiz + ids_respostas
+        meus_votos = dict(
+            VotoComentario.objects.filter(
+                comentario_id__in=todos_ids,
+                autor=autor_logado,
+            ).values_list('comentario_id', 'valor')
+        )
+
+    comentarios_raiz = []
+    for c in comentarios_raiz_qs:
+        c.meu_voto = meus_votos.get(c.id)
+        respostas = []
+        for r in c.respostas.select_related('autor', 'autor__usuario').all():
+            r.meu_voto = meus_votos.get(r.id)
+            respostas.append(r)
+        c.respostas_visiveis = respostas
+        comentarios_raiz.append(c)
+
+    total_comentarios = post.comentarios.filter(removido=False).count()
+
     return render(request, 'posts/posts/detail.html', {
         'post':                   post,
         'pode_desistir':          pode,
@@ -369,6 +406,8 @@ def detalhe_post(request, post_id):
         'moderadores_ativos':     post.moderadores.filter(ativo=True),
         'ja_candidatou':          ja_candidatou,
         'bloqueio_retirar_feed':  post.visibilidade == 'campo' and post.tem_interacoes,
+        'comentarios_raiz':       comentarios_raiz,
+        'total_comentarios':      total_comentarios,
     })
 
 
@@ -729,3 +768,122 @@ def notificacoes(request, canal):
     'itens': itens,
     'canal': canal,
     })
+
+
+# ── Comentários ───────────────────────────────────────────────────────────────
+
+@login_required
+def comentar(request, post_id):
+    if request.method != 'POST':
+        return redirect('home')
+
+    post     = get_object_or_404(Post, id=post_id, publicado=True)
+    conteudo = request.POST.get('conteudo', '').strip()
+
+    if not conteudo:
+        return redirect('detalhe_post', post_id=post_id)
+
+    Comentario.objects.create(
+        post=post,
+        autor=request.user.autor,
+        conteudo=conteudo,
+    )
+
+    Notificacao.objects.create(
+        destinatario=post.autor,
+        remetente=request.user.autor,
+        post=post,
+        tipo='comentario',
+    )
+
+    return redirect('detalhe_post', post_id=post_id)
+
+
+@login_required
+def responder_comentario(request, post_id, pai_id):
+    if request.method != 'POST':
+        return redirect('home')
+
+    post     = get_object_or_404(Post,       id=post_id, publicado=True)
+    pai      = get_object_or_404(Comentario, id=pai_id,  post=post)
+    conteudo = request.POST.get('conteudo', '').strip()
+
+    if not conteudo:
+        return redirect('detalhe_post', post_id=post_id)
+
+    Comentario.objects.create(
+        post=post,
+        autor=request.user.autor,
+        pai=pai,
+        conteudo=conteudo,
+    )
+
+    # Notifica o autor do comentário pai (se não for ele mesmo)
+    if pai.autor != request.user.autor:
+        Notificacao.objects.create(
+            destinatario=pai.autor,
+            remetente=request.user.autor,
+            post=post,
+            tipo='comentario',
+        )
+
+    return redirect('detalhe_post', post_id=post_id)
+
+
+@login_required
+def votar_comentario(request, comentario_id, direcao):
+    if request.method != 'POST':
+        return redirect('home')
+
+    DIRECOES_VALIDAS = {'up', 'down'}
+    if direcao not in DIRECOES_VALIDAS:
+        return redirect('home')
+
+    comentario = get_object_or_404(Comentario, id=comentario_id)
+    autor      = request.user.autor
+    valor      = 1 if direcao == 'up' else -1
+
+    voto_existente = VotoComentario.objects.filter(
+        comentario=comentario, autor=autor
+    ).first()
+
+    if voto_existente:
+        if voto_existente.valor == valor:
+            # Mesmo voto: desfaz
+            voto_existente.delete()
+        else:
+            # Voto oposto: troca
+            voto_existente.valor = valor
+            voto_existente.save(update_fields=['valor'])
+    else:
+        VotoComentario.objects.create(
+            comentario=comentario,
+            autor=autor,
+            valor=valor,
+        )
+
+    return redirect('detalhe_post', post_id=comentario.post_id)
+
+
+@login_required
+def excluir_comentario(request, comentario_id):
+    if request.method != 'POST':
+        return redirect('home')
+
+    comentario   = get_object_or_404(Comentario, id=comentario_id)
+    autor_logado = request.user.autor
+
+    eh_autor      = comentario.autor == autor_logado
+    eh_dono_post  = comentario.post.autor == autor_logado
+    eh_moderador  = comentario.post.moderadores.filter(
+        autor=autor_logado, ativo=True
+    ).exists()
+
+    if not (eh_autor or eh_dono_post or eh_moderador):
+        return redirect('home')
+
+    # Soft delete: preserva o thread, exibe "[comentário removido]"
+    comentario.removido = True
+    comentario.save(update_fields=['removido'])
+
+    return redirect('detalhe_post', post_id=comentario.post_id)

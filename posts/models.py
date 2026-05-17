@@ -85,13 +85,29 @@ class Post(models.Model):
 
     @property
     def tem_interacoes_feed(self):
-        # TODO Fase 9: adicionar checagem de 3+ comentadores distintos
-        return self.candidaturas.filter(status='aceito').exists()
+        if self.candidaturas.filter(status='aceito').exists():
+            return True
+        comentadores = (
+            self.comentarios
+            .filter(removido=False)
+            .values('autor')
+            .distinct()
+            .count()
+        )
+        return comentadores >= 3
 
     @property
     def tem_interacoes(self):
-        # TODO Fase 9: adicionar checagem de 3+ comentadores distintos
-        return self.candidaturas.filter(status='aceito').exists()
+        if self.candidaturas.filter(status='aceito').exists():
+            return True
+        comentadores = (
+            self.comentarios
+            .filter(removido=False)
+            .values('autor')
+            .distinct()
+            .count()
+        )
+        return comentadores >= 3
 
     @property
     def total_curtidas(self):
@@ -222,3 +238,52 @@ class Notificacao(models.Model):
     @property
     def eh_carta(self):
         return self.tipo in self.TIPOS_CARTA
+
+
+# ── Comentários threaded ──────────────────────────────────────────────────────
+
+class Comentario(models.Model):
+    post      = models.ForeignKey(Post,  on_delete=models.CASCADE, related_name='comentarios')
+    autor     = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='comentarios')
+    pai       = models.ForeignKey(
+        'self',
+        null=True, blank=True,
+        on_delete=models.CASCADE,
+        related_name='respostas',
+    )
+    conteudo  = models.TextField()
+    criado_em = models.DateTimeField(auto_now_add=True)
+    editado   = models.BooleanField(default=False)
+    removido  = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['criado_em']
+
+    def __str__(self):
+        return f"{self.autor} em '{self.post}' ({self.criado_em:%d/%m/%Y})"
+
+    @property
+    def score(self):
+        return self.votos.filter(valor=1).count() - self.votos.filter(valor=-1).count()
+
+    @property
+    def conteudo_exibido(self):
+        if self.removido:
+            return '[comentário removido]'
+        return self.conteudo
+
+
+class VotoComentario(models.Model):
+    VALOR_CHOICES = [(1, 'Upvote'), (-1, 'Downvote')]
+
+    comentario = models.ForeignKey(Comentario, on_delete=models.CASCADE, related_name='votos')
+    autor      = models.ForeignKey(Autor,      on_delete=models.CASCADE, related_name='votos_comentarios')
+    valor      = models.SmallIntegerField(choices=VALOR_CHOICES)
+    data       = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('comentario', 'autor')
+
+    def __str__(self):
+        label = 'up' if self.valor == 1 else 'down'
+        return f"{self.autor} → {label} em comentário #{self.comentario_id}"
