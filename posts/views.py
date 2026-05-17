@@ -175,7 +175,7 @@ def editar_perfil(request):
     return render(request, 'posts/perfil/editar_perfil.html', {'form': form, 'autor': autor})
 
 
-# ── seguir / deixar de seguir ─────────────────────────────────────────────────
+# ── SEGUIR / DEIXAR DE SEGUIR ─────────────────────────────────────────────────
 
 @login_required
 def seguir_autor(request, username):
@@ -194,6 +194,11 @@ def seguir_autor(request, username):
         seguimento.delete()
     else:
         Seguidor.objects.create(seguidor=autor_logado, seguido=autor_alvo)
+        Notificacao.objects.create(
+            destinatario=autor_alvo,
+            remetente=autor_logado,
+            tipo='seguidor',
+        )
 
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
@@ -411,7 +416,7 @@ def detalhe_post(request, post_id):
     })
 
 
-# ── curtir / clipar post ──────────────────────────────────────────────────────
+# ── CURTIR / CLIPAR POST ──────────────────────────────────────────────────────
 
 @login_required
 def reagir_post(request, post_id, tipo):
@@ -430,6 +435,14 @@ def reagir_post(request, post_id, tipo):
         reacao.delete()
     else:
         PostReacao.objects.create(post=post, autor=autor, tipo=tipo)
+
+        if post.autor != autor:
+            Notificacao.objects.create(
+                destinatario=post.autor,
+                remetente=autor,
+                post=post,
+                tipo=tipo,
+            )
 
     aba = request.POST.get('aba', 'feed')
     return redirect(f'/?aba={aba}')
@@ -748,15 +761,25 @@ def registrar(request):
     return render(request, 'posts/auth/registrar.html', {'form': form})
 
 
-# ── notificações ──────────────────────────────────────────────────────────────
+# ── NOTIFICAÇÕES ──────────────────────────────────────────────────────────────
 
 @login_required
 def notificacoes(request, canal):
     """
-    canal = 'sino' (interações) ou 'carta' (colaboração/moderação)
+    canal = 'sino' | 'carta' | 'pessoa'
     """
+    CANAIS_VALIDOS = {'sino', 'carta', 'pessoa'}
+    if canal not in CANAIS_VALIDOS:
+        return redirect('home')
+
     autor = request.user.autor
-    tipos = Notificacao.TIPOS_SINO if canal == 'sino' else Notificacao.TIPOS_CARTA
+
+    mapa_tipos = {
+        'sino':   Notificacao.TIPOS_SINO,
+        'carta':  Notificacao.TIPOS_CARTA,
+        'pessoa': Notificacao.TIPOS_PESSOA,
+    }
+    tipos = mapa_tipos[canal]
 
     itens = Notificacao.objects.filter(
         destinatario=autor, tipo__in=tipos
@@ -765,8 +788,8 @@ def notificacoes(request, canal):
     itens.filter(lida=False).update(lida=True)
 
     return render(request, 'posts/notificacoes/notificacoes.html', {
-    'itens': itens,
-    'canal': canal,
+        'itens': itens,
+        'canal': canal,
     })
 
 
@@ -887,3 +910,80 @@ def excluir_comentario(request, comentario_id):
     comentario.save(update_fields=['removido'])
 
     return redirect('detalhe_post', post_id=comentario.post_id)
+
+
+
+# ── Search de usuários ────────────────────────────────────────────────────────
+
+@login_required
+def buscar_usuarios(request):
+    termo = request.GET.get('q', '').strip()
+    autor_logado = request.user.autor
+
+    resultados = []
+    if termo:
+        candidatos = Autor.objects.filter(
+            Q(nome_exibicao__icontains=termo) | Q(usuario__username__icontains=termo)
+        ).exclude(
+            id=autor_logado.id
+        ).select_related('usuario')[:20]
+
+        seguindo_ids = set(
+            Seguidor.objects.filter(
+                seguidor=autor_logado,
+                seguido__in=candidatos,
+            ).values_list('seguido_id', flat=True)
+        )
+
+        for autor in candidatos:
+            resultados.append({
+                'autor':  autor,
+                'seguindo': autor.id in seguindo_ids,
+            })
+
+    return render(request, 'posts/social/buscar_usuarios.html', {
+        'resultados': resultados,
+        'termo':      termo,
+    })
+
+
+# ── Lista de seguidores / seguindo ───────────────────────────────────────────
+
+@login_required
+def lista_seguidores(request, username, tipo):
+    """
+    tipo = 'seguidores' | 'seguindo'
+    """
+    if tipo not in ('seguidores', 'seguindo'):
+        return redirect('home')
+
+    user_perfil  = get_object_or_404(User, username=username)
+    autor_perfil = get_object_or_404(Autor, usuario=user_perfil)
+    autor_logado = request.user.autor
+
+    if tipo == 'seguidores':
+        autores = Autor.objects.filter(
+            seguindo__seguido=autor_perfil
+        ).select_related('usuario')
+    else:
+        autores = Autor.objects.filter(
+            seguidores__seguidor=autor_perfil
+        ).select_related('usuario')
+
+    seguindo_ids = set(
+        Seguidor.objects.filter(
+            seguidor=autor_logado,
+            seguido__in=autores,
+        ).values_list('seguido_id', flat=True)
+    )
+
+    lista = [
+        {'autor': a, 'seguindo': a.id in seguindo_ids}
+        for a in autores
+    ]
+
+    return render(request, 'posts/social/lista_seguidores.html', {
+        'autor_perfil': autor_perfil,
+        'lista':        lista,
+        'tipo':         tipo,
+    })

@@ -1,0 +1,90 @@
+{% extends 'posts/base.html' %}
+{% block titulo %}Buscar Usuários{% endblock %}
+
+{% block conteudo %}
+<div class="max-w-xl mx-auto">
+
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">🔍 Buscar Usuários</h1>
+
+    <form method="GET" action="{% url 'buscar_usuarios' %}" class="flex gap-2 mb-8">
+        <input type="text"
+               name="q"
+               value="{{ termo }}"
+               placeholder="Nome ou username..."
+               autofocus
+               class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <button type="submit"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white
+                       text-sm font-semibold px-5 py-2.5 rounded-xl transition">
+            Buscar
+        </button>
+    </form>
+
+    {% if termo %}
+        {% if resultados %}
+        <div class="space-y-3">
+            {% for item in resultados %}
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4
+                        flex items-center gap-4">
+
+                <!-- Avatar -->
+                <a href="{% url 'perfil' item.autor.usuario.username %}"
+                   class="flex-shrink-0 w-12 h-12 rounded-full bg-gray-200 overflow-hidden hover:opacity-80 transition">
+                    {% if item.autor.foto_perfil %}
+                        <img src="{{ item.autor.foto_perfil.url }}"
+                             class="w-full h-full object-cover" alt="">
+                    {% else %}
+                        <div class="w-full h-full flex items-center justify-center
+                                    font-bold text-gray-600
+                                    bg-gradient-to-br from-indigo-100 to-purple-100">
+                            {{ item.autor.nome_exibicao|first|upper }}
+                        </div>
+                    {% endif %}
+                </a>
+
+                <!-- Info -->
+                <div class="flex-1 min-w-0">
+                    <a href="{% url 'perfil' item.autor.usuario.username %}"
+                       class="font-semibold text-gray-800 hover:text-indigo-600 transition block leading-tight">
+                        {{ item.autor.nome_exibicao }}
+                    </a>
+                    <p class="text-xs text-gray-400">@{{ item.autor.usuario.username }}</p>
+                    {% if item.autor.bio %}
+                    <p class="text-xs text-gray-500 mt-1 truncate">{{ item.autor.bio|truncatechars:60 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Botão seguir/deixar de seguir -->
+                <form method="POST"
+                      action="{% url 'seguir_autor' item.autor.usuario.username %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="text-sm font-semibold px-4 py-1.5 rounded-full transition
+                                   {% if item.seguindo %}
+                                   bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500
+                                   {% else %}
+                                   bg-indigo-600 text-white hover:bg-indigo-700
+                                   {% endif %}">
+                        {% if item.seguindo %}Seguindo{% else %}Seguir{% endif %}
+                    </button>
+                </form>
+
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-gray-400 py-16">
+            <p class="text-4xl mb-3">🔍</p>
+            <p class="font-semibold">Nenhum usuário encontrado para "{{ termo }}"</p>
+        </div>
+        {% endif %}
+    {% else %}
+    <div class="text-center text-gray-400 py-16">
+        <p class="text-4xl mb-3">👥</p>
+        <p class="font-semibold">Digite um nome ou username para buscar</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

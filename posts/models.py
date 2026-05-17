@@ -197,6 +197,8 @@ class CandidaturaModerador(models.Model):
         return f"{self.candidato} → '{self.post}' ({self.status})"
 
 
+# ── BLOCO NOTIFICAÇÃO ──────────────────────────────────────────────────────
+
 class Notificacao(models.Model):
     TIPO_CHOICES = [
         ('curtida',     'Curtida'),
@@ -205,10 +207,12 @@ class Notificacao(models.Model):
         ('candidatura', 'Candidatura a moderador'),
         ('eleicao',     'Eleito moderador'),
         ('recusa',      'Candidatura recusada'),
+        ('seguidor',    'Novo seguidor'),
     ]
 
-    TIPOS_SINO  = {'curtida', 'clip', 'comentario'}
-    TIPOS_CARTA = {'candidatura', 'eleicao', 'recusa'}
+    TIPOS_SINO   = {'curtida', 'clip', 'comentario'}
+    TIPOS_CARTA  = {'candidatura', 'eleicao', 'recusa'}
+    TIPOS_PESSOA = {'seguidor'}
 
     destinatario = models.ForeignKey(
         Autor, on_delete=models.CASCADE, related_name='notificacoes'
@@ -238,6 +242,10 @@ class Notificacao(models.Model):
     @property
     def eh_carta(self):
         return self.tipo in self.TIPOS_CARTA
+
+    @property
+    def eh_pessoa(self):
+        return self.tipo in self.TIPOS_PESSOA
 
 
 # ── Comentários threaded ──────────────────────────────────────────────────────

@@ -5,42 +5,109 @@
 <div class="max-w-xl mx-auto">
 
     <h1 class="text-2xl font-bold text-gray-800 mb-1">
-        {% if canal == 'sino' %}🔔 Notificações{% else %}✉️ Colaborações e Moderação{% endif %}
+        {% if canal == 'sino' %}🔔 Notificações
+        {% elif canal == 'carta' %}✉️ Colaborações e Moderação
+        {% else %}👤 Seguidores
+        {% endif %}
     </h1>
     <p class="text-sm text-gray-400 mb-6">
-        {% if canal == 'sino' %}Curtidas, clips e comentários{% else %}Candidaturas e eleições de moderador{% endif %}
+        {% if canal == 'sino' %}Curtidas, clips e comentários
+        {% elif canal == 'carta' %}Candidaturas e eleições de moderador
+        {% else %}Novos seguidores
+        {% endif %}
     </p>
+
+    <!-- Abas de canal -->
+    <div class="flex gap-2 mb-6">
+        <a href="{% url 'notificacoes' 'sino' %}"
+           class="px-4 py-1.5 rounded-full text-sm font-semibold transition
+                  {% if canal == 'sino' %}bg-indigo-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+            🔔 Interações
+        </a>
+        <a href="{% url 'notificacoes' 'carta' %}"
+           class="px-4 py-1.5 rounded-full text-sm font-semibold transition
+                  {% if canal == 'carta' %}bg-indigo-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+            ✉️ Moderação
+        </a>
+        <a href="{% url 'notificacoes' 'pessoa' %}"
+           class="px-4 py-1.5 rounded-full text-sm font-semibold transition
+                  {% if canal == 'pessoa' %}bg-indigo-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+            👤 Seguidores
+        </a>
+    </div>
 
     {% if itens %}
     <div class="space-y-3">
         {% for n in itens %}
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4
-                    flex items-start gap-4 {% if not n.lida %}border-l-4 border-l-indigo-400{% endif %}">
-            <div class="text-2xl mt-0.5">
+                    flex items-start gap-4
+                    {% if not n.lida %}border-l-4 border-l-indigo-400{% endif %}">
+
+            <!-- Avatar do remetente -->
+            {% if n.remetente %}
+            <a href="{% url 'perfil' n.remetente.usuario.username %}"
+               class="flex-shrink-0 w-10 h-10 rounded-full bg-gray-200 overflow-hidden hover:opacity-80 transition">
+                {% if n.remetente.foto_perfil %}
+                    <img src="{{ n.remetente.foto_perfil.url }}"
+                         class="w-full h-full object-cover" alt="">
+                {% else %}
+                    <div class="w-full h-full flex items-center justify-center
+                                font-bold text-sm text-gray-600
+                                bg-gradient-to-br from-indigo-100 to-purple-100">
+                        {{ n.remetente.nome_exibicao|first|upper }}
+                    </div>
+                {% endif %}
+            </a>
+            {% else %}
+            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl">
                 {% if n.tipo == 'curtida' %}❤️
                 {% elif n.tipo == 'clip' %}📌
                 {% elif n.tipo == 'comentario' %}💬
                 {% elif n.tipo == 'candidatura' %}🙋
                 {% elif n.tipo == 'eleicao' %}🤝
                 {% elif n.tipo == 'recusa' %}❌
+                {% elif n.tipo == 'seguidor' %}👤
                 {% endif %}
             </div>
+            {% endif %}
+
             <div class="flex-1 min-w-0">
                 <p class="text-sm text-gray-800">
                     {% if n.remetente %}
-                    <strong>{{ n.remetente.nome_exibicao }}</strong>
+                    <a href="{% url 'perfil' n.remetente.usuario.username %}"
+                       class="font-semibold hover:text-indigo-600 transition">
+                        {{ n.remetente.nome_exibicao }}
+                    </a>
                     {% endif %}
+
                     {% if n.tipo == 'curtida' %}curtiu sua ideia{% endif %}
                     {% if n.tipo == 'clip' %}clipou sua ideia{% endif %}
                     {% if n.tipo == 'comentario' %}comentou na sua ideia{% endif %}
                     {% if n.tipo == 'candidatura' %}se candidatou a moderador{% endif %}
                     {% if n.tipo == 'eleicao' %}te elegeu como moderador{% endif %}
                     {% if n.tipo == 'recusa' %}recusou sua candidatura{% endif %}
+                    {% if n.tipo == 'seguidor' %}começou a te seguir{% endif %}
+
                     {% if n.post %}
-                    em <strong>{{ n.post.titulo|truncatechars:40 }}</strong>
+                    em <a href="{% url 'detalhe_post' n.post.id %}"
+                          class="font-semibold hover:text-indigo-600 transition">
+                        {{ n.post.titulo|truncatechars:40 }}
+                    </a>
                     {% endif %}
                 </p>
                 <p class="text-xs text-gray-400 mt-1">{{ n.data|timesince }} atrás</p>
+            </div>
+
+            <!-- Ícone do tipo (quando não há avatar) -->
+            <div class="flex-shrink-0 text-lg">
+                {% if n.tipo == 'curtida' %}❤️
+                {% elif n.tipo == 'clip' %}📌
+                {% elif n.tipo == 'comentario' %}💬
+                {% elif n.tipo == 'candidatura' %}🙋
+                {% elif n.tipo == 'eleicao' %}🤝
+                {% elif n.tipo == 'recusa' %}❌
+                {% elif n.tipo == 'seguidor' %}👤
+                {% endif %}
             </div>
         </div>
         {% endfor %}
@@ -48,7 +115,9 @@
 
     {% else %}
     <div class="text-center text-gray-400 py-20">
-        <p class="text-5xl mb-3">{% if canal == 'sino' %}🔔{% else %}✉️{% endif %}</p>
+        <p class="text-5xl mb-3">
+            {% if canal == 'sino' %}🔔{% elif canal == 'carta' %}✉️{% else %}👤{% endif %}
+        </p>
         <p class="font-semibold">Nenhuma notificação ainda.</p>
     </div>
     {% endif %}

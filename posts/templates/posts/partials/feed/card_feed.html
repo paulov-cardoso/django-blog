@@ -188,7 +188,10 @@
                     ✏️ Editar
                 </a>
                 {% else %}
-                <span class="text-sm text-gray-400">💬 Colabore nos comentários</span>
+                <a href="{% url 'detalhe_post' post.id %}"
+                    class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition">
+                    💬 <span class="font-semibold text-gray-600">{{ total_comentarios }}</span>
+                </a>
                 {% endif %}
                 <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
             </div>

@@ -7,9 +7,10 @@ from .views import (
     pagina_eleger_moderador, recusar_candidatura,
     registrar, reagir_post, notificacoes,
     editar_perfil, buscar_categorias, criar_categoria,
-    buscar_categoria_por_ids,
     comentar, responder_comentario, votar_comentario, excluir_comentario,
+    buscar_usuarios, lista_seguidores,
 )
+
 
 urlpatterns = [
     path('', home, name='home'),
@@ -18,9 +19,8 @@ urlpatterns = [
     path('registrar/', registrar, name='registrar'),
 
     # API de categorias
-    path('api/categorias/buscar/',   buscar_categorias,        name='buscar_categorias'),
-    path('api/categorias/criar/',    criar_categoria,          name='criar_categoria'),
-    path('api/categorias/por-ids/',  buscar_categoria_por_ids, name='buscar_categorias_por_ids'),
+    path('api/categorias/buscar/', buscar_categorias, name='buscar_categorias'),
+    path('api/categorias/criar/',  criar_categoria,   name='criar_categoria'),
 
     # Visibilidade
     path('post/<int:post_id>/visibilidade/', alterar_visibilidade, name='alterar_visibilidade'),
@@ -46,7 +46,11 @@ urlpatterns = [
     path('notificacoes/<str:canal>/', notificacoes, name='notificacoes'),
 
     # Perfil e social
-    path('perfil/editar/',                editar_perfil, name='editar_perfil'),
-    path('perfil/<str:username>/',        perfil,        name='perfil'),
-    path('perfil/<str:username>/seguir/', seguir_autor,  name='seguir_autor'),
+    path('perfil/editar/',                          editar_perfil,   name='editar_perfil'),
+    path('perfil/<str:username>/',                  perfil,          name='perfil'),
+    path('perfil/<str:username>/seguir/',           seguir_autor,    name='seguir_autor'),
+    path('perfil/<str:username>/<str:tipo>/',       lista_seguidores, name='lista_seguidores'),
+
+    # Search de usuários
+    path('usuarios/buscar/', buscar_usuarios, name='buscar_usuarios'),
 ]
