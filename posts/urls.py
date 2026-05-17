@@ -6,7 +6,7 @@ from .views import (
     candidatar_moderador, eleger_moderador,
     pagina_eleger_moderador, recusar_candidatura,
     registrar, reagir_post, notificacoes,
-    editar_perfil, buscar_categorias, criar_categoria,
+    editar_perfil, buscar_categorias, criar_categoria, buscar_categoria_por_ids
     )
 
 
@@ -19,6 +19,7 @@ urlpatterns = [
     # API DE CATEGORIAS
     path('api/categorias/buscar/',  buscar_categorias, name='buscar_categorias'),
     path('api/categorias/criar/',   criar_categoria,   name='criar_categoria'),
+    path('api/categorias/por-ids/', buscar_categoria_por_ids, name='buscar_categorias_por_ids'),
 
     # visibilidade
     path('post/<int:post_id>/visibilidade/', alterar_visibilidade, name='alterar_visibilidade'),

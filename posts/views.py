@@ -215,22 +215,22 @@ def criar_post(request):
 
             # Bloqueia criação pública sem categoria
             if visibilidade in ('feed', 'campo') and not ids:
-                titulo   = request.POST.get('titulo', '')
-                conteudo = request.POST.get('conteudo', '')
                 return redirect(
-                    f'/novo/?titulo_inicial={titulo}'
-                    f'&conteudo_inicial={conteudo}'
+                    f'/novo/?titulo_inicial={request.POST.get("titulo", "")}'
+                    f'&conteudo_inicial={request.POST.get("conteudo", "")}'
+                    f'&titulo_capa_inicial={request.POST.get("titulo_capa", "")}'
+                    f'&categorias_iniciais={",".join(ids)}'
                     f'&visibilidade={visibilidade}'
                     f'&erro=sem_categoria'
                 )
 
             # Bloqueia publicação no feed sem capa
             if visibilidade == 'feed' and not request.FILES.get('imagem_capa_1'):
-                titulo   = request.POST.get('titulo', '')
-                conteudo = request.POST.get('conteudo', '')
                 return redirect(
-                    f'/novo/?titulo_inicial={titulo}'
-                    f'&conteudo_inicial={conteudo}'
+                    f'/novo/?titulo_inicial={request.POST.get("titulo", "")}'
+                    f'&conteudo_inicial={request.POST.get("conteudo", "")}'
+                    f'&titulo_capa_inicial={request.POST.get("titulo_capa", "")}'
+                    f'&categorias_iniciais={",".join(ids)}'
                     f'&visibilidade={visibilidade}'
                     f'&erro=sem_capa'
                 )
@@ -252,24 +252,29 @@ def criar_post(request):
             return redirect(f'/?aba={aba}&msg={msg}')
 
     else:
-        titulo_inicial   = request.GET.get('titulo_inicial', '').strip()
-        conteudo_inicial = request.GET.get('conteudo_inicial', '').strip()
-        visibilidade     = request.GET.get('visibilidade', 'privado')
+        titulo_inicial      = request.GET.get('titulo_inicial', '').strip()
+        conteudo_inicial    = request.GET.get('conteudo_inicial', '').strip()
+        titulo_capa_inicial = request.GET.get('titulo_capa_inicial', '').strip()
+        categorias_iniciais = request.GET.get('categorias_iniciais', '').strip()
+        visibilidade        = request.GET.get('visibilidade', 'privado')
 
-        if visibilidade not in _VISIBILIDADES_VALIDAS:
-            visibilidade = 'privado'
+    if visibilidade not in _VISIBILIDADES_VALIDAS:
+        visibilidade = 'privado'
 
-        initial = {}
-        if titulo_inicial:
-            initial['titulo'] = titulo_inicial
-        if conteudo_inicial:
-            initial['conteudo'] = conteudo_inicial
+    initial = {}
+    if titulo_inicial:
+        initial['titulo'] = titulo_inicial
+    if conteudo_inicial:
+        initial['conteudo'] = conteudo_inicial
+    if titulo_capa_inicial:
+        initial['titulo_capa'] = titulo_capa_inicial
 
-        form = PostForm(initial=initial if initial else {})
+    form = PostForm(initial=initial)
 
     return render(request, 'posts/posts/criar.html', {
-        'form':         form,
-        'visibilidade': visibilidade,
+        'form':                 form,
+        'visibilidade':         visibilidade,
+        'categorias_iniciais':  categorias_iniciais,
     })
 
 
@@ -674,6 +679,14 @@ def _validar_nome_categoria(nome: str) -> list[str]:
     return erros
 
 
+# ── ──────────────────────────────────────────────────────────────────
+
+
+def buscar_categoria_por_ids(request):
+    ids_str = request.GET.get('ids', '')
+    ids     = [int(i) for i in ids_str.split(',') if i.strip().isdigit()]
+    cats    = Categoria.objects.filter(id__in=ids, aprovada=True).values('id', 'nome', 'cor')
+    return JsonResponse({'categorias': list(cats)})
 
 
 # ── registro ──────────────────────────────────────────────────────────────────

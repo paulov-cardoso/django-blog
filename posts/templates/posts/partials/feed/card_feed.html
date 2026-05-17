@@ -2,199 +2,201 @@
 <div class="space-y-6">
 {% for post in posts %}
 
-    <article class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+<article class="relative rounded-2xl overflow-hidden shadow-md cursor-pointer group"
+         onclick="abrirModal('feed-{{ post.id }}')">
 
-        <!-- Capa tabloid -->
-        {% if post.tem_capa %}
-        <div class="relative w-full cursor-pointer"
-             onclick="abrirModal('feed-{{ post.id }}')">
-
-            <!-- Imagens: 1 ou 2 -->
-            {% if post.imagem_capa_2 %}
-            <div class="grid grid-cols-2 h-52">
-                <img src="{{ post.imagem_capa_1.url }}"
-                     alt="{{ post.titulo_capa|default:post.titulo }}"
-                     class="w-full h-full object-cover">
-                <img src="{{ post.imagem_capa_2.url }}"
-                     alt=""
-                     class="w-full h-full object-cover border-l-2 border-white">
-            </div>
-            {% else %}
-            <img src="{{ post.imagem_capa_1.url }}"
-                 alt="{{ post.titulo_capa|default:post.titulo }}"
-                 class="w-full h-56 object-cover">
-            {% endif %}
-
-            <!-- Gradiente + título de capa sobreposto -->
-            <div class="absolute inset-x-0 bottom-0 h-28
-                        bg-gradient-to-t from-black/80 to-transparent
-                        flex items-end px-4 pb-3">
-                <h3 class="text-white font-bold text-xl leading-snug drop-shadow-sm line-clamp-2">
-                    {{ post.titulo_capa|default:post.titulo }}
-                </h3>
-            </div>
+    <!-- Imagem de fundo — ocupa o card inteiro -->
+    {% if post.tem_capa %}
+        {% if post.imagem_capa_2 %}
+        <div class="grid grid-cols-2 h-[420px]">
+            <img src="{{ post.imagem_capa_1.url }}" class="w-full h-full object-cover" alt="">
+            <img src="{{ post.imagem_capa_2.url }}" class="w-full h-full object-cover" alt="">
         </div>
+        {% else %}
+        <img src="{{ post.imagem_capa_1.url }}"
+             class="w-full h-[420px] object-cover" alt="">
         {% endif %}
+    {% else %}
+    <!-- Fallback sem capa: fundo colorido -->
+    <div class="w-full h-[420px]"
+         style="background: linear-gradient(135deg, {{ post.cor|default:'#6366f1' }}cc, {{ post.cor|default:'#6366f1' }}44);"></div>
+    {% endif %}
 
-        <!-- Cabeçalho: avatar + autor + menu -->
-        <div class="flex items-center justify-between px-5 py-4">
-            <div class="flex items-center gap-3">
-                <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
-                        class="flex-shrink-0 w-10 h-10 rounded-full bg-gray-200 overflow-hidden
-                               border-2 border-white shadow-sm hover:opacity-80 transition">
+    <!-- Overlay gradiente cobrindo o card inteiro de baixo para cima -->
+    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10"></div>
+
+    <!-- Conteúdo sobreposto -->
+    <div class="absolute inset-0 flex flex-col justify-between p-5">
+
+        <!-- Topo: avatar + autor + tempo + menu -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <button onclick="event.stopPropagation(); abrirModalPerfil('{{ post.autor.usuario.username }}')"
+                        class="w-9 h-9 rounded-full overflow-hidden border-2 border-white/60 flex-shrink-0
+                               hover:opacity-80 transition">
                     {% if post.autor.foto_perfil %}
                         <img src="{{ post.autor.foto_perfil.url }}"
-                             alt="{{ post.autor.nome_exibicao }}"
-                             class="w-full h-full object-cover">
+                             class="w-full h-full object-cover" alt="">
                     {% else %}
                         <div class="w-full h-full flex items-center justify-center
-                                    text-gray-600 font-bold text-sm
-                                    bg-gradient-to-br from-indigo-100 to-purple-100">
+                                    bg-white/20 text-white font-bold text-sm backdrop-blur-sm">
                             {{ post.autor.nome_exibicao|first|upper }}
                         </div>
                     {% endif %}
                 </button>
                 <div>
-                    <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
-                            class="font-bold text-gray-800 text-sm hover:text-indigo-600 transition leading-tight block">
+                    <button onclick="event.stopPropagation(); abrirModalPerfil('{{ post.autor.usuario.username }}')"
+                            class="text-white font-semibold text-sm leading-tight block hover:underline">
                         {{ post.autor.nome_exibicao }}
                     </button>
-                    <p class="text-xs text-gray-400 leading-tight">
+                    <p class="text-white/60 text-xs leading-tight">
                         {{ post.data_criacao|timesince }} atrás
                     </p>
                 </div>
             </div>
 
             {% if post.autor.usuario == user %}
-            {% include 'posts/partials/shared/dropdown_post.html' with aba='feed' %}
+            <div onclick="event.stopPropagation()">
+                {% include 'posts/partials/shared/dropdown_post.html' with aba='feed' %}
+            </div>
             {% endif %}
         </div>
 
-        <!-- Corpo: categorias + título do note + resumo -->
-        <div class="px-5 pb-4 cursor-pointer" onclick="abrirModal('feed-{{ post.id }}')">
-            <div class="flex flex-wrap gap-1 mb-2">
+        <!-- Base: título de capa + prévia + categorias (ocultas) + reações -->
+        <div>
+            <!-- Título de capa -->
+            <h3 class="text-white font-black text-2xl leading-tight drop-shadow mb-2 line-clamp-2">
+                {{ post.titulo_capa|default:post.titulo }}
+            </h3>
+
+            <!-- Prévia do conteúdo -->
+            <p class="text-white/75 text-sm leading-relaxed line-clamp-2 mb-3">
+                {{ post.conteudo|truncatewords:20 }}
+            </p>
+
+            <!-- Categorias — ocultas, expandem ao clicar -->
+            <div class="mb-3">
+                <button onclick="event.stopPropagation(); toggleCategorias({{ post.id }})"
+                        class="text-white/50 text-xs hover:text-white/80 transition flex items-center gap-1">
+                    <span id="icon-cat-{{ post.id }}">🏷️</span>
+                    <span id="label-cat-{{ post.id }}">Ver categorias</span>
+                </button>
+                <div id="cats-{{ post.id }}" class="hidden flex-wrap gap-1 mt-2">
+                    {% for cat in post.categorias.all %}
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm"
+                          style="background-color: {{ cat.cor }}40; color: {{ cat.cor }}; border: 1px solid {{ cat.cor }}60;">
+                        {{ cat.nome }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Reações -->
+            <div class="flex items-center gap-5 pt-3 border-t border-white/20"
+                 onclick="event.stopPropagation()">
+                <form method="POST" action="{% url 'reagir_post' post.id 'curtida' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="aba" value="feed">
+                    <button type="submit"
+                            class="flex items-center gap-1.5 text-white/70 hover:text-red-400 transition text-sm">
+                        ❤️ <span class="font-semibold">{{ post.total_curtidas }}</span>
+                    </button>
+                </form>
+
+                <button onclick="abrirModal('feed-{{ post.id }}')"
+                        class="flex items-center gap-1.5 text-white/70 hover:text-white transition text-sm">
+                    💬 <span class="font-semibold">0</span>
+                </button>
+
+                <form method="POST" action="{% url 'reagir_post' post.id 'clip' %}" class="ml-auto">
+                    {% csrf_token %}
+                    <input type="hidden" name="aba" value="feed">
+                    <button type="submit"
+                            class="flex items-center gap-1.5 text-white/70 hover:text-indigo-300 transition text-sm">
+                        📌 <span class="font-semibold">{{ post.total_clips }}</span>
+                        <span class="text-xs text-white/50">clips</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</article>
+
+<!-- Modal conteúdo completo -->
+<div id="modal-feed-{{ post.id }}"
+     class="fixed inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center z-50 hidden"
+     onclick="fecharModalFora(event, 'feed-{{ post.id }}')">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
+
+        {% if post.tem_capa %}
+        <div class="relative w-full rounded-t-2xl overflow-hidden">
+            {% if post.imagem_capa_2 %}
+            <div class="grid grid-cols-2 h-48">
+                <img src="{{ post.imagem_capa_1.url }}" class="w-full h-full object-cover" alt="">
+                <img src="{{ post.imagem_capa_2.url }}" class="w-full h-full object-cover" alt="">
+            </div>
+            {% else %}
+            <img src="{{ post.imagem_capa_1.url }}" class="w-full h-48 object-cover" alt="">
+            {% endif %}
+            <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent
+                        flex items-end px-6 pb-3">
+                <p class="text-white font-bold text-lg leading-snug">
+                    {{ post.titulo_capa|default:post.titulo }}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="p-8">
+            <button onclick="fecharModal('feed-{{ post.id }}')"
+                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700
+                           text-2xl font-bold z-10 bg-white/80 rounded-full w-8 h-8
+                           flex items-center justify-center">✕</button>
+
+            <div class="flex flex-wrap gap-2 mb-4">
                 {% for cat in post.categorias.all %}
-                <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style="background-color: {{ cat.cor }}20; color: {{ cat.cor }}">
+                <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                      style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
                     {{ cat.nome }}
                 </span>
                 {% endfor %}
             </div>
 
-            {% if not post.tem_capa %}
-            {# Sem capa: exibe o título do note em destaque no corpo #}
-            <h3 class="text-lg font-bold text-gray-800 mb-2 leading-snug">{{ post.titulo }}</h3>
-            {% endif %}
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
 
-            <p class="text-gray-500 text-sm leading-relaxed line-clamp-3">
-                {{ post.conteudo|truncatewords:30 }}
-            </p>
-            <div class="mt-4 h-1 rounded-full"
-                 style="background-color: {{ post.cor|default:'#8B5CF6' }}; opacity: 0.4;"></div>
-        </div>
-
-        <!-- Reações -->
-        <div class="px-5 py-3 border-t border-gray-50 flex items-center gap-6">
-            <form method="POST" action="{% url 'reagir_post' post.id 'curtida' %}">
-                {% csrf_token %}
-                <input type="hidden" name="aba" value="feed">
-                <button type="submit"
-                        class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition">
-                    ❤️ <span class="font-semibold text-gray-600">{{ post.total_curtidas }}</span>
+            <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
+                <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
+                        class="hover:underline hover:text-indigo-500 transition font-medium">
+                    ✍️ {{ post.autor.nome_exibicao }}
                 </button>
-            </form>
-            <button onclick="abrirModal('feed-{{ post.id }}')"
-                    class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition">
-                💬 <span class="font-semibold text-gray-600">0</span>
-            </button>
-            <form method="POST" action="{% url 'reagir_post' post.id 'clip' %}" class="ml-auto">
-                {% csrf_token %}
-                <input type="hidden" name="aba" value="feed">
-                <button type="submit"
-                        class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition">
-                    📌 <span class="font-semibold text-gray-600">{{ post.total_clips }}</span>
-                    <span class="text-xs">clips</span>
-                </button>
-            </form>
-        </div>
-    </article>
-
-    <!-- Modal conteúdo completo -->
-    <div id="modal-feed-{{ post.id }}"
-         class="fixed inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center z-50 hidden"
-         onclick="fecharModalFora(event, 'feed-{{ post.id }}')">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
-
-            <!-- Capa no modal -->
-            {% if post.tem_capa %}
-            <div class="relative w-full rounded-t-2xl overflow-hidden">
-                {% if post.imagem_capa_2 %}
-                <div class="grid grid-cols-2 h-48">
-                    <img src="{{ post.imagem_capa_1.url }}" class="w-full h-full object-cover" alt="">
-                    <img src="{{ post.imagem_capa_2.url }}" class="w-full h-full object-cover border-l-2 border-white" alt="">
-                </div>
-                {% else %}
-                <img src="{{ post.imagem_capa_1.url }}" class="w-full h-48 object-cover" alt="">
-                {% endif %}
-                <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent
-                            flex items-end px-6 pb-3">
-                    <p class="text-white font-bold text-lg leading-snug">
-                        {{ post.titulo_capa|default:post.titulo }}
-                    </p>
-                </div>
+                <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
             </div>
+
+            {% if post.autor_original %}
+            <p class="text-xs text-gray-400 mb-4">
+                💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
+            </p>
             {% endif %}
 
-            <div class="p-8">
-                <button onclick="fecharModal('feed-{{ post.id }}')"
-                        class="absolute top-4 right-4 text-gray-400 hover:text-gray-700
-                               text-2xl font-bold z-10 bg-white/80 rounded-full w-8 h-8
-                               flex items-center justify-center">✕</button>
+            <div class="text-gray-700 leading-relaxed mb-8">{{ post.conteudo }}</div>
 
-                <div class="flex flex-wrap gap-2 mb-4">
-                    {% for cat in post.categorias.all %}
-                    <span class="text-xs font-semibold px-3 py-1 rounded-full"
-                          style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
-                        {{ cat.nome }}
-                    </span>
-                    {% endfor %}
-                </div>
-
-                <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
-
-                <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
-                    <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
-                            class="hover:underline hover:text-indigo-500 transition font-medium">
-                        ✍️ {{ post.autor.nome_exibicao }}
-                    </button>
-                    <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
-                </div>
-
-                {% if post.autor_original %}
-                <p class="text-xs text-gray-400 mb-4">
-                    💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
-                </p>
+            <div class="border-t pt-4 flex justify-between items-center">
+                {% if post.autor.usuario == user %}
+                <a href="{% url 'editar_post' post.id %}"
+                   class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full
+                          text-sm font-semibold hover:bg-gray-200 transition">
+                    ✏️ Editar
+                </a>
+                {% else %}
+                <span class="text-sm text-gray-400">💬 Colabore nos comentários</span>
                 {% endif %}
-
-                <div class="text-gray-700 leading-relaxed mb-8">{{ post.conteudo }}</div>
-
-                <div class="border-t pt-4 flex justify-between items-center">
-                    {% if post.autor.usuario == user %}
-                    <a href="{% url 'editar_post' post.id %}"
-                       class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full
-                              text-sm font-semibold hover:bg-gray-200 transition">
-                        ✏️ Editar
-                    </a>
-                    {% else %}
-                    <span class="text-sm text-gray-400">💬 Colabore nos comentários</span>
-                    {% endif %}
-                    <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
-                </div>
+                <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
             </div>
         </div>
     </div>
+</div>
 
-    {% include 'posts/partials/feed/modais_feed.html' %}
+{% include 'posts/partials/feed/modais_feed.html' %}
 
 {% endfor %}
 </div>
@@ -206,3 +208,23 @@
     <p class="text-sm mt-2">Siga usuários para ver as ideias deles aqui!</p>
 </div>
 {% endif %}
+
+<script>
+function toggleCategorias(postId) {
+    const container = document.getElementById(`cats-${postId}`);
+    const label     = document.getElementById(`label-cat-${postId}`);
+    const icon      = document.getElementById(`icon-cat-${postId}`);
+
+    if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+        container.classList.add('flex');
+        label.textContent = 'Ocultar categorias';
+        icon.textContent  = '🏷️';
+    } else {
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+        label.textContent = 'Ver categorias';
+        icon.textContent  = '🏷️';
+    }
+}
+</script>

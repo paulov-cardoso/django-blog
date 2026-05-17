@@ -258,11 +258,18 @@ function removerImagem(event, numero) {
   const params = new URLSearchParams(window.location.search);
   const erro   = params.get('erro');
 
-  if (erro === 'sem_categoria') {
-    abrirModal('modal-alerta-sem-categoria');
-  } else if (erro === 'sem_capa') {
-    abrirModal('modal-alerta-sem-capa');
+  // Restaura categorias que já haviam sido selecionadas
+  const catStr = '{{ categorias_iniciais }}';
+  if (catStr) {
+    fetch(`/api/categorias/por-ids/?ids=${catStr}`)
+      .then(r => r.json())
+      .then(data => {
+        data.categorias.forEach(cat => selecionarCategoria(cat.id, cat.nome, cat.cor));
+      });
   }
+
+  if (erro === 'sem_categoria') abrirModal('modal-alerta-sem-categoria');
+  if (erro === 'sem_capa')      abrirModal('modal-alerta-sem-capa');
 
   if (erro) {
     params.delete('erro');
