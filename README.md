@@ -23,6 +23,7 @@
 - [Dois pilares](#-dois-pilares)
 - [Funcionalidades](#-funcionalidades)
 - [Fluxo de uma ideia](#-fluxo-de-uma-ideia)
+- [Entroncamento de comentários](#-entroncamento-de-comentários)
 - [Stack](#️-stack)
 - [Como rodar localmente](#-como-rodar-localmente)
 - [Variáveis de ambiente](#-variáveis-de-ambiente)
@@ -51,7 +52,7 @@ O resultado: ideias ignoram as limitações humanas — inclusive a desmotivaç�
 Espaço privado de anotações. Lembretes, referências, rascunhos. Com o **Modo TDAH** ativado, o ambiente vira produtividade assistida: guias interativos, micro-steps e timer Pomodoro integrado.
 
 ### 🌍 Incubador de Ideias
-Ideias públicas que "pairam" esperando colaboração. Comentários infinitos estilo Reddit, moderação coletiva e continuidade garantida — se o autor desistir, a comunidade assume.
+Ideias públicas que "pairam" esperando colaboração. Comentários infinitos estilo Reddit com entroncamento visual, moderação coletiva e continuidade garantida — se o autor desistir, a comunidade assume.
 
 ---
 
@@ -71,22 +72,31 @@ Ideias públicas que "pairam" esperando colaboração. Comentários infinitos es
 - Página de eleição de moderadores com busca de seguidores e seleção de privilégios
 - Perfil de usuário com foto de capa e foto de perfil em losango
 - Sistema de seguidores e feed personalizado (próprios posts + posts de quem você segue)
-- Feed estilo Instagram com avatar, tempo relativo, reações e composer bar
-- Reações em posts — curtida ❤️ e clip 📌 com toggle
-- Composer bar no feed com título pré-preenchido e visibilidade automática
+- Listas de seguidores e seguindo clicáveis no perfil
+- Busca de usuários por nome ou @username com modal sobreposto
+- Feed estilo tabloid/revista — imagem de capa full-card com título sobreposto e gradiente
+- Capa obrigatória (imagem principal + opcional secundária + título de capa) para posts no Feed
+- Reações em posts — curtida ❤️ e clip 📌 sem refresh de página via fetch
+- Categorias com autocomplete, validator animado e restauração após erros de validação
+- Modal de post completo com conteúdo, imagens, comentários e botão "Ver em tela cheia"
+- Comentários infinitos threaded com **Entroncamento de Comentários** (ver seção abaixo)
+- Votos em comentários com toggle (upvote ▲ / downvote ▼) e score em tempo real
+- Soft delete de comentários — preserva o thread, exibe `[comentário removido]`
+- @mention automático ao responder um comentário
+- Sistema de notificações em 3 canais:
+  - 🔔 **Sino** — curtidas, clips, comentários e respostas
+  - ✉️ **Carta** — candidaturas e eleições de moderador
+  - 👤 **Pessoas** — novos seguidores
 - Modal de perfil externo carregado via `fetch` com botão Seguir/Deixar de seguir
-- Sistema de notificações — sino 🔔 (interações) e carta ✉️ (colaboração/moderação)
 - Toast PRG animado com lâmpada ao completar ações
 
 ### 🔄 Em desenvolvimento
 
-- Upload de fotos de perfil e capa
-- Editar perfil (bio, nome, fotos)
-- Comentários infinitos threaded (estilo Reddit)
+- Aba Forumização — threads promovidas por profundidade ou volume de participantes
 - Modo TDAH — tunnel vision, Pomodoro, micro-steps, gamificação
 - Kanban de ideias com drag and drop
 - Aba Trending
-- Busca global
+- Busca global de posts e ideias
 - Login social (Google, GitHub)
 - Deploy no Railway
 
@@ -115,13 +125,31 @@ Criação (Privado)
 
 ---
 
+## 🌿 Entroncamento de Comentários
+
+O Blognotes tem um sistema único de threading chamado **Entroncamento de Comentários**. Comentários formam troncos que se ramificam infinitamente, com comportamento adaptado à profundidade da conversa:
+
+| Geração | Comportamento |
+|---------|---------------|
+| 1ª a 4ª | Exibidas no modal do post — ocultas por padrão, expansíveis ao clicar |
+| 5ª | Abre em modal sobreposto — "Thread aprofundada" |
+| 6ª+ | Alerta de forumização — thread promovida à aba Forumização |
+
+**Forumização** ocorre quando qualquer um destes critérios é atingido primeiro:
+- Thread atinge a 6ª geração de comentários
+- Thread reúne 5 ou mais comentadores distintos no mesmo tronco
+
+Quando forumizada, a thread sai do modal e ganha uma aba própria para debate estruturado.
+
+---
+
 ## 🛠️ Stack
 
 | Camada    | Tecnologia                            |
 |-----------|---------------------------------------|
 | Backend   | Python 3.13 + Django 6.0              |
 | Frontend  | Tailwind CSS v4 Standalone (sem Node) |
-| Banco     | PostgreSQL (produção)                 |
+| Banco     | PostgreSQL (produção) / SQLite (dev)  |
 | Imagens   | Pillow                                |
 | Deploy    | Railway *(planejado)*                 |
 
@@ -205,14 +233,18 @@ django-blog/
 │   ├── urls.py
 │   └── wsgi.py
 ├── posts/                        # App principal
-│   ├── models.py                 # Post, Autor, Seguidor, ModeradorPost, CandidaturaModerador, PostReacao, Notificacao
+│   ├── models.py                 # Post, Autor, Seguidor, ModeradorPost, CandidaturaModerador,
+│   │                             # PostReacao, Notificacao, Comentario, VotoComentario
 │   ├── views.py
 │   ├── urls.py
 │   ├── forms.py
 │   ├── context_processors.py     # Contadores de notificação injetados globalmente
+│   ├── templatetags/
+│   │   ├── __init__.py
+│   │   └── comentario_tags.py    # Filtros curtida_ativa, clip_ativo e tag render_comentario
 │   └── templates/posts/
-│       ├── base.html             # Layout global — navbar, toast, abas
-│       ├── home.html             # Orquestrador das 4 abas (~30 linhas)
+│       ├── base.html             # Layout global — navbar, toast, modal de busca
+│       ├── home.html             # Orquestrador das abas (~30 linhas)
 │       ├── auth/                 # Autenticação
 │       │   ├── login.html
 │       │   ├── registrar.html
@@ -226,12 +258,15 @@ django-blog/
 │       ├── posts/                # Posts individuais
 │       │   ├── criar.html
 │       │   ├── editar.html
-│       │   ├── detail.html
+│       │   ├── detail.html       # Tela cheia com threading server-side
 │       │   └── listar.html
 │       ├── moderacao/
 │       │   └── eleger_moderador.html
 │       ├── notificacoes/
-│       │   └── notificacoes.html
+│       │   └── notificacoes.html # 3 canais: sino, carta, pessoas
+│       ├── social/
+│       │   ├── buscar_usuarios.html
+│       │   └── lista_seguidores.html
 │       └── partials/             # Componentes reutilizáveis
 │           ├── abas_nav.html
 │           ├── perfil/
@@ -239,7 +274,7 @@ django-blog/
 │           │   └── painel_ideias.html
 │           ├── feed/
 │           │   ├── composer_bar.html
-│           │   ├── card_feed.html
+│           │   ├── card_feed.html  # Modal completo, threading JS, reações AJAX
 │           │   └── modais_feed.html
 │           ├── notes/
 │           │   ├── card_note.html
@@ -250,7 +285,8 @@ django-blog/
 │           └── shared/
 │               ├── dropdown_post.html
 │               ├── modal_perfil_externo.html
-│               └── moderadores_painel.html
+│               ├── moderadores_painel.html
+│               └── comentario_node.html  # Nó recursivo de comentário (detail.html)
 ├── media/                        # Uploads de fotos (gitignored)
 ├── .env.example
 ├── manage.py
@@ -270,14 +306,17 @@ django-blog/
 | 3 | Autenticação completa | ✅ Concluído |
 | 4 | Individualização — posts por usuário | ✅ Concluído |
 | 5 | Sistema de visibilidade — Privado / Feed / Campo | ✅ Concluído |
-| 6 | Moderação e desistência | 🔄 Parcial |
-| 7 | Perfil e seguidores | 🔄 Parcial |
-| 8 | Comentários infinitos threaded | ⏳ Planejado |
-| 9 | Modo TDAH — tunnel vision, Pomodoro, gamificação | ⏳ Planejado |
-| 10 | Kanban de ideias — drag and drop, alertas | ⏳ Planejado |
-| 11 | UX avançada — mobile, dark mode, busca global | ⏳ Planejado |
-| 12 | Login social — Google, GitHub, SendGrid | ⏳ Planejado |
-| 13 | Deploy — Railway, SEO, sitemap, domínio | ⏳ Planejado |
+| 6 | Moderação e desistência | ✅ Concluído |
+| 7 | Perfil, seguidores e notificações | ✅ Concluído |
+| 8 | Capa obrigatória no Feed — tabloid/revista | ✅ Concluído |
+| 9 | Comentários infinitos threaded + Entroncamento | ✅ Concluído |
+| 10 | Reações AJAX, modal completo, busca de usuários | ✅ Concluído |
+| 11 | Aba Forumização — threads promovidas | 🔄 Em andamento |
+| 12 | Modo TDAH — tunnel vision, Pomodoro, gamificação | ⏳ Planejado |
+| 13 | Kanban de ideias — drag and drop | ⏳ Planejado |
+| 14 | UX avançada — mobile, dark mode, busca global | ⏳ Planejado |
+| 15 | Login social — Google, GitHub, SendGrid | ⏳ Planejado |
+| 16 | Deploy — Railway, SEO, sitemap, domínio | ⏳ Planejado |
 
 ---
 
@@ -291,3 +330,4 @@ django-blog/
 <div align="center">
   <sub>Feito com Django + Tailwind CSS · © 2026</sub>
 </div>
+```
