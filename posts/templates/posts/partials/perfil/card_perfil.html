@@ -42,16 +42,16 @@
         
 
                         <div class="flex gap-8 ml-44">
-                            <a href="{% url 'lista_seguidores' autor_perfil.usuario.username 'seguidores' %}"
-                            class="text-center hover:opacity-70 transition">
-                                <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguidores }}</p>
-                                <p class="text-xs text-gray-500">Seguidores</p>
-                            </a>
-                            <a href="{% url 'lista_seguidores' autor_perfil.usuario.username 'seguindo' %}"
-                            class="text-center hover:opacity-70 transition">
-                                <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguindo }}</p>
-                                <p class="text-xs text-gray-500">Seguindo</p>
-                            </a>
+                                        <a href="{% url 'lista_seguidores' autor_perfil.usuario.username %}"
+                                            class="text-center hover:opacity-70 transition">
+                                            <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguidores }}</p>
+                                            <p class="text-xs text-gray-500">Seguidores</p>
+                                        </a>
+                                        <a href="{% url 'lista_seguindo' autor_perfil.usuario.username %}"
+                                            class="text-center hover:opacity-70 transition">
+                                            <p class="text-xl font-bold text-gray-800">{{ autor_perfil.total_seguindo }}</p>
+                                            <p class="text-xs text-gray-500">Seguindo</p>
+                                        </a>
                             <div class="text-center">
                                 <p class="text-xl font-bold text-gray-800">{{ posts_publicos|length }}</p>
                                 <p class="text-xs text-gray-500">Ideias públicas</p>

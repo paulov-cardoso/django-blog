@@ -1,45 +1,42 @@
+{% load comentario_tags %}
+
 {% if posts %}
-<div class="space-y-6">
+<div class="space-y-6" id="lista-feed">
 {% for post in posts %}
 
-<article class="relative rounded-2xl overflow-hidden shadow-md cursor-pointer group"
-         onclick="abrirModal('feed-{{ post.id }}')">
+<article class="relative rounded-2xl overflow-hidden shadow-md group"
+         data-post-id="{{ post.id }}">
 
-    <!-- Imagem de fundo — ocupa o card inteiro -->
     {% if post.tem_capa %}
         {% if post.imagem_capa_2 %}
-        <div class="grid grid-cols-2 h-[420px]">
+        <div class="grid grid-cols-2 h-[420px] cursor-pointer"
+             onclick="abrirModalFeed({{ post.id }})">
             <img src="{{ post.imagem_capa_1.url }}" class="w-full h-full object-cover" alt="">
             <img src="{{ post.imagem_capa_2.url }}" class="w-full h-full object-cover" alt="">
         </div>
         {% else %}
         <img src="{{ post.imagem_capa_1.url }}"
-             class="w-full h-[420px] object-cover" alt="">
+             class="w-full h-[420px] object-cover cursor-pointer"
+             onclick="abrirModalFeed({{ post.id }})" alt="">
         {% endif %}
     {% else %}
-    <!-- Fallback sem capa: fundo colorido -->
-    <div class="w-full h-[420px]"
-         style="background: linear-gradient(135deg, {{ post.cor|default:'#6366f1' }}cc, {{ post.cor|default:'#6366f1' }}44);"></div>
+    <div class="w-full h-[420px] cursor-pointer"
+         style="background: linear-gradient(135deg, {{ post.cor|default:'#6366f1' }}cc, {{ post.cor|default:'#6366f1' }}44);"
+         onclick="abrirModalFeed({{ post.id }})"></div>
     {% endif %}
 
-    <!-- Overlay gradiente cobrindo o card inteiro de baixo para cima -->
-    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 pointer-events-none"></div>
 
-    <!-- Conteúdo sobreposto -->
     <div class="absolute inset-0 flex flex-col justify-between p-5">
 
-        <!-- Topo: avatar + autor + tempo + menu -->
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <button onclick="event.stopPropagation(); abrirModalPerfil('{{ post.autor.usuario.username }}')"
-                        class="w-9 h-9 rounded-full overflow-hidden border-2 border-white/60 flex-shrink-0
-                               hover:opacity-80 transition">
+                        class="w-9 h-9 rounded-full overflow-hidden border-2 border-white/60 flex-shrink-0 hover:opacity-80 transition">
                     {% if post.autor.foto_perfil %}
-                        <img src="{{ post.autor.foto_perfil.url }}"
-                             class="w-full h-full object-cover" alt="">
+                        <img src="{{ post.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
                     {% else %}
-                        <div class="w-full h-full flex items-center justify-center
-                                    bg-white/20 text-white font-bold text-sm backdrop-blur-sm">
+                        <div class="w-full h-full flex items-center justify-center bg-white/20 text-white font-bold text-sm backdrop-blur-sm">
                             {{ post.autor.nome_exibicao|first|upper }}
                         </div>
                     {% endif %}
@@ -49,12 +46,9 @@
                             class="text-white font-semibold text-sm leading-tight block hover:underline">
                         {{ post.autor.nome_exibicao }}
                     </button>
-                    <p class="text-white/60 text-xs leading-tight">
-                        {{ post.data_criacao|timesince }} atrás
-                    </p>
+                    <p class="text-white/60 text-xs leading-tight">{{ post.data_criacao|timesince }} atrás</p>
                 </div>
             </div>
-
             {% if post.autor.usuario == user %}
             <div onclick="event.stopPropagation()">
                 {% include 'posts/partials/shared/dropdown_post.html' with aba='feed' %}
@@ -62,24 +56,21 @@
             {% endif %}
         </div>
 
-        <!-- Base: título de capa + prévia + categorias (ocultas) + reações -->
         <div>
-            <!-- Título de capa -->
-            <h3 class="text-white font-black text-2xl leading-tight drop-shadow mb-2 line-clamp-2">
+            <h3 class="text-white font-black text-2xl leading-tight drop-shadow mb-2 line-clamp-2 cursor-pointer"
+                onclick="abrirModalFeed({{ post.id }})">
                 {{ post.titulo_capa|default:post.titulo }}
             </h3>
 
-            <!-- Prévia do conteúdo -->
-            <p class="text-white/75 text-sm leading-relaxed line-clamp-2 mb-3">
+            <p class="text-white/75 text-sm leading-relaxed line-clamp-2 mb-3 cursor-pointer"
+               onclick="abrirModalFeed({{ post.id }})">
                 {{ post.conteudo|truncatewords:20 }}
             </p>
 
-            <!-- Categorias — ocultas, expandem ao clicar -->
             <div class="mb-3">
-                <button onclick="event.stopPropagation(); toggleCategorias({{ post.id }})"
+                <button onclick="event.stopPropagation(); toggleCategoriasFeed({{ post.id }})"
                         class="text-white/50 text-xs hover:text-white/80 transition flex items-center gap-1">
-                    <span id="icon-cat-{{ post.id }}">🏷️</span>
-                    <span id="label-cat-{{ post.id }}">Ver categorias</span>
+                    🏷️ <span id="label-cat-{{ post.id }}">Ver categorias</span>
                 </button>
                 <div id="cats-{{ post.id }}" class="hidden flex-wrap gap-1 mt-2">
                     {% for cat in post.categorias.all %}
@@ -91,68 +82,72 @@
                 </div>
             </div>
 
-            <!-- Reações -->
-            <div class="flex items-center gap-5 pt-3 border-t border-white/20"
-                 onclick="event.stopPropagation()">
-                <form method="POST" action="{% url 'reagir_post' post.id 'curtida' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="aba" value="feed">
-                    <button type="submit"
-                            class="flex items-center gap-1.5 text-white/70 hover:text-red-400 transition text-sm">
-                        ❤️ <span class="font-semibold">{{ post.total_curtidas }}</span>
-                    </button>
-                </form>
-
-                <button onclick="abrirModal('feed-{{ post.id }}')"
-                        class="flex items-center gap-1.5 text-white/70 hover:text-white transition text-sm">
-                    💬 <span class="font-semibold">0</span>
+            <div class="flex items-center gap-5 pt-3 border-t border-white/20">
+                <button onclick="event.stopPropagation(); reagir({{ post.id }}, 'curtida', this)"
+                        class="flex items-center gap-1.5 text-sm transition {% if post|curtida_ativa:user %}text-red-400{% else %}text-white/70 hover:text-red-400{% endif %}">
+                    ❤️ <span class="font-semibold" id="total-curtida-{{ post.id }}">{{ post.total_curtidas }}</span>
                 </button>
 
-                <form method="POST" action="{% url 'reagir_post' post.id 'clip' %}" class="ml-auto">
-                    {% csrf_token %}
-                    <input type="hidden" name="aba" value="feed">
-                    <button type="submit"
-                            class="flex items-center gap-1.5 text-white/70 hover:text-indigo-300 transition text-sm">
-                        📌 <span class="font-semibold">{{ post.total_clips }}</span>
-                        <span class="text-xs text-white/50">clips</span>
-                    </button>
-                </form>
+                <button onclick="event.stopPropagation(); toggleComentariosFeed({{ post.id }})"
+                        class="flex items-center gap-1.5 text-sm text-white/70 hover:text-white transition">
+                    💬 <span class="font-semibold" id="total-comentarios-{{ post.id }}">{{ post.total_comentarios }}</span>
+                </button>
+
+                <button onclick="event.stopPropagation(); reagir({{ post.id }}, 'clip', this)"
+                        class="flex items-center gap-1.5 text-sm transition ml-auto {% if post|clip_ativo:user %}text-indigo-300{% else %}text-white/70 hover:text-indigo-300{% endif %}">
+                    📌 <span class="font-semibold" id="total-clip-{{ post.id }}">{{ post.total_clips }}</span>
+                    <span class="text-xs text-white/50">clips</span>
+                </button>
+            </div>
+
+            <div id="painel-comentarios-{{ post.id }}" class="hidden mt-3 max-h-48 overflow-y-auto">
+                <div id="lista-comentarios-{{ post.id }}" class="space-y-2">
+                    <p class="text-white/40 text-xs text-center py-2">Carregando...</p>
+                </div>
+                <button onclick="event.stopPropagation(); abrirModalFeed({{ post.id }})"
+                        class="w-full mt-2 text-xs text-white/50 hover:text-white/80 transition text-center py-1 border-t border-white/10 pt-2">
+                    ✏️ Comentar — abrir post completo
+                </button>
             </div>
         </div>
     </div>
 </article>
 
-<!-- Modal conteúdo completo -->
+<!-- ── Modal do post completo ──────────────────────────────────────────────── -->
 <div id="modal-feed-{{ post.id }}"
-     class="fixed inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center z-50 hidden"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4"
      onclick="fecharModalFora(event, 'feed-{{ post.id }}')">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
+
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative max-h-[90vh] overflow-y-auto"
+         onclick="event.stopPropagation()">
+
+        <!-- Barra superior -->
+        <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-between px-5 py-3 border-b border-gray-100 rounded-t-2xl">
+            <a href="{% url 'detalhe_post' post.id %}"
+               class="text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition flex items-center gap-1">
+                ⛶ Ver em tela cheia
+            </a>
+            <button onclick="fecharModal('feed-{{ post.id }}')"
+                    class="text-gray-400 hover:text-gray-700 text-2xl font-bold leading-none">✕</button>
+        </div>
 
         {% if post.tem_capa %}
-        <div class="relative w-full rounded-t-2xl overflow-hidden">
+        <div class="relative w-full overflow-hidden">
             {% if post.imagem_capa_2 %}
-            <div class="grid grid-cols-2 h-48">
+            <div class="grid grid-cols-2 h-56">
                 <img src="{{ post.imagem_capa_1.url }}" class="w-full h-full object-cover" alt="">
                 <img src="{{ post.imagem_capa_2.url }}" class="w-full h-full object-cover" alt="">
             </div>
             {% else %}
-            <img src="{{ post.imagem_capa_1.url }}" class="w-full h-48 object-cover" alt="">
+            <img src="{{ post.imagem_capa_1.url }}" class="w-full h-56 object-cover" alt="">
             {% endif %}
-            <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent
-                        flex items-end px-6 pb-3">
-                <p class="text-white font-bold text-lg leading-snug">
-                    {{ post.titulo_capa|default:post.titulo }}
-                </p>
+            <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent flex items-end px-6 pb-3">
+                <p class="text-white font-bold text-lg leading-snug">{{ post.titulo_capa|default:post.titulo }}</p>
             </div>
         </div>
         {% endif %}
 
-        <div class="p-8">
-            <button onclick="fecharModal('feed-{{ post.id }}')"
-                    class="absolute top-4 right-4 text-gray-400 hover:text-gray-700
-                           text-2xl font-bold z-10 bg-white/80 rounded-full w-8 h-8
-                           flex items-center justify-center">✕</button>
-
+        <div class="p-6">
             <div class="flex flex-wrap gap-2 mb-4">
                 {% for cat in post.categorias.all %}
                 <span class="text-xs font-semibold px-3 py-1 rounded-full"
@@ -162,9 +157,8 @@
                 {% endfor %}
             </div>
 
-            <h2 class="text-3xl font-bold text-gray-800 mb-4">{{ post.titulo }}</h2>
-
-            <div class="flex gap-4 text-sm text-gray-400 mb-6 border-b pb-4">
+            <h2 class="text-2xl font-bold text-gray-800 mb-3">{{ post.titulo }}</h2>
+            <div class="flex gap-4 text-sm text-gray-400 mb-5 border-b pb-4">
                 <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
                         class="hover:underline hover:text-indigo-500 transition font-medium">
                     ✍️ {{ post.autor.nome_exibicao }}
@@ -178,28 +172,100 @@
             </p>
             {% endif %}
 
-            <div class="text-gray-700 leading-relaxed mb-8">{{ post.conteudo }}</div>
+            <div class="text-gray-700 leading-relaxed mb-6">{{ post.conteudo }}</div>
 
-            <div class="border-t pt-4 flex justify-between items-center">
-                {% if post.autor.usuario == user %}
-                <a href="{% url 'editar_post' post.id %}"
-                   class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full
-                          text-sm font-semibold hover:bg-gray-200 transition">
-                    ✏️ Editar
-                </a>
-                {% else %}
-                <a href="{% url 'detalhe_post' post.id %}"
-                    class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition">
-                    💬 <span class="font-semibold text-gray-600">{{ total_comentarios }}</span>
-                </a>
+            <div class="flex items-center gap-5 pb-5 border-b border-gray-100">
+                <button onclick="reagir({{ post.id }}, 'curtida', this)"
+                        class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition">
+                    ❤️ <span id="modal-total-curtida-{{ post.id }}">{{ post.total_curtidas }}</span>
+                </button>
+                <button onclick="reagir({{ post.id }}, 'clip', this)"
+                        class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition ml-auto">
+                    📌 <span id="modal-total-clip-{{ post.id }}">{{ post.total_clips }}</span>
+                    <span class="text-xs">clips</span>
+                </button>
+            </div>
+
+            <!-- Seção de comentários -->
+            <div class="mt-5">
+                <h3 class="text-base font-bold text-gray-700 mb-4">
+                    💬 Comentários
+                    <span class="text-sm font-normal text-gray-400 ml-1"
+                          id="modal-total-comentarios-{{ post.id }}"></span>
+                </h3>
+
+                {% if user.is_authenticated %}
+                <div class="flex gap-3 mb-5">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                        {% if user.autor.foto_perfil %}
+                            <img src="{{ user.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
+                        {% else %}
+                            <div class="w-full h-full flex items-center justify-center text-gray-600 font-bold text-xs bg-gradient-to-br from-indigo-100 to-purple-100">
+                                {{ user.autor.nome_exibicao|first|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1">
+                        <textarea id="composer-{{ post.id }}"
+                                  rows="2"
+                                  placeholder="Adicione um comentário..."
+                                  class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm
+                                         focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
+                        <div class="flex justify-end mt-1">
+                            <button onclick="enviarComentario({{ post.id }}, null)"
+                                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-1.5 rounded-full transition">
+                                Comentar
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 {% endif %}
-                <span class="text-xs text-purple-600 font-semibold">👥 Feed de Ideias</span>
+
+                <div id="modal-comentarios-{{ post.id }}" class="space-y-4"></div>
+
+                <!-- Modal de geração 5+ (sobreposto ao modal do note) -->
+                <div id="modal-subthread-{{ post.id }}"
+                     class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                     onclick="fecharSubthread({{ post.id }}, event)">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-y-auto"
+                         onclick="event.stopPropagation()">
+                        <div class="sticky top-0 bg-white/95 backdrop-blur-sm flex items-center justify-between px-5 py-3 border-b border-gray-100 rounded-t-2xl">
+                            <span class="text-sm font-bold text-gray-700">🧵 Thread aprofundada</span>
+                            <button onclick="fecharSubthread({{ post.id }})"
+                                    class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
+                        </div>
+                        <div id="conteudo-subthread-{{ post.id }}" class="p-5 space-y-4"></div>
+                    </div>
+                </div>
+
+                <!-- Modal de alerta de forumização -->
+                <div id="modal-forum-{{ post.id }}"
+                     class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+                        <p class="text-2xl text-center mb-2">🔥</p>
+                        <h3 class="text-lg font-bold text-gray-800 text-center mb-2">Thread forumizada!</h3>
+                        <p class="text-sm text-gray-500 text-center mb-5">
+                            Esta conversa cresceu além do esperado e foi promovida a Fórum.
+                            Continue o debate na aba <strong>Forumização</strong>.
+                        </p>
+                        <div class="flex flex-col gap-2">
+                            <a href="/?aba=forumizacao"
+                               class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
+                                      py-2.5 rounded-xl transition text-center">
+                                🏛️ Ir para Forumização
+                            </a>
+                            <button onclick="document.getElementById('modal-forum-{{ post.id }}').classList.add('hidden'); document.getElementById('modal-forum-{{ post.id }}').classList.remove('flex');"
+                                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm py-2.5 rounded-xl transition">
+                                Agora não
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 </div>
-
-{% include 'posts/partials/feed/modais_feed.html' %}
 
 {% endfor %}
 </div>
@@ -213,21 +279,576 @@
 {% endif %}
 
 <script>
-function toggleCategorias(postId) {
+// ── Utilitários ───────────────────────────────────────────────────────────────
+
+function getCsrf() {
+    return document.cookie.split(';')
+        .find(c => c.trim().startsWith('csrftoken='))
+        ?.split('=')[1] ?? '';
+}
+
+function timesince(isoStr) {
+    const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
+    if (diff < 60)    return `${diff}s`;
+    if (diff < 3600)  return `${Math.floor(diff/60)}min`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h`;
+    return `${Math.floor(diff/86400)}d`;
+}
+
+// ── Categorias ────────────────────────────────────────────────────────────────
+
+function toggleCategoriasFeed(postId) {
     const container = document.getElementById(`cats-${postId}`);
     const label     = document.getElementById(`label-cat-${postId}`);
-    const icon      = document.getElementById(`icon-cat-${postId}`);
-
     if (container.classList.contains('hidden')) {
         container.classList.remove('hidden');
         container.classList.add('flex');
         label.textContent = 'Ocultar categorias';
-        icon.textContent  = '🏷️';
     } else {
         container.classList.add('hidden');
         container.classList.remove('flex');
         label.textContent = 'Ver categorias';
-        icon.textContent  = '🏷️';
     }
+}
+
+// ── Reações ───────────────────────────────────────────────────────────────────
+
+async function reagir(postId, tipo, btn) {
+    try {
+        const res  = await fetch(`/api/post/${postId}/reagir/${tipo}/`, {
+            method:  'POST',
+            headers: { 'X-CSRFToken': getCsrf() },
+        });
+        const data = await res.json();
+
+        [`total-${tipo}-${postId}`, `modal-total-${tipo}-${postId}`].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = data.total;
+        });
+
+        document.querySelectorAll(`[onclick*="reagir(${postId}, '${tipo}'"]`).forEach(b => {
+            if (tipo === 'curtida') {
+                b.classList.toggle('text-red-400',   data.ativo);
+                b.classList.toggle('text-white/70',  !data.ativo);
+            } else {
+                b.classList.toggle('text-indigo-300', data.ativo);
+                b.classList.toggle('text-white/70',   !data.ativo);
+            }
+        });
+    } catch (e) { console.error('Erro ao reagir:', e); }
+}
+
+// ── Painel colapsável no card ─────────────────────────────────────────────────
+
+const _painelCarregado = new Set();
+
+async function toggleComentariosFeed(postId) {
+    const painel = document.getElementById(`painel-comentarios-${postId}`);
+    if (painel.classList.contains('hidden')) {
+        painel.classList.remove('hidden');
+        if (!_painelCarregado.has(postId)) {
+            await carregarPreviewComentarios(postId);
+            _painelCarregado.add(postId);
+        }
+    } else {
+        painel.classList.add('hidden');
+    }
+}
+
+async function carregarPreviewComentarios(postId) {
+    const lista = document.getElementById(`lista-comentarios-${postId}`);
+    try {
+        const res  = await fetch(`/api/post/${postId}/comentarios/`);
+        const data = await res.json();
+        document.getElementById(`total-comentarios-${postId}`).textContent = data.total;
+
+        if (!data.comentarios.length) {
+            lista.innerHTML = '<p class="text-white/40 text-xs text-center py-2">Nenhum comentário ainda.</p>';
+            return;
+        }
+
+        lista.innerHTML = data.comentarios.slice(0, 3).map(c => `
+            <div class="text-white/80 text-xs py-1 border-b border-white/10 last:border-0">
+                <span class="font-semibold">${c.autor ?? '[removido]'}</span>
+                <span class="ml-1 text-white/50">${c.conteudo.substring(0, 80)}${c.conteudo.length > 80 ? '...' : ''}</span>
+            </div>
+        `).join('');
+
+        if (data.total > 3) {
+            lista.innerHTML += `
+                <button onclick="abrirModalFeed(${postId})"
+                        class="w-full text-xs text-white/40 hover:text-white/70 transition text-center pt-1">
+                    Ver todos os ${data.total} comentários →
+                </button>`;
+        }
+    } catch (e) {
+        lista.innerHTML = '<p class="text-white/40 text-xs text-center">Erro ao carregar.</p>';
+    }
+}
+
+// ── Modal principal do post ───────────────────────────────────────────────────
+
+const _modalCarregado = new Set();
+
+async function abrirModalFeed(postId) {
+    const modal = document.getElementById(`modal-feed-${postId}`);
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+
+    if (!_modalCarregado.has(postId)) {
+        await carregarComentariosModal(postId);
+        _modalCarregado.add(postId);
+    }
+}
+
+function fecharModal(key) {
+    const modal = document.getElementById(`modal-${key}`);
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+}
+
+function fecharModalFora(event, key) {
+    if (event.target === event.currentTarget) fecharModal(key);
+}
+
+async function carregarComentariosModal(postId) {
+    const container = document.getElementById(`modal-comentarios-${postId}`);
+    const totalEl   = document.getElementById(`modal-total-comentarios-${postId}`);
+    const totalCard = document.getElementById(`total-comentarios-${postId}`);
+
+    try {
+        const res  = await fetch(`/api/post/${postId}/comentarios/`);
+        const data = await res.json();
+
+        if (totalEl)   totalEl.textContent   = `(${data.total})`;
+        if (totalCard) totalCard.textContent  = data.total;
+
+        // Badge forumização por comentadores
+        if (data.pode_forumizar) {
+            abrirModalForum(postId);
+            return;
+        }
+
+        if (!data.comentarios.length) {
+            container.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">Nenhum comentário ainda. Seja o primeiro!</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        data.comentarios.forEach(c => {
+            container.appendChild(renderComentario(c, postId));
+        });
+
+    } catch (e) {
+        container.innerHTML = '<p class="text-sm text-gray-400 text-center">Erro ao carregar comentários.</p>';
+    }
+}
+
+// ── Renderização recursiva com entroncamento ──────────────────────────────────
+
+const PROFUNDIDADE_MODAL    = 4; // até aqui renderiza no modal
+const PROFUNDIDADE_SUBTHREAD = 5; // aqui abre subthread
+// 6+ → forumização
+
+function renderComentario(c, postId, profundidade = 0) {
+    // Geração 6+: não renderiza, aciona forumização
+    if (profundidade >= 6) {
+        abrirModalForum(postId);
+        return document.createTextNode('');
+    }
+
+    // Geração 5: renderiza mas respostas vão para subthread
+    const div = document.createElement('div');
+    div.id        = `comentario-modal-${c.id}`;
+    div.className = 'flex gap-2';
+    if (profundidade > 0) {
+        div.style.marginLeft = `${Math.min(profundidade * 16, 64)}px`;
+        div.style.borderLeft = '2px solid #e5e7eb';
+        div.style.paddingLeft = '12px';
+    }
+
+    const isAuth = {{ user.is_authenticated|yesno:"true,false" }};
+    const meUser = "{{ user.username }}";
+
+    const avatarHtml = c.foto
+        ? `<img src="${c.foto}" class="w-7 h-7 rounded-full object-cover flex-shrink-0 mt-0.5" alt="">`
+        : `<div class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center
+                       text-gray-500 font-bold text-xs flex-shrink-0 mt-0.5">
+               ${c.autor ? c.autor[0].toUpperCase() : '✕'}
+           </div>`;
+
+    const upClass   = c.meu_voto === 1  ? 'text-green-500 font-semibold' : 'text-gray-400 hover:text-green-500';
+    const downClass = c.meu_voto === -1 ? 'text-red-400 font-semibold'  : 'text-gray-400 hover:text-red-400';
+
+    // Ocultar/expandir respostas (gerações 1-4 no modal, 5+ em subthread)
+    const temRespostas     = c.respostas && c.respostas.length > 0;
+    const abreSubthread    = profundidade >= PROFUNDIDADE_MODAL;
+    const labelRespostas   = temRespostas
+        ? (abreSubthread
+            ? `<button onclick="abrirSubthread(${postId}, ${c.id})"
+                       class="text-xs text-indigo-500 hover:text-indigo-700 transition mt-1 block">
+                   🧵 Ver ${c.respostas.length} resposta${c.respostas.length > 1 ? 's' : ''} (thread aprofundada)
+               </button>`
+            : `<button onclick="toggleRespostas(${c.id})"
+                       class="text-xs text-gray-400 hover:text-gray-600 transition mt-1 block"
+                       id="btn-respostas-${c.id}">
+                   ▶ Ver ${c.respostas.length} resposta${c.respostas.length > 1 ? 's' : ''}
+               </button>`)
+        : '';
+
+    div.innerHTML = `
+        <div class="flex-shrink-0">${avatarHtml}</div>
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                ${c.autor
+                    ? `<a href="/perfil/${c.username}/"
+                          class="text-xs font-semibold text-gray-800 hover:text-indigo-600">${c.autor}</a>`
+                    : `<span class="text-xs font-semibold text-gray-400">[removido]</span>`
+                }
+                <span class="text-xs text-gray-400">${timesince(c.criado_em)}</span>
+                ${c.editado && !c.removido ? '<span class="text-xs text-gray-400">(editado)</span>' : ''}
+                ${profundidade > 0 ? `<span class="text-xs text-indigo-300 font-semibold">geração ${profundidade + 1}</span>` : ''}
+            </div>
+            <p class="text-sm leading-relaxed mb-1 ${c.removido ? 'italic text-gray-400' : 'text-gray-700'}">${c.conteudo}</p>
+            ${!c.removido ? `
+            <div class="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                ${isAuth ? `
+                <button onclick="votarComentario(${c.id}, 'up')" class="${upClass} transition">▲</button>
+                ` : ''}
+                <span class="font-semibold text-gray-600 tabular-nums" id="score-${c.id}">${c.score}</span>
+                ${isAuth ? `
+                <button onclick="votarComentario(${c.id}, 'down')" class="${downClass} transition">▼</button>
+                <button onclick="toggleFormResposta(${c.id}, ${postId}, '${c.username ?? ''}')"
+                        class="hover:text-indigo-500 transition ml-1">💬 Responder</button>
+                ` : ''}
+                ${isAuth && c.username === meUser ? `
+                <button onclick="excluirComentario(${c.id})"
+                        class="hover:text-red-500 transition">🗑️</button>
+                ` : ''}
+            </div>
+            <div id="form-resposta-${c.id}" class="hidden mt-2"></div>
+            ${labelRespostas}
+            <div id="respostas-${c.id}" class="hidden mt-3 space-y-3"></div>
+            ` : ''}
+        </div>
+    `;
+
+    // Pré-carrega respostas (gerações 1-4) — ficam ocultas até o toggle
+    if (temRespostas && !abreSubthread) {
+        setTimeout(() => {
+            const respostasDiv = div.querySelector(`#respostas-${c.id}`);
+            if (respostasDiv) {
+                c.respostas.forEach(r => {
+                    respostasDiv.appendChild(renderComentario(r, postId, profundidade + 1));
+                });
+            }
+        }, 0);
+    }
+
+    return div;
+}
+
+// ── Toggle respostas (gerações 1-4) ──────────────────────────────────────────
+
+function toggleRespostas(comentarioId) {
+    const div = document.getElementById(`respostas-${comentarioId}`);
+    const btn = document.getElementById(`btn-respostas-${comentarioId}`);
+    if (!div) return;
+
+    if (div.classList.contains('hidden')) {
+        div.classList.remove('hidden');
+        if (btn) btn.innerHTML = btn.innerHTML.replace('▶', '▼').replace('Ver', 'Ocultar');
+    } else {
+        div.classList.add('hidden');
+        if (btn) btn.innerHTML = btn.innerHTML.replace('▼', '▶').replace('Ocultar', 'Ver');
+    }
+}
+
+// ── Subthread (geração 5) ─────────────────────────────────────────────────────
+
+function abrirSubthread(postId, comentarioId) {
+    const modal    = document.getElementById(`modal-subthread-${postId}`);
+    const conteudo = document.getElementById(`conteudo-subthread-${postId}`);
+    if (!modal || !conteudo) return;
+
+    conteudo.innerHTML = '';
+
+    // Busca o comentário na árvore já carregada
+    const comentario = _encontrarComentario(postId, comentarioId);
+    if (comentario && comentario.respostas) {
+        comentario.respostas.forEach(r => {
+            conteudo.appendChild(renderComentarioSubthread(r, postId));
+        });
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function fecharSubthread(postId, event) {
+    if (event && event.target !== event.currentTarget) return;
+    const modal = document.getElementById(`modal-subthread-${postId}`);
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+// Versão simplificada do renderizador para subthread (sem ocultar)
+function renderComentarioSubthread(c, postId, profundidade = 0) {
+    // Geração 6+ dentro da subthread → forumização
+    if (profundidade >= 1) {
+        abrirModalForum(postId);
+        return document.createTextNode('');
+    }
+
+    const div = document.createElement('div');
+    div.className = 'flex gap-2';
+
+    const avatarHtml = c.foto
+        ? `<img src="${c.foto}" class="w-7 h-7 rounded-full object-cover flex-shrink-0" alt="">`
+        : `<div class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs flex-shrink-0">
+               ${c.autor ? c.autor[0].toUpperCase() : '✕'}
+           </div>`;
+
+    div.innerHTML = `
+        <div class="flex-shrink-0">${avatarHtml}</div>
+        <div class="flex-1">
+            <div class="flex items-center gap-2 mb-0.5">
+                ${c.autor
+                    ? `<a href="/perfil/${c.username}/" class="text-xs font-semibold text-gray-800 hover:text-indigo-600">${c.autor}</a>`
+                    : `<span class="text-xs font-semibold text-gray-400">[removido]</span>`
+                }
+                <span class="text-xs text-gray-400">${timesince(c.criado_em)}</span>
+            </div>
+            <p class="text-sm text-gray-700 leading-relaxed mb-1">${c.conteudo}</p>
+            ${c.respostas && c.respostas.length
+                ? `<p class="text-xs text-orange-500 font-semibold mt-1">
+                       🔥 Esta thread foi promovida a Fórum — continue o debate lá.
+                   </p>`
+                : ''}
+        </div>
+    `;
+
+    return div;
+}
+
+// ── Encontrar comentário na árvore em memória ─────────────────────────────────
+
+const _arvoreComentarios = {};
+
+function _encontrarComentario(postId, id) {
+    const arvore = _arvoreComentarios[postId] ?? [];
+    function buscar(lista) {
+        for (const c of lista) {
+            if (c.id === id) return c;
+            if (c.respostas) {
+                const found = buscar(c.respostas);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+    return buscar(arvore);
+}
+
+// Salva árvore na memória ao carregar
+const _carregarOriginal = carregarComentariosModal;
+async function carregarComentariosModal(postId) {
+    const container = document.getElementById(`modal-comentarios-${postId}`);
+    const totalEl   = document.getElementById(`modal-total-comentarios-${postId}`);
+    const totalCard = document.getElementById(`total-comentarios-${postId}`);
+
+    try {
+        const res  = await fetch(`/api/post/${postId}/comentarios/`);
+        const data = await res.json();
+
+        _arvoreComentarios[postId] = data.comentarios;
+
+        if (totalEl)   totalEl.textContent  = `(${data.total})`;
+        if (totalCard) totalCard.textContent = data.total;
+
+        if (data.pode_forumizar) {
+            abrirModalForum(postId);
+            return;
+        }
+
+        if (!data.comentarios.length) {
+            container.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">Nenhum comentário ainda. Seja o primeiro!</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        data.comentarios.forEach(c => {
+            container.appendChild(renderComentario(c, postId, 0));
+        });
+
+    } catch (e) {
+        container.innerHTML = '<p class="text-sm text-gray-400 text-center">Erro ao carregar comentários.</p>';
+    }
+}
+
+// ── Modal de forumização ──────────────────────────────────────────────────────
+
+function abrirModalForum(postId) {
+    const modal = document.getElementById(`modal-forum-${postId}`);
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+// ── Form de resposta com @mention ─────────────────────────────────────────────
+
+function toggleFormResposta(comentarioId, postId, username) {
+    const container = document.getElementById(`form-resposta-${comentarioId}`);
+    if (!container) return;
+
+    if (!container.classList.contains('hidden') && container.innerHTML !== '') {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+
+    const mention = username ? `@${username} ` : '';
+
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="flex gap-2 mt-1">
+            <div class="flex-1">
+                <textarea id="textarea-resposta-${comentarioId}"
+                          rows="2"
+                          class="w-full border border-gray-300 rounded-xl px-3 py-2 text-xs text-gray-800
+                                 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
+                <div class="flex justify-end gap-2 mt-1">
+                    <button onclick="toggleFormResposta(${comentarioId}, ${postId}, '')"
+                            class="text-xs text-gray-400 hover:text-gray-600 px-3 py-1 rounded-full transition">
+                        Cancelar
+                    </button>
+                    <button onclick="enviarComentario(${postId}, ${comentarioId})"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-1 rounded-full transition">
+                        Responder
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const textarea = document.getElementById(`textarea-resposta-${comentarioId}`);
+    if (textarea) {
+        textarea.value = mention;
+        textarea.focus();
+        // Posiciona cursor no final do @mention
+        textarea.setSelectionRange(mention.length, mention.length);
+    }
+}
+
+// ── Enviar comentário / resposta ──────────────────────────────────────────────
+
+async function enviarComentario(postId, paiId) {
+    const textareaId = paiId ? `textarea-resposta-${paiId}` : `composer-${postId}`;
+    const textarea   = document.getElementById(textareaId);
+    if (!textarea) return;
+
+    const conteudo = textarea.value.trim();
+    if (!conteudo) return;
+
+    try {
+        const res = await fetch(`/api/post/${postId}/comentar/`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+            body:    JSON.stringify({ conteudo, pai_id: paiId }),
+        });
+        if (!res.ok) return;
+        const novo = await res.json();
+
+        textarea.value = '';
+
+        const totalCard = document.getElementById(`total-comentarios-${postId}`);
+        const totalEl   = document.getElementById(`modal-total-comentarios-${postId}`);
+        const totalAtual = parseInt(totalCard?.textContent ?? '0') + 1;
+        if (totalCard) totalCard.textContent = totalAtual;
+        if (totalEl)   totalEl.textContent   = `(${totalAtual})`;
+
+        if (paiId) {
+            // Verifica se é forumização
+            if (novo.profundidade >= 5) {
+                abrirModalForum(postId);
+                return;
+            }
+            // Adiciona à árvore em memória
+            const pai = _encontrarComentario(postId, paiId);
+            if (pai) {
+                if (!pai.respostas) pai.respostas = [];
+                pai.respostas.push(novo);
+            }
+
+            let respostasDiv = document.getElementById(`respostas-${paiId}`);
+            if (respostasDiv) {
+                respostasDiv.classList.remove('hidden');
+                respostasDiv.appendChild(renderComentario(novo, postId, novo.profundidade));
+            }
+            toggleFormResposta(paiId, postId, '');
+        } else {
+            if (!_arvoreComentarios[postId]) _arvoreComentarios[postId] = [];
+            _arvoreComentarios[postId].push(novo);
+
+            const container = document.getElementById(`modal-comentarios-${postId}`);
+            const vazio     = container.querySelector('p.text-gray-400');
+            if (vazio) vazio.remove();
+            container.appendChild(renderComentario(novo, postId, 0));
+        }
+
+    } catch (e) { console.error('Erro ao comentar:', e); }
+}
+
+// ── Votar comentário ──────────────────────────────────────────────────────────
+
+async function votarComentario(comentarioId, direcao) {
+    try {
+        const res  = await fetch(`/api/comentario/${comentarioId}/votar/${direcao}/`, {
+            method:  'POST',
+            headers: { 'X-CSRFToken': getCsrf() },
+        });
+        const data = await res.json();
+
+        const scoreEl = document.getElementById(`score-${comentarioId}`);
+        if (scoreEl) scoreEl.textContent = data.score;
+
+        const acoes = document.getElementById(`acoes-${comentarioId}`);
+        if (acoes) {
+            const btns = acoes.querySelectorAll('button');
+            if (btns[0]) btns[0].className = data.meu_voto === 1
+                ? 'text-green-500 font-semibold transition'
+                : 'text-gray-400 hover:text-green-500 transition';
+            if (btns[2]) btns[2].className = data.meu_voto === -1
+                ? 'text-red-400 font-semibold transition'
+                : 'text-gray-400 hover:text-red-400 transition';
+        }
+    } catch (e) { console.error('Erro ao votar:', e); }
+}
+
+// ── Excluir comentário ────────────────────────────────────────────────────────
+
+async function excluirComentario(comentarioId) {
+    if (!confirm('Remover este comentário?')) return;
+    try {
+        await fetch(`/api/comentario/${comentarioId}/excluir/`, {
+            method:  'POST',
+            headers: { 'X-CSRFToken': getCsrf() },
+        });
+        const el         = document.getElementById(`comentario-modal-${comentarioId}`);
+        const conteudoEl = el?.querySelector('p.text-sm');
+        if (conteudoEl) {
+            conteudoEl.textContent = '[comentário removido]';
+            conteudoEl.className   = 'text-sm italic text-gray-400 leading-relaxed mb-1';
+        }
+        const acoes = document.getElementById(`acoes-${comentarioId}`);
+        if (acoes) acoes.remove();
+    } catch (e) { console.error('Erro ao excluir:', e); }
 }
 </script>

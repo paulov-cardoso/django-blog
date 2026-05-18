@@ -204,13 +204,14 @@ class Notificacao(models.Model):
         ('curtida',     'Curtida'),
         ('clip',        'Clip'),
         ('comentario',  'Comentário'),
+        ('resposta',    'Resposta ao comentário'),
         ('candidatura', 'Candidatura a moderador'),
         ('eleicao',     'Eleito moderador'),
         ('recusa',      'Candidatura recusada'),
         ('seguidor',    'Novo seguidor'),
     ]
 
-    TIPOS_SINO   = {'curtida', 'clip', 'comentario'}
+    TIPOS_SINO   = {'curtida', 'clip', 'comentario', 'resposta'}
     TIPOS_CARTA  = {'candidatura', 'eleicao', 'recusa'}
     TIPOS_PESSOA = {'seguidor'}
 

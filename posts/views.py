@@ -138,6 +138,15 @@ def home(request):
             Q(autor=autor) | Q(autor_id__in=seguindo_ids)
         ).order_by('-data_criacao')
 
+        # Anota total de comentários por post
+        from django.db.models import Count
+        posts = posts.annotate(
+            total_comentarios=Count(
+                'comentarios',
+                filter=Q(comentarios__removido=False),
+            )
+        )
+
     elif aba == 'campo':
         posts = Post.objects.filter(
             publicado=True,
@@ -401,7 +410,14 @@ def detalhe_post(request, post_id):
         c.respostas_visiveis = respostas
         comentarios_raiz.append(c)
 
-    total_comentarios = post.comentarios.filter(removido=False).count()
+    total_comentarios    = post.comentarios.filter(removido=False).count()
+    total_comentadores   = (
+        post.comentarios
+        .filter(removido=False)
+        .values('autor')
+        .distinct()
+        .count()
+    )
 
     return render(request, 'posts/posts/detail.html', {
         'post':                   post,
@@ -413,19 +429,19 @@ def detalhe_post(request, post_id):
         'bloqueio_retirar_feed':  post.visibilidade == 'campo' and post.tem_interacoes,
         'comentarios_raiz':       comentarios_raiz,
         'total_comentarios':      total_comentarios,
+        'total_comentadores':     total_comentadores,
     })
-
 
 # ── CURTIR / CLIPAR POST ──────────────────────────────────────────────────────
 
 @login_required
 def reagir_post(request, post_id, tipo):
     if request.method != 'POST':
-        return redirect('home')
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
 
     TIPOS_VALIDOS = {'curtida', 'clip'}
     if tipo not in TIPOS_VALIDOS:
-        return redirect('home')
+        return JsonResponse({'erro': 'Tipo inválido.'}, status=400)
 
     post  = get_object_or_404(Post, id=post_id, publicado=True)
     autor = request.user.autor
@@ -433,8 +449,10 @@ def reagir_post(request, post_id, tipo):
     reacao = PostReacao.objects.filter(post=post, autor=autor, tipo=tipo)
     if reacao.exists():
         reacao.delete()
+        ativo = False
     else:
         PostReacao.objects.create(post=post, autor=autor, tipo=tipo)
+        ativo = True
 
         if post.autor != autor:
             Notificacao.objects.create(
@@ -444,8 +462,8 @@ def reagir_post(request, post_id, tipo):
                 tipo=tipo,
             )
 
-    aba = request.POST.get('aba', 'feed')
-    return redirect(f'/?aba={aba}')
+    total = PostReacao.objects.filter(post=post, tipo=tipo).count()
+    return JsonResponse({'ativo': ativo, 'total': total})
 
 
 # ── desistir da ideia ─────────────────────────────────────────────────────────
@@ -947,28 +965,48 @@ def buscar_usuarios(request):
     })
 
 
+# ── Search de usuários JSON ────────────────────────────────────────────────────────
+
+
+def buscar_usuarios_json(request):
+    termo        = request.GET.get('q', '').strip()
+    autor_logado = getattr(request.user, 'autor', None) if request.user.is_authenticated else None
+
+    if len(termo) < 2:
+        return JsonResponse({'usuarios': []})
+
+    qs = Autor.objects.filter(
+        Q(nome_exibicao__icontains=termo) | Q(usuario__username__icontains=termo)
+    ).select_related('usuario')
+
+    if autor_logado:
+        qs = qs.exclude(id=autor_logado.id)
+
+    resultado = [
+        {
+            'username':      a.usuario.username,
+            'nome_exibicao': a.nome_exibicao or a.nome,
+            'foto':          a.foto_perfil.url if a.foto_perfil else None,
+        }
+        for a in qs[:10]
+        if a.usuario
+    ]
+
+    return JsonResponse({'usuarios': resultado})
+
+
+
 # ── Lista de seguidores / seguindo ───────────────────────────────────────────
 
 @login_required
-def lista_seguidores(request, username, tipo):
-    """
-    tipo = 'seguidores' | 'seguindo'
-    """
-    if tipo not in ('seguidores', 'seguindo'):
-        return redirect('home')
-
+def lista_seguidores(request, username):
     user_perfil  = get_object_or_404(User, username=username)
     autor_perfil = get_object_or_404(Autor, usuario=user_perfil)
     autor_logado = request.user.autor
 
-    if tipo == 'seguidores':
-        autores = Autor.objects.filter(
-            seguindo__seguido=autor_perfil
-        ).select_related('usuario')
-    else:
-        autores = Autor.objects.filter(
-            seguidores__seguidor=autor_perfil
-        ).select_related('usuario')
+    autores = Autor.objects.filter(
+        seguindo__seguido=autor_perfil
+    ).select_related('usuario')
 
     seguindo_ids = set(
         Seguidor.objects.filter(
@@ -985,5 +1023,235 @@ def lista_seguidores(request, username, tipo):
     return render(request, 'posts/social/lista_seguidores.html', {
         'autor_perfil': autor_perfil,
         'lista':        lista,
-        'tipo':         tipo,
+        'tipo':         'seguidores',
     })
+
+
+
+
+@login_required
+def lista_seguindo(request, username):
+    user_perfil  = get_object_or_404(User, username=username)
+    autor_perfil = get_object_or_404(Autor, usuario=user_perfil)
+    autor_logado = request.user.autor
+
+    autores = Autor.objects.filter(
+        seguidores__seguidor=autor_perfil
+    ).select_related('usuario')
+
+    seguindo_ids = set(
+        Seguidor.objects.filter(
+            seguidor=autor_logado,
+            seguido__in=autores,
+        ).values_list('seguido_id', flat=True)
+    )
+
+    lista = [
+        {'autor': a, 'seguindo': a.id in seguindo_ids}
+        for a in autores
+    ]
+
+    return render(request, 'posts/social/lista_seguidores.html', {
+        'autor_perfil': autor_perfil,
+        'lista':        lista,
+        'tipo':         'seguindo',
+    })
+
+
+
+
+def _serializar_comentario(comentario, meus_votos, profundidade=0):
+    respostas = []
+    for r in comentario.respostas.all().select_related(
+        'autor', 'autor__usuario'
+    ).prefetch_related('votos', 'respostas'):
+        respostas.append(_serializar_comentario(r, meus_votos, profundidade + 1))
+
+    return {
+        'id':           comentario.id,
+        'autor':        comentario.autor.nome_exibicao if not comentario.removido else None,
+        'username':     comentario.autor.usuario.username if not comentario.removido else None,
+        'foto':         comentario.autor.foto_perfil.url if (not comentario.removido and comentario.autor.foto_perfil) else None,
+        'conteudo':     comentario.conteudo_exibido,
+        'removido':     comentario.removido,
+        'score':        comentario.score,
+        'meu_voto':     meus_votos.get(comentario.id),
+        'criado_em':    comentario.criado_em.isoformat(),
+        'editado':      comentario.editado,
+        'profundidade': profundidade,
+        'respostas':    respostas,
+    }
+
+
+def comentarios_post(request, post_id):
+    post = get_object_or_404(Post, id=post_id, publicado=True)
+
+    raiz_qs = (
+        post.comentarios
+        .filter(pai__isnull=True)
+        .select_related('autor', 'autor__usuario')
+        .prefetch_related('votos')
+    )
+
+    autor_logado = getattr(request.user, 'autor', None) if request.user.is_authenticated else None
+    meus_votos   = {}
+
+    if autor_logado:
+        todos_ids = list(post.comentarios.values_list('id', flat=True))
+        meus_votos = dict(
+            VotoComentario.objects.filter(
+                comentario_id__in=todos_ids,
+                autor=autor_logado,
+            ).values_list('comentario_id', 'valor')
+        )
+
+    arvore = [_serializar_comentario(c, meus_votos, 0) for c in raiz_qs]
+
+    total_comentadores = (
+        post.comentarios
+        .filter(removido=False)
+        .values('autor')
+        .distinct()
+        .count()
+    )
+
+    return JsonResponse({
+        'comentarios':        arvore,
+        'total':              post.comentarios.filter(removido=False).count(),
+        'total_comentadores': total_comentadores,
+        'pode_forumizar':     total_comentadores >= 5,
+    })
+
+
+
+@login_required
+def comentar_json(request, post_id):
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+
+    post  = get_object_or_404(Post, id=post_id, publicado=True)
+    autor = request.user.autor
+
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON inválido.'}, status=400)
+
+    conteudo = dados.get('conteudo', '').strip()
+    pai_id   = dados.get('pai_id')
+
+    if not conteudo:
+        return JsonResponse({'erro': 'Comentário vazio.'}, status=400)
+
+    pai = None
+    if pai_id:
+        pai = get_object_or_404(Comentario, id=pai_id, post=post)
+
+    comentario = Comentario.objects.create(
+        post=post,
+        autor=autor,
+        pai=pai,
+        conteudo=conteudo,
+    )
+
+    if pai:
+        # Notificação de resposta ao autor do comentário pai
+        if pai.autor != autor:
+            Notificacao.objects.create(
+                destinatario=pai.autor,
+                remetente=autor,
+                post=post,
+                tipo='resposta',
+            )
+    else:
+        # Notificação de comentário ao autor do post
+        if post.autor != autor:
+            Notificacao.objects.create(
+                destinatario=post.autor,
+                remetente=autor,
+                post=post,
+                tipo='comentario',
+            )
+
+    # Calcula profundidade para o frontend saber em qual geração está
+    profundidade = 0
+    cursor = comentario
+    while cursor.pai:
+        profundidade += 1
+        cursor = cursor.pai
+
+    return JsonResponse({
+        'id':           comentario.id,
+        'autor':        autor.nome_exibicao,
+        'username':     autor.usuario.username,
+        'foto':         autor.foto_perfil.url if autor.foto_perfil else None,
+        'conteudo':     comentario.conteudo,
+        'score':        0,
+        'meu_voto':     None,
+        'removido':     False,
+        'editado':      False,
+        'respostas':    [],
+        'criado_em':    comentario.criado_em.isoformat(),
+        'profundidade': profundidade,
+        'pai_id':       pai_id,
+    }, status=201)
+
+
+@login_required
+def votar_comentario_json(request, comentario_id, direcao):
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+
+    DIRECOES_VALIDAS = {'up', 'down'}
+    if direcao not in DIRECOES_VALIDAS:
+        return JsonResponse({'erro': 'Direção inválida.'}, status=400)
+
+    comentario = get_object_or_404(Comentario, id=comentario_id)
+    autor      = request.user.autor
+    valor      = 1 if direcao == 'up' else -1
+
+    voto_existente = VotoComentario.objects.filter(
+        comentario=comentario, autor=autor
+    ).first()
+
+    if voto_existente:
+        if voto_existente.valor == valor:
+            voto_existente.delete()
+            meu_voto = None
+        else:
+            voto_existente.valor = valor
+            voto_existente.save(update_fields=['valor'])
+            meu_voto = valor
+    else:
+        VotoComentario.objects.create(
+            comentario=comentario, autor=autor, valor=valor
+        )
+        meu_voto = valor
+
+    return JsonResponse({
+        'score':    comentario.score,
+        'meu_voto': meu_voto,
+    })
+
+
+@login_required
+def excluir_comentario_json(request, comentario_id):
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+
+    comentario   = get_object_or_404(Comentario, id=comentario_id)
+    autor_logado = request.user.autor
+
+    eh_autor     = comentario.autor == autor_logado
+    eh_dono_post = comentario.post.autor == autor_logado
+    eh_moderador = comentario.post.moderadores.filter(
+        autor=autor_logado, ativo=True
+    ).exists()
+
+    if not (eh_autor or eh_dono_post or eh_moderador):
+        return JsonResponse({'erro': 'Sem permissão.'}, status=403)
+
+    comentario.removido = True
+    comentario.save(update_fields=['removido'])
+
+    return JsonResponse({'ok': True})
