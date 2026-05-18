@@ -1,5 +1,6 @@
 {% extends 'posts/base.html' %}
 {% block titulo %}{{ post.titulo }}{% endblock %}
+{% load comentario_tags %}
 
 {% block conteudo %}
 <div class="max-w-3xl mx-auto">
@@ -217,257 +218,76 @@
     {{ post.conteudo }}
   </div>
 
+
+
+
+
   <!-- ── SEÇÃO DE COMENTÁRIOS ───────────────────────────────────────────────── -->
-  <section class="border-t border-gray-100 pt-8">
+
+
+  {% load comentario_tags %}
+
+
+<section id="comentarios" class="border-t border-gray-100 pt-8">
 
     <h2 class="text-xl font-bold text-gray-800 mb-6">
-      💬 Comentários
-      <span class="text-base font-normal text-gray-400 ml-1">({{ total_comentarios }})</span>
+        💬 Comentários
+        <span class="text-base font-normal text-gray-400 ml-1">({{ total_comentarios }})</span>
     </h2>
 
-    <!-- Composer (raiz) -->
+    <!-- Badge de forumização -->
+    {% if total_comentadores >= 5 %}
+    <div class="mb-5 bg-yellow-50 border border-yellow-300 rounded-xl p-4 flex items-center justify-between">
+        <span class="text-sm text-yellow-800">🔥 Thread com {{ total_comentadores }} participantes — candidata a fórum!</span>
+        <button class="text-xs font-semibold bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-4 py-1.5 rounded-full transition">
+            Enviar para Fórum
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Composer -->
     {% if user.is_authenticated %}
     <form method="POST" action="{% url 'comentar' post.id %}" class="mb-8">
-      {% csrf_token %}
-      <div class="flex gap-3 items-start">
-        <div class="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200 overflow-hidden">
-          {% if user.autor.foto_perfil %}
-            <img src="{{ user.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
-          {% else %}
-            <div class="w-full h-full flex items-center justify-center text-gray-600 font-bold text-sm
-                        bg-gradient-to-br from-indigo-100 to-purple-100">
-              {{ user.autor.nome_exibicao|first|upper }}
+        {% csrf_token %}
+        <div class="flex gap-3 items-start">
+            <div class="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200 overflow-hidden">
+                {% if user.autor.foto_perfil %}
+                    <img src="{{ user.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
+                {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-gray-600 font-bold text-sm bg-gradient-to-br from-indigo-100 to-purple-100">
+                        {{ user.autor.nome_exibicao|first|upper }}
+                    </div>
+                {% endif %}
             </div>
-          {% endif %}
+            <div class="flex-1">
+                <textarea name="conteudo" rows="3" placeholder="Adicione um comentário..."
+                          class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm
+                                 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
+                <div class="flex justify-end mt-2">
+                    <button type="submit"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2 rounded-full transition">
+                        Comentar
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="flex-1">
-          <textarea name="conteudo"
-                    rows="3"
-                    placeholder="Adicione um comentário..."
-                    class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm
-                           focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
-          <div class="flex justify-end mt-2">
-            <button type="submit"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm
-                           font-semibold px-5 py-2 rounded-full transition">
-              Comentar
-            </button>
-          </div>
-        </div>
-      </div>
     </form>
     {% else %}
     <p class="text-sm text-gray-400 mb-8">
-      <a href="{% url 'login' %}" class="text-indigo-500 hover:underline">Entre</a> para comentar.
+        <a href="{% url 'login' %}" class="text-indigo-500 hover:underline">Entre</a> para comentar.
     </p>
     {% endif %}
 
-    <!-- Lista de comentários -->
+    <!-- Árvore de comentários -->
     <div class="space-y-6">
-      {% for comentario in comentarios_raiz %}
-
-        <!-- Comentário raiz -->
-        <div class="flex gap-3" id="comentario-{{ comentario.id }}">
-          <div class="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200 overflow-hidden mt-0.5">
-            {% if not comentario.removido and comentario.autor.foto_perfil %}
-              <img src="{{ comentario.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
-            {% else %}
-              <div class="w-full h-full flex items-center justify-center text-gray-500 font-bold text-sm bg-gray-100">
-                {% if comentario.removido %}✕{% else %}{{ comentario.autor.nome_exibicao|first|upper }}{% endif %}
-              </div>
-            {% endif %}
-          </div>
-
-          <div class="flex-1">
-            <!-- Cabeçalho -->
-            <div class="flex items-center gap-2 mb-1">
-              {% if not comentario.removido %}
-                <span class="text-sm font-semibold text-gray-800">{{ comentario.autor.nome_exibicao }}</span>
-              {% else %}
-                <span class="text-sm font-semibold text-gray-400">[removido]</span>
-              {% endif %}
-              <span class="text-xs text-gray-400">{{ comentario.criado_em|timesince }} atrás</span>
-              {% if comentario.editado and not comentario.removido %}
-                <span class="text-xs text-gray-400">(editado)</span>
-              {% endif %}
-            </div>
-
-            <!-- Conteúdo -->
-            <p class="text-sm text-gray-700 leading-relaxed mb-2 {% if comentario.removido %}italic text-gray-400{% endif %}">
-              {{ comentario.conteudo_exibido }}
-            </p>
-
-            <!-- Ações do comentário raiz -->
-            {% if not comentario.removido %}
-            <div class="flex items-center gap-4 text-xs text-gray-400">
-
-              <!-- Votos -->
-              {% if user.is_authenticated %}
-              <form method="POST" action="{% url 'votar_comentario' comentario.id 'up' %}" class="inline">
-                {% csrf_token %}
-                <button type="submit"
-                        class="hover:text-green-500 transition {% if comentario.meu_voto == 1 %}text-green-500 font-semibold{% endif %}">
-                  ▲
-                </button>
-              </form>
-              {% endif %}
-              <span class="font-semibold text-gray-600 tabular-nums">{{ comentario.score }}</span>
-              {% if user.is_authenticated %}
-              <form method="POST" action="{% url 'votar_comentario' comentario.id 'down' %}" class="inline">
-                {% csrf_token %}
-                <button type="submit"
-                        class="hover:text-red-400 transition {% if comentario.meu_voto == -1 %}text-red-400 font-semibold{% endif %}">
-                  ▼
-                </button>
-              </form>
-              {% endif %}
-
-              <!-- Responder -->
-              {% if user.is_authenticated %}
-              <button onclick="toggleResposta('form-resposta-{{ comentario.id }}')"
-                      class="hover:text-indigo-500 transition ml-2">
-                💬 Responder
-              </button>
-              {% endif %}
-
-              <!-- Excluir (autor, dono do post ou moderador) -->
-              {% if user.is_authenticated %}
-              {% if comentario.autor.usuario == user or post.autor.usuario == user %}
-              <form method="POST" action="{% url 'excluir_comentario' comentario.id %}" class="inline"
-                    onsubmit="return confirm('Remover este comentário?')">
-                {% csrf_token %}
-                <button type="submit" class="hover:text-red-500 transition">🗑️</button>
-              </form>
-              {% endif %}
-              {% endif %}
-
-            </div>
-
-            <!-- Form de resposta (oculto por padrão) -->
-            {% if user.is_authenticated %}
-            <div id="form-resposta-{{ comentario.id }}" class="hidden mt-3">
-              <form method="POST"
-                    action="{% url 'responder_comentario' post.id comentario.id %}">
-                {% csrf_token %}
-                <div class="flex gap-2 items-start">
-                  <div class="flex-shrink-0 w-7 h-7 rounded-full bg-gray-200 overflow-hidden">
-                    {% if user.autor.foto_perfil %}
-                      <img src="{{ user.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
-                    {% else %}
-                      <div class="w-full h-full flex items-center justify-center text-gray-600 font-bold text-xs
-                                  bg-gradient-to-br from-indigo-100 to-purple-100">
-                        {{ user.autor.nome_exibicao|first|upper }}
-                      </div>
-                    {% endif %}
-                  </div>
-                  <div class="flex-1">
-                    <textarea name="conteudo"
-                              rows="2"
-                              placeholder="Responder para {{ comentario.autor.nome_exibicao }}..."
-                              class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm
-                                     focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
-                    <div class="flex justify-end gap-2 mt-1">
-                      <button type="button"
-                              onclick="toggleResposta('form-resposta-{{ comentario.id }}')"
-                              class="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-full transition">
-                        Cancelar
-                      </button>
-                      <button type="submit"
-                              class="bg-indigo-600 hover:bg-indigo-700 text-white
-                                     text-xs font-semibold px-4 py-1.5 rounded-full transition">
-                        Responder
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </form>
-            </div>
-            {% endif %}
-            {% endif %}{# /not removido #}
-
-            <!-- Respostas (nível 2) -->
-            {% if comentario.respostas_visiveis %}
-            <div class="mt-4 space-y-4 border-l-2 border-gray-100 pl-4">
-              {% for resposta in comentario.respostas_visiveis %}
-
-                <div class="flex gap-3" id="comentario-{{ resposta.id }}">
-                  <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 overflow-hidden mt-0.5">
-                    {% if not resposta.removido and resposta.autor.foto_perfil %}
-                      <img src="{{ resposta.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
-                    {% else %}
-                      <div class="w-full h-full flex items-center justify-center text-gray-500 font-bold text-xs bg-gray-100">
-                        {% if resposta.removido %}✕{% else %}{{ resposta.autor.nome_exibicao|first|upper }}{% endif %}
-                      </div>
-                    {% endif %}
-                  </div>
-
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1">
-                      {% if not resposta.removido %}
-                        <span class="text-sm font-semibold text-gray-800">{{ resposta.autor.nome_exibicao }}</span>
-                      {% else %}
-                        <span class="text-sm font-semibold text-gray-400">[removido]</span>
-                      {% endif %}
-                      <span class="text-xs text-gray-400">{{ resposta.criado_em|timesince }} atrás</span>
-                      {% if resposta.editado and not resposta.removido %}
-                        <span class="text-xs text-gray-400">(editado)</span>
-                      {% endif %}
-                    </div>
-
-                    <p class="text-sm text-gray-700 leading-relaxed mb-2 {% if resposta.removido %}italic text-gray-400{% endif %}">
-                      {{ resposta.conteudo_exibido }}
-                    </p>
-
-                    {% if not resposta.removido %}
-                    <div class="flex items-center gap-4 text-xs text-gray-400">
-                      {% if user.is_authenticated %}
-                      <form method="POST" action="{% url 'votar_comentario' resposta.id 'up' %}" class="inline">
-                        {% csrf_token %}
-                        <button type="submit"
-                                class="hover:text-green-500 transition {% if resposta.meu_voto == 1 %}text-green-500 font-semibold{% endif %}">
-                          ▲
-                        </button>
-                      </form>
-                      {% endif %}
-                      <span class="font-semibold text-gray-600 tabular-nums">{{ resposta.score }}</span>
-                      {% if user.is_authenticated %}
-                      <form method="POST" action="{% url 'votar_comentario' resposta.id 'down' %}" class="inline">
-                        {% csrf_token %}
-                        <button type="submit"
-                                class="hover:text-red-400 transition {% if resposta.meu_voto == -1 %}text-red-400 font-semibold{% endif %}">
-                          ▼
-                        </button>
-                      </form>
-                      {% endif %}
-                      {% if user.is_authenticated %}
-                      {% if resposta.autor.usuario == user or post.autor.usuario == user %}
-                      <form method="POST" action="{% url 'excluir_comentario' resposta.id %}" class="inline"
-                            onsubmit="return confirm('Remover este comentário?')">
-                        {% csrf_token %}
-                        <button type="submit" class="hover:text-red-500 transition">🗑️</button>
-                      </form>
-                      {% endif %}
-                      {% endif %}
-                    </div>
-                    {% endif %}
-                  </div>
-                </div>
-
-              {% endfor %}
-            </div>
-            {% endif %}{# /respostas_visiveis #}
-
-          </div>
-        </div>
-
-      {% empty %}
-        <p class="text-sm text-gray-400 text-center py-8">
-          Nenhum comentário ainda. Seja o primeiro!
-        </p>
-      {% endfor %}
+        {% for comentario in comentarios_raiz %}
+            {% render_comentario comentario post 0 %}
+        {% empty %}
+            <p class="text-sm text-gray-400 text-center py-8">Nenhum comentário ainda. Seja o primeiro!</p>
+        {% endfor %}
     </div>
 
-  </section>
+</section>
 
   <!-- Botão voltar -->
   <div class="mt-10">

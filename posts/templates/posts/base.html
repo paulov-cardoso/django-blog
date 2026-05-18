@@ -65,12 +65,99 @@
                 {% endif %}
             </a>
 
-            <!-- Buscar usuários -->
-            <a href="{% url 'buscar_usuarios' %}"
-              class="hover:opacity-80 transition"
-              title="Buscar usuários">
-                <span class="text-xl">🔍</span>
-            </a>
+            <!-- Lupa — abre modal de busca -->
+<button onclick="abrirModalBusca()"
+        class="hover:opacity-80 transition relative"
+        title="Buscar usuários">
+    <span class="text-xl">🔍</span>
+</button>
+
+          <!-- LUPA: Modal de busca de usuários -->
+
+          <div id="modal-busca-usuarios"
+              class="fixed inset-0 z-[99999] hidden items-center justify-start bg-black/40 backdrop-blur-sm pt-24 px-4"
+              onclick="fecharModalBuscaFora(event)">
+              <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto p-5">
+                  <div class="flex items-center gap-3 mb-4">
+                      <span class="text-xl">🔍</span>
+                      <input type="text"
+                          id="input-modal-busca"
+                          placeholder="Buscar pessoas por nome ou @username..."
+                          autocomplete="off"
+                          class="flex-1 text-sm text-gray-800 placeholder-gray-400 focus:outline-none">
+                      <button onclick="fecharModalBusca()" class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
+                  </div>
+                  <div id="resultado-modal-busca" class="space-y-2 max-h-80 overflow-y-auto"></div>
+              </div>
+          </div>
+
+          <script>
+          function abrirModalBusca() {
+              const modal = document.getElementById('modal-busca-usuarios');
+              modal.classList.remove('hidden');
+              modal.classList.add('flex');
+              document.getElementById('input-modal-busca').focus();
+          }
+
+          function fecharModalBusca() {
+              const modal = document.getElementById('modal-busca-usuarios');
+              modal.classList.add('hidden');
+              modal.classList.remove('flex');
+              document.getElementById('input-modal-busca').value = '';
+              document.getElementById('resultado-modal-busca').innerHTML = '';
+          }
+
+          function fecharModalBuscaFora(e) {
+              if (e.target === e.currentTarget) fecharModalBusca();
+          }
+
+          document.addEventListener('DOMContentLoaded', function () {
+              const input     = document.getElementById('input-modal-busca');
+              const resultado = document.getElementById('resultado-modal-busca');
+              let debounce;
+
+              input.addEventListener('input', function () {
+                  clearTimeout(debounce);
+                  const termo = this.value.trim();
+                  if (termo.length < 2) { resultado.innerHTML = ''; return; }
+
+                  debounce = setTimeout(async () => {
+                      try {
+                          const res  = await fetch(`/api/usuarios/buscar/?q=${encodeURIComponent(termo)}`);
+                          const data = await res.json();
+
+                          if (!data.usuarios.length) {
+                              resultado.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Nenhum usuário encontrado.</p>';
+                              return;
+                          }
+
+                          resultado.innerHTML = data.usuarios.map(u => `
+                              <a href="/perfil/${u.username}/"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition">
+                                  <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0
+                                              flex items-center justify-center text-gray-600 font-bold text-sm">
+                                      ${u.foto
+                                          ? `<img src="${u.foto}" class="w-full h-full object-cover" alt="">`
+                                          : u.nome_exibicao.charAt(0).toUpperCase()
+                                      }
+                                  </div>
+                                  <div>
+                                      <p class="text-sm font-semibold text-gray-800">${u.nome_exibicao}</p>
+                                      <p class="text-xs text-gray-400">@${u.username}</p>
+                                  </div>
+                              </a>
+                          `).join('');
+                      } catch (e) {
+                          resultado.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Erro ao buscar.</p>';
+                      }
+                  }, 300);
+              });
+
+              document.addEventListener('keydown', function (e) {
+                  if (e.key === 'Escape') fecharModalBusca();
+              });
+          });
+          </script>
 
           <span class="text-sm opacity-80">Olá, {{ user.username }}</span>
           <a href="{% url 'criar_post' %}" class="bg-white text-blue-700 px-4 py-1 rounded-full font-semibold hover:bg-blue-50 transition transform hover:scale-105 active:scale-95">
@@ -101,6 +188,7 @@
 
 
     <!-- Modal de confirmação de loggout -->
+
           <div
             id="modal-logout"
             class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
