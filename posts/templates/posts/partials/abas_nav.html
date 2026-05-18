@@ -50,6 +50,18 @@
                          origin-center"></span>
         </a>
 
+
+        <a href="/?aba=forumizacao"
+            class="aba-nav group relative px-5 py-2.5 text-xs font-semibold
+          transition-all duration-300 flex flex-col items-center gap-0.5
+          {% if aba_atual == 'forumizacao' %}text-yellow-600{% else %}text-gray-400 hover:text-gray-700{% endif %}">
+            <span class="text-base leading-none">🏛️</span>
+            <span class="aba-label transition-all duration-300">Forumização</span>
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300
+                 {% if aba_atual == 'forumizacao' %}bg-yellow-500 scale-x-100{% else %}bg-yellow-500 scale-x-0 group-hover:scale-x-75{% endif %}
+                 origin-center"></span>
+        </a>
+
         {% endwith %}
     </div>
 </div>

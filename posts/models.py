@@ -296,3 +296,58 @@ class VotoComentario(models.Model):
     def __str__(self):
         label = 'up' if self.valor == 1 else 'down'
         return f"{self.autor} → {label} em comentário #{self.comentario_id}"
+    
+
+# ── Campo das Ideias — algoritmo ──────────────────────────────────────────────
+
+class ScorePost(models.Model):
+    """Cache de score calculado por post. Recalculado periodicamente."""
+    post          = models.OneToOneField(Post, on_delete=models.CASCADE, related_name='score_cache')
+    score         = models.FloatField(default=0.0)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-score']
+
+    def __str__(self):
+        return f"{self.post} → {self.score:.2f}"
+
+
+class CampoInteracao(models.Model):
+    """Registra como o usuário navegou no grid do Campo."""
+    DIRECAO_CHOICES = [
+        ('up',    'Cima'),
+        ('down',  'Baixo'),
+        ('left',  'Esquerda'),
+        ('right', 'Direita'),
+        ('open',  'Abriu modal'),
+    ]
+
+    autor     = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='interacoes_campo')
+    post      = models.ForeignKey(Post,  on_delete=models.CASCADE, related_name='interacoes_campo')
+    direcao   = models.CharField(max_length=10, choices=DIRECAO_CHOICES)
+    tempo_ms  = models.PositiveIntegerField(default=0)  # tempo que ficou no card em ms
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return f"{self.autor} → {self.direcao} em '{self.post}'"
+
+
+class CampoCluster(models.Model):
+    """
+    Agrupa posts em clusters temáticos baseados em categorias compartilhadas.
+    Cada cluster = uma linha horizontal no grid.
+    """
+    categorias    = models.ManyToManyField('Categoria', related_name='clusters')
+    score_cluster = models.FloatField(default=0.0)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-score_cluster']
+
+    def __str__(self):
+        cats = ', '.join(c.nome for c in self.categorias.all()[:3])
+        return f"Cluster [{cats}] score={self.score_cluster:.2f}"

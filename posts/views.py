@@ -1255,3 +1255,314 @@ def excluir_comentario_json(request, comentario_id):
     comentario.save(update_fields=['removido'])
 
     return JsonResponse({'ok': True})
+
+
+# ── Campo das Ideias — algoritmo ──────────────────────────────────────────────
+
+import math
+from django.db.models import Count, Sum, FloatField, ExpressionWrapper, F
+from django.utils import timezone
+from datetime import timedelta
+
+
+def _calcular_score(post, agora=None):
+    """
+    Score = curtidas×3 + clips×2 + comentários×5 − decaimento temporal.
+    Decaimento: divide pela idade em horas elevada a 1.5 (gravitational decay).
+    """
+    if agora is None:
+        agora = timezone.now()
+
+    curtidas    = post.reacoes.filter(tipo='curtida').count()
+    clips       = post.reacoes.filter(tipo='clip').count()
+    comentarios = post.comentarios.filter(removido=False).count()
+
+    raw = (curtidas * 3) + (clips * 2) + (comentarios * 5)
+
+    idade_horas = max((agora - post.data_criacao).total_seconds() / 3600, 1)
+    score = raw / math.pow(idade_horas, 1.5)
+
+    return round(score, 4)
+
+
+def _recalcular_scores_campo():
+    """Recalcula ScorePost para todos os posts do campo. Chamado pela view."""
+    agora = timezone.now()
+    posts = Post.objects.filter(publicado=True, visibilidade='campo').prefetch_related(
+        'reacoes', 'comentarios'
+    )
+    for post in posts:
+        score = _calcular_score(post, agora)
+        ScorePost.objects.update_or_create(
+            post=post,
+            defaults={'score': score},
+        )
+
+
+def _afinidade_usuario(autor):
+    """
+    Retorna dict {categoria_id: peso} baseado nas interações do usuário.
+    Camada B do algoritmo — ativo com ≥10 interações.
+    """
+    interacoes = CampoInteracao.objects.filter(autor=autor).select_related('post')
+    if interacoes.count() < 10:
+        return {}
+
+    pesos = {}
+    for inter in interacoes:
+        # Peso por direção: open > down/up > left/right
+        peso_direcao = {'open': 5, 'down': 2, 'up': 2, 'left': 1, 'right': 1}.get(inter.direcao, 1)
+        # Boost por tempo no card (normalizado: 1pt por segundo, cap 10)
+        peso_tempo = min(inter.tempo_ms / 1000, 10)
+        peso_total = peso_direcao + peso_tempo
+
+        for cat in inter.post.categorias.all():
+            pesos[cat.id] = pesos.get(cat.id, 0) + peso_total
+
+    # Normaliza para 0–1
+    if pesos:
+        max_peso = max(pesos.values())
+        pesos = {k: v / max_peso for k, v in pesos.items()}
+
+    return pesos
+
+
+def _montar_grid(autor, pagina_y=0, pagina_x=0, colunas=4, linhas=2):
+    """
+    Monta o grid 2D para o campo das ideias.
+    Retorna lista de linhas, cada linha = lista de posts.
+
+    Camada A: agrupa posts por categorias compartilhadas (cluster).
+    Camada B: reordena linhas e posts dentro de cada linha por afinidade do usuário.
+    """
+    posts_campo = Post.objects.filter(
+        publicado=True,
+        visibilidade='campo',
+    ).prefetch_related('categorias', 'reacoes', 'comentarios', 'score_cache')
+
+    # Garante que scores existam
+    ids_sem_score = posts_campo.exclude(
+        id__in=ScorePost.objects.values_list('post_id', flat=True)
+    ).values_list('id', flat=True)
+    if ids_sem_score:
+        _recalcular_scores_campo()
+
+    # Afinidade do usuário (camada B)
+    afinidade = _afinidade_usuario(autor)
+
+    # ── Camada A: cluster por categorias ─────────────────────────────────────
+    # Cada post pertence ao cluster das suas categorias.
+    # Um post com cats [Tech, IA] entra em clusters de Tech e de IA.
+    # Agrupa posts que compartilham ≥1 categoria em comum.
+
+    cluster_map = {}   # frozenset(cat_ids) → [posts]
+    post_visitado = set()
+
+    for post in posts_campo:
+        cat_ids = frozenset(post.categorias.values_list('id', flat=True))
+        if not cat_ids:
+            cat_ids = frozenset(['sem_categoria'])
+
+        # Tenta fundir com cluster existente que compartilhe ≥1 categoria
+        chave_destino = None
+        for chave in list(cluster_map.keys()):
+            if cat_ids & chave:  # interseção não vazia
+                chave_destino = chave
+                break
+
+        if chave_destino:
+            cluster_map[chave_destino].append(post)
+        else:
+            cluster_map[cat_ids] = [post]
+
+    # ── Camada B: reordena clusters por afinidade ─────────────────────────────
+    def score_cluster(chave, posts_cluster):
+        score_base = sum(
+            getattr(p, 'score_cache', None) and p.score_cache.score or 0
+            for p in posts_cluster
+        ) / max(len(posts_cluster), 1)
+
+        boost_afinidade = sum(
+            afinidade.get(cat_id, 0)
+            for cat_id in chave
+            if isinstance(cat_id, int)
+        )
+
+        return score_base + (boost_afinidade * 10)
+
+    clusters_ordenados = sorted(
+        cluster_map.items(),
+        key=lambda item: score_cluster(item[0], item[1]),
+        reverse=True,
+    )
+
+    # ── Pagina o grid ─────────────────────────────────────────────────────────
+    # Cada cluster = uma linha horizontal.
+    # pagina_y: qual linha começa a janela vertical.
+    # pagina_x: deslocamento horizontal dentro das linhas visíveis.
+
+    linhas_grid = []
+    for chave, posts_cluster in clusters_ordenados:
+        # Ordena posts dentro do cluster por score + afinidade
+        def score_post_linha(post):
+            base = getattr(post, 'score_cache', None) and post.score_cache.score or 0
+            boost = sum(
+                afinidade.get(cat_id, 0)
+                for cat_id in post.categorias.values_list('id', flat=True)
+            )
+            return base + (boost * 5)
+
+        posts_ordenados = sorted(posts_cluster, key=score_post_linha, reverse=True)
+        linhas_grid.append(posts_ordenados)
+
+    # Seleciona as linhas visíveis
+    linhas_visiveis = linhas_grid[pagina_y: pagina_y + linhas]
+
+    # Serializa para JSON
+    resultado = []
+    for linha in linhas_visiveis:
+        cards = []
+        for post in linha:
+            score_val = getattr(post, 'score_cache', None)
+            cards.append({
+                'id':            post.id,
+                'titulo':        post.titulo,
+                'titulo_capa':   post.titulo_capa,
+                'conteudo':      post.conteudo[:120] + ('...' if len(post.conteudo) > 120 else ''),
+                'cor':           post.cor,
+                'autor':         post.autor.nome_exibicao,
+                'username':      post.autor.usuario.username if post.autor.usuario else '',
+                'foto_autor':    post.autor.foto_perfil.url if post.autor.foto_perfil else None,
+                'imagem_capa':   post.imagem_capa_1.url if post.imagem_capa_1 else None,
+                'categorias':    [{'nome': c.nome, 'cor': c.cor} for c in post.categorias.all()],
+                'score':         score_val.score if score_val else 0,
+                'curtidas':      post.total_curtidas,
+                'clips':         post.total_clips,
+                'data':          post.data_criacao.strftime('%d/%m/%Y'),
+                'procura_mod':   post.procura_moderador,
+                'url_detalhe':   f'/post/{post.id}/',
+            })
+        resultado.append(cards)
+
+    return {
+        'linhas':       resultado,
+        'pagina_y':     pagina_y,
+        'total_linhas': len(linhas_grid),
+        'tem_mais_y':   pagina_y + linhas < len(linhas_grid),
+    }
+
+
+@login_required
+def campo_grid_json(request):
+    """Endpoint JSON que o frontend chama para montar/expandir o grid."""
+    autor    = request.user.autor
+    pagina_y = int(request.GET.get('py', 0))
+    colunas  = int(request.GET.get('cols', 4))
+    linhas   = int(request.GET.get('rows', 2))
+
+    colunas = max(2, min(colunas, 8))
+    linhas  = max(1, min(linhas, 3))
+
+    data = _montar_grid(autor, pagina_y=pagina_y, colunas=colunas, linhas=linhas)
+    return JsonResponse(data)
+
+
+@login_required
+def registrar_interacao_campo(request):
+    """Registra navegação do usuário no grid para alimentar o algoritmo."""
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON inválido.'}, status=400)
+
+    post_id  = dados.get('post_id')
+    direcao  = dados.get('direcao', 'open')
+    tempo_ms = dados.get('tempo_ms', 0)
+
+    DIRECOES_VALIDAS = {'up', 'down', 'left', 'right', 'open'}
+    if direcao not in DIRECOES_VALIDAS:
+        return JsonResponse({'erro': 'Direção inválida.'}, status=400)
+
+    post = get_object_or_404(Post, id=post_id, publicado=True, visibilidade='campo')
+
+    CampoInteracao.objects.create(
+        autor=request.user.autor,
+        post=post,
+        direcao=direcao,
+        tempo_ms=int(tempo_ms),
+    )
+
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def criar_post_campo(request):
+    """Composer exclusivo do Campo das Ideias — sem capa obrigatória."""
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON inválido.'}, status=400)
+
+    titulo   = dados.get('titulo', '').strip()
+    conteudo = dados.get('conteudo', '').strip()
+    cat_ids  = dados.get('categorias', [])
+
+    if not titulo:
+        return JsonResponse({'erro': 'Título obrigatório.'}, status=400)
+    if not conteudo:
+        return JsonResponse({'erro': 'Conteúdo obrigatório.'}, status=400)
+    if not cat_ids:
+        return JsonResponse({'erro': 'Ao menos uma categoria é obrigatória.'}, status=400)
+
+    autor = request.user.autor
+    post  = Post.objects.create(
+        titulo=titulo,
+        conteudo=conteudo,
+        autor=autor,
+        visibilidade='campo',
+        publicado=True,
+    )
+
+    categorias = Categoria.objects.filter(id__in=cat_ids, aprovada=True)
+    post.categorias.set(categorias)
+
+    score = _calcular_score(post)
+    ScorePost.objects.create(post=post, score=score)
+
+    return JsonResponse({
+        'ok':  True,
+        'id':  post.id,
+        'msg': 'Ideia publicada no Campo das Ideias!',
+    }, status=201)
+
+
+@login_required
+def meus_notes_campo(request):
+    """Sub-aba: notes do usuário logado publicados no campo."""
+    autor = request.user.autor
+    posts = Post.objects.filter(
+        autor=autor,
+        visibilidade='campo',
+        publicado=True,
+    ).order_by('-data_criacao')
+
+    return JsonResponse({
+        'posts': [
+            {
+                'id':        p.id,
+                'titulo':    p.titulo,
+                'conteudo':  p.conteudo[:100],
+                'score':     p.score_cache.score if hasattr(p, 'score_cache') else 0,
+                'curtidas':  p.total_curtidas,
+                'clips':     p.total_clips,
+                'data':      p.data_criacao.strftime('%d/%m/%Y'),
+            }
+            for p in posts
+        ]
+    })
