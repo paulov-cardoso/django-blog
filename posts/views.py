@@ -9,6 +9,7 @@ from .models import (
     Post, Autor, ModeradorPost, CandidaturaModerador,
     Seguidor, PostReacao, Notificacao, Categoria,
     Comentario, VotoComentario,
+    ScorePost, CampoInteracao, CampoCluster,
 )
 from .forms import PostForm, RegistroForm, AutorForm
 
