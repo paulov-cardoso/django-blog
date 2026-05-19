@@ -1,0 +1,605 @@
+{# 
+    Modal universal de post — usado pelo feed e pelo campo.
+    Variáveis esperadas via include (não usa context do Django, tudo via JS):
+    - Cores e textos injetados por JS ao abrir o modal
+#}
+
+{% if user.is_authenticated %}
+<!-- Modal universal -->
+<div id="modal-post-universal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+     onclick="modalUniversalFecharFora(event)">
+
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative max-h-[90vh] overflow-y-auto"
+         onclick="event.stopPropagation()"
+         id="modal-universal-inner">
+
+        <!-- Barra superior -->
+        <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-between px-5 py-3 border-b border-gray-100 rounded-t-2xl">
+            <a id="mu-link-tela-cheia" href="#"
+               class="text-sm font-semibold hover:opacity-70 transition flex items-center gap-1"
+               id="mu-link">
+                ⛶ Ver em tela cheia
+            </a>
+            <button onclick="modalUniversalFechar()"
+                    class="text-gray-400 hover:text-gray-700 text-2xl font-bold leading-none">✕</button>
+        </div>
+
+        <!-- Capa -->
+        <div id="mu-capa-wrapper" class="hidden">
+            <div class="relative w-full overflow-hidden">
+                <div id="mu-capa-imgs"></div>
+                <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent flex items-end px-6 pb-3">
+                    <p id="mu-titulo-capa" class="text-white font-bold text-lg leading-snug"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <!-- Categorias -->
+            <div id="mu-cats" class="flex flex-wrap gap-2 mb-4"></div>
+
+            <!-- Título + meta -->
+            <h2 id="mu-titulo" class="text-2xl font-bold text-gray-800 mb-3"></h2>
+            <div class="flex gap-4 text-sm text-gray-400 mb-5 border-b pb-4">
+                <button id="mu-autor-btn"
+                        class="hover:underline hover:text-indigo-500 transition font-medium"></button>
+                <span id="mu-data"></span>
+            </div>
+
+            <!-- Autor original -->
+            <p id="mu-autor-original" class="text-xs text-gray-400 mb-4 hidden"></p>
+
+            <!-- Conteúdo -->
+            <div id="mu-conteudo" class="text-gray-700 leading-relaxed mb-6"></div>
+
+            <!-- Reações -->
+            <div class="flex items-center gap-5 pb-5 border-b border-gray-100">
+                <button id="mu-btn-curtida"
+                        class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition">
+                    ❤️ <span id="mu-total-curtida">0</span>
+                </button>
+                <button id="mu-btn-clip"
+                        class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition ml-auto">
+                    📌 <span id="mu-total-clip">0</span>
+                    <span class="text-xs">clips</span>
+                </button>
+            </div>
+
+            <!-- Comentários -->
+            <div class="mt-5">
+                <h3 class="text-base font-bold text-gray-700 mb-4">
+                    💬 Comentários
+                    <span id="mu-total-comentarios" class="text-sm font-normal text-gray-400 ml-1"></span>
+                </h3>
+
+                <!-- Composer -->
+                <div class="flex gap-3 mb-5">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                        {% if user.autor.foto_perfil %}
+                            <img src="{{ user.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
+                        {% else %}
+                            <div class="w-full h-full flex items-center justify-center text-gray-600 font-bold text-xs
+                                        bg-gradient-to-br from-indigo-100 to-purple-100">
+                                {{ user.autor.nome_exibicao|first|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1">
+                        <textarea id="mu-composer"
+                                  rows="2"
+                                  placeholder="Adicione um comentário..."
+                                  class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm
+                                         focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
+                        <div class="flex justify-end mt-1">
+                            <button id="mu-btn-comentar"
+                                    class="text-white text-xs font-semibold px-4 py-1.5 rounded-full transition
+                                           bg-indigo-600 hover:bg-indigo-700">
+                                Comentar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Árvore de comentários -->
+                <div id="mu-comentarios" class="space-y-4"></div>
+
+                <!-- Modal subthread (geração 5) -->
+                <div id="mu-modal-subthread"
+                     class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                     onclick="muFecharSubthread(event)">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-y-auto"
+                         onclick="event.stopPropagation()">
+                        <div class="sticky top-0 bg-white/95 flex items-center justify-between px-5 py-3 border-b border-gray-100 rounded-t-2xl">
+                            <span class="text-sm font-bold text-gray-700">🧵 Thread aprofundada</span>
+                            <button onclick="muFecharSubthread()"
+                                    class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
+                        </div>
+                        <div id="mu-subthread-conteudo" class="p-5 space-y-4"></div>
+                    </div>
+                </div>
+
+                <!-- Modal forumização -->
+                <div id="mu-modal-forum"
+                     class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+                        <p class="text-2xl text-center mb-2">🔥</p>
+                        <h3 class="text-lg font-bold text-gray-800 text-center mb-2">Thread forumizada!</h3>
+                        <p class="text-sm text-gray-500 text-center mb-5">
+                            Esta conversa foi promovida a Fórum. Continue o debate na aba <strong>Forumização</strong>.
+                        </p>
+                        <div class="flex flex-col gap-2">
+                            <a href="/?aba=forumizacao"
+                               class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
+                                      py-2.5 rounded-xl transition text-center">
+                                🏛️ Ir para Forumização
+                            </a>
+                            <button onclick="muFecharForum()"
+                                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm py-2.5 rounded-xl transition">
+                                Agora não
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Estado do modal universal ─────────────────────────────────────────────────
+
+const _mu = {
+    postId:      null,
+    arvore:      {},
+    carregados:  new Set(),
+};
+
+// ── Utilitários ───────────────────────────────────────────────────────────────
+
+function muGetCsrf() {
+    return document.cookie.split(';')
+        .find(c => c.trim().startsWith('csrftoken='))
+        ?.split('=')[1] ?? '';
+}
+
+function muTimesince(isoStr) {
+    const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
+    if (diff < 60)    return `${diff}s`;
+    if (diff < 3600)  return `${Math.floor(diff/60)}min`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h`;
+    return `${Math.floor(diff/86400)}d`;
+}
+
+// ── Abrir modal ───────────────────────────────────────────────────────────────
+
+function modalUniversalAbrir(card) {
+    _mu.postId = card.id;
+
+    const modal = document.getElementById('modal-post-universal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+
+    // Link tela cheia
+    document.getElementById('mu-link-tela-cheia').href = card.url_detalhe || `/post/${card.id}/`;
+
+    // Capa
+    const capaWrapper = document.getElementById('mu-capa-wrapper');
+    const capaImgs    = document.getElementById('mu-capa-imgs');
+    const tituloCapa  = document.getElementById('mu-titulo-capa');
+
+    if (card.imagem_capa) {
+        if (card.imagem_capa_2) {
+            capaImgs.innerHTML = `
+                <div class="grid grid-cols-2 h-56">
+                    <img src="${card.imagem_capa}" class="w-full h-full object-cover" alt="">
+                    <img src="${card.imagem_capa_2}" class="w-full h-full object-cover" alt="">
+                </div>`;
+        } else {
+            capaImgs.innerHTML = `<img src="${card.imagem_capa}" class="w-full h-56 object-cover" alt="">`;
+        }
+        tituloCapa.textContent = card.titulo_capa || card.titulo;
+        capaWrapper.classList.remove('hidden');
+    } else {
+        capaWrapper.classList.add('hidden');
+    }
+
+    // Categorias
+    document.getElementById('mu-cats').innerHTML = (card.categorias || []).map(c =>
+        `<span class="text-xs font-semibold px-3 py-1 rounded-full"
+               style="background:${c.cor}25;color:${c.cor}">${c.nome}</span>`
+    ).join('');
+
+    // Título + meta
+    document.getElementById('mu-titulo').textContent = card.titulo;
+    document.getElementById('mu-data').textContent   = '📅 ' + (card.data || '');
+
+    const autorBtn = document.getElementById('mu-autor-btn');
+    autorBtn.textContent = '✍️ ' + card.autor;
+    autorBtn.onclick     = () => {
+        if (typeof abrirModalPerfil === 'function') abrirModalPerfil(card.username);
+    };
+
+    // Autor original
+    const autorOrigEl = document.getElementById('mu-autor-original');
+    if (card.autor_original) {
+        autorOrigEl.textContent = `💡 Ideia original de ${card.autor_original}`;
+        autorOrigEl.classList.remove('hidden');
+    } else {
+        autorOrigEl.classList.add('hidden');
+    }
+
+    // Conteúdo completo
+    document.getElementById('mu-conteudo').textContent = card.conteudo_completo || card.conteudo;
+
+    // Reações
+    document.getElementById('mu-total-curtida').textContent = card.curtidas ?? 0;
+    document.getElementById('mu-total-clip').textContent    = card.clips    ?? 0;
+
+    document.getElementById('mu-btn-curtida').onclick = () => muRagir(card.id, 'curtida');
+    document.getElementById('mu-btn-clip').onclick    = () => muRagir(card.id, 'clip');
+
+    // Composer
+    document.getElementById('mu-composer').value = '';
+    document.getElementById('mu-btn-comentar').onclick = () => muEnviarComentario(card.id, null);
+
+    // Comentários
+    document.getElementById('mu-comentarios').innerHTML =
+        '<p class="text-sm text-gray-400 text-center py-4">Carregando...</p>';
+    document.getElementById('mu-total-comentarios').textContent = '';
+
+    if (!_mu.carregados.has(card.id)) {
+        muCarregarComentarios(card.id);
+        _mu.carregados.add(card.id);
+    } else {
+        muRenderizarArvore(card.id);
+    }
+}
+
+// ── Fechar modal ──────────────────────────────────────────────────────────────
+
+function modalUniversalFechar() {
+    const modal = document.getElementById('modal-post-universal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+    _mu.postId = null;
+}
+
+function modalUniversalFecharFora(event) {
+    if (event.target === event.currentTarget) modalUniversalFechar();
+}
+
+// ── Reagir ────────────────────────────────────────────────────────────────────
+
+async function muRagir(postId, tipo) {
+    try {
+        const res  = await fetch(`/api/post/${postId}/reagir/${tipo}/`, {
+            method:  'POST',
+            headers: { 'X-CSRFToken': muGetCsrf() },
+        });
+        const data = await res.json();
+        const id   = tipo === 'curtida' ? 'mu-total-curtida' : 'mu-total-clip';
+        document.getElementById(id).textContent = data.total;
+
+        // Sincroniza o card no grid/feed se estiver visível
+        [`total-${tipo}-${postId}`, `modal-total-${tipo}-${postId}`].forEach(elId => {
+            const el = document.getElementById(elId);
+            if (el) el.textContent = data.total;
+        });
+    } catch (e) { console.error('Erro ao reagir:', e); }
+}
+
+// ── Carregar comentários ──────────────────────────────────────────────────────
+
+async function muCarregarComentarios(postId) {
+    const container = document.getElementById('mu-comentarios');
+    const totalEl   = document.getElementById('mu-total-comentarios');
+
+    try {
+        const res  = await fetch(`/api/post/${postId}/comentarios/`);
+        const data = await res.json();
+
+        _mu.arvore[postId] = data.comentarios;
+
+        if (totalEl) totalEl.textContent = `(${data.total})`;
+
+        // Sincroniza contador no card
+        const cardTotal = document.getElementById(`total-comentarios-${postId}`);
+        if (cardTotal) cardTotal.textContent = data.total;
+
+        if (data.pode_forumizar) {
+            muAbrirForum();
+            return;
+        }
+
+        muRenderizarArvore(postId);
+
+    } catch (e) {
+        if (container) container.innerHTML =
+            '<p class="text-sm text-gray-400 text-center">Erro ao carregar comentários.</p>';
+    }
+}
+
+function muRenderizarArvore(postId) {
+    const container = document.getElementById('mu-comentarios');
+    const arvore    = _mu.arvore[postId] ?? [];
+
+    if (!arvore.length) {
+        container.innerHTML =
+            '<p class="text-sm text-gray-400 text-center py-6">Nenhum comentário ainda. Seja o primeiro!</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    arvore.forEach(c => container.appendChild(muRenderComentario(c, postId, 0)));
+}
+
+// ── Renderização recursiva ────────────────────────────────────────────────────
+
+const MU_PROF_MAX    = 4;
+const MU_PROF_SUBTHR = 5;
+const MU_IS_AUTH     = {{ user.is_authenticated|yesno:"true,false" }};
+const MU_ME          = "{{ user.username }}";
+
+function muRenderComentario(c, postId, prof) {
+    if (prof >= 6) { muAbrirForum(); return document.createTextNode(''); }
+
+    const div = document.createElement('div');
+    div.id        = `mu-c-${c.id}`;
+    div.className = 'flex gap-2';
+    if (prof > 0) {
+        div.style.marginLeft  = `${Math.min(prof * 16, 64)}px`;
+        div.style.borderLeft  = '2px solid #e5e7eb';
+        div.style.paddingLeft = '12px';
+    }
+
+    const avatarHtml = c.foto
+        ? `<img src="${c.foto}" class="w-7 h-7 rounded-full object-cover flex-shrink-0 mt-0.5" alt="">`
+        : `<div class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center
+                       text-gray-500 font-bold text-xs flex-shrink-0 mt-0.5">
+               ${c.autor ? c.autor[0].toUpperCase() : '✕'}
+           </div>`;
+
+    const upCls   = c.meu_voto === 1  ? 'text-green-500 font-semibold' : 'text-gray-400 hover:text-green-500';
+    const downCls = c.meu_voto === -1 ? 'text-red-400 font-semibold'  : 'text-gray-400 hover:text-red-400';
+
+    const temRespostas  = c.respostas && c.respostas.length > 0;
+    const abreSubthread = prof >= MU_PROF_MAX;
+
+    const labelRespostas = temRespostas
+        ? (abreSubthread
+            ? `<button onclick="muAbrirSubthread(${postId}, ${c.id})"
+                       class="text-xs text-indigo-500 hover:text-indigo-700 transition mt-1 block">
+                   🧵 Ver ${c.respostas.length} resposta${c.respostas.length > 1 ? 's' : ''} (thread aprofundada)
+               </button>`
+            : `<button onclick="muToggleRespostas(${c.id})"
+                       id="mu-btn-rs-${c.id}"
+                       class="text-xs text-gray-400 hover:text-gray-600 transition mt-1 block">
+                   ▶ Ver ${c.respostas.length} resposta${c.respostas.length > 1 ? 's' : ''}
+               </button>`)
+        : '';
+
+    div.innerHTML = `
+        <div class="flex-shrink-0">${avatarHtml}</div>
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                ${c.autor
+                    ? `<a href="/perfil/${c.username}/"
+                          class="text-xs font-semibold text-gray-800 hover:text-indigo-600">${c.autor}</a>`
+                    : `<span class="text-xs font-semibold text-gray-400">[removido]</span>`}
+                <span class="text-xs text-gray-400">${muTimesince(c.criado_em)}</span>
+                ${c.editado && !c.removido ? '<span class="text-xs text-gray-400">(editado)</span>' : ''}
+                ${prof > 0 ? `<span class="text-xs text-indigo-300 font-semibold">geração ${prof + 1}</span>` : ''}
+            </div>
+            <p class="text-sm leading-relaxed mb-1 ${c.removido ? 'italic text-gray-400' : 'text-gray-700'}">${c.conteudo}</p>
+            ${!c.removido ? `
+            <div class="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                ${MU_IS_AUTH ? `<button onclick="muVotar(${c.id},'up')" class="${upCls} transition">▲</button>` : ''}
+                <span class="font-semibold text-gray-600 tabular-nums" id="mu-sc-${c.id}">${c.score}</span>
+                ${MU_IS_AUTH ? `
+                <button onclick="muVotar(${c.id},'down')" class="${downCls} transition">▼</button>
+                <button onclick="muToggleResposta(${c.id},${postId},'${c.username ?? ''}')"
+                        class="hover:text-indigo-500 transition ml-1">💬 Responder</button>
+                ` : ''}
+                ${MU_IS_AUTH && c.username === MU_ME ? `
+                <button onclick="muExcluir(${c.id})" class="hover:text-red-500 transition">🗑️</button>
+                ` : ''}
+            </div>
+            <div id="mu-fr-${c.id}" class="hidden mt-2"></div>
+            ${labelRespostas}
+            <div id="mu-rs-${c.id}" class="hidden mt-3 space-y-3"></div>
+            ` : ''}
+        </div>
+    `;
+
+    if (temRespostas && !abreSubthread) {
+        setTimeout(() => {
+            const rs = div.querySelector(`#mu-rs-${c.id}`);
+            if (rs) c.respostas.forEach(r => rs.appendChild(muRenderComentario(r, postId, prof + 1)));
+        }, 0);
+    }
+
+    return div;
+}
+
+// ── Toggle respostas ──────────────────────────────────────────────────────────
+
+function muToggleRespostas(id) {
+    const div = document.getElementById(`mu-rs-${id}`);
+    const btn = document.getElementById(`mu-btn-rs-${id}`);
+    if (!div) return;
+    const abrindo = div.classList.contains('hidden');
+    div.classList.toggle('hidden', !abrindo);
+    if (btn) {
+        btn.innerHTML = btn.innerHTML
+            .replace(abrindo ? '▶' : '▼', abrindo ? '▼' : '▶')
+            .replace(abrindo ? 'Ver' : 'Ocultar', abrindo ? 'Ocultar' : 'Ver');
+    }
+}
+
+// ── Subthread ─────────────────────────────────────────────────────────────────
+
+function muAbrirSubthread(postId, comentarioId) {
+    const modal    = document.getElementById('mu-modal-subthread');
+    const conteudo = document.getElementById('mu-subthread-conteudo');
+    if (!modal || !conteudo) return;
+
+    conteudo.innerHTML = '';
+
+    function buscar(lista) {
+        for (const c of lista) {
+            if (c.id === comentarioId) return c;
+            if (c.respostas) { const f = buscar(c.respostas); if (f) return f; }
+        }
+        return null;
+    }
+
+    const pai = buscar(_mu.arvore[postId] ?? []);
+    if (pai && pai.respostas) {
+        pai.respostas.forEach(r => {
+            if (r.respostas && r.respostas.length) { muAbrirForum(); return; }
+            conteudo.appendChild(muRenderComentario(r, postId, 0));
+        });
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function muFecharSubthread(event) {
+    if (event && event.target !== event.currentTarget) return;
+    const modal = document.getElementById('mu-modal-subthread');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+// ── Forumização ───────────────────────────────────────────────────────────────
+
+function muAbrirForum() {
+    const modal = document.getElementById('mu-modal-forum');
+    if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+}
+
+function muFecharForum() {
+    const modal = document.getElementById('mu-modal-forum');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+}
+
+// ── Form de resposta ──────────────────────────────────────────────────────────
+
+function muToggleResposta(comentarioId, postId, username) {
+    const container = document.getElementById(`mu-fr-${comentarioId}`);
+    if (!container) return;
+
+    if (!container.classList.contains('hidden') && container.innerHTML !== '') {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+
+    const mention = username ? `@${username} ` : '';
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="flex gap-2 mt-1">
+            <div class="flex-1">
+                <textarea id="mu-tr-${comentarioId}" rows="2"
+                          class="w-full border border-gray-300 rounded-xl px-3 py-2 text-xs text-gray-800
+                                 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
+                <div class="flex justify-end gap-2 mt-1">
+                    <button onclick="muToggleResposta(${comentarioId}, ${postId}, '')"
+                            class="text-xs text-gray-400 hover:text-gray-600 px-3 py-1 rounded-full transition">
+                        Cancelar
+                    </button>
+                    <button onclick="muEnviarComentario(${postId}, ${comentarioId})"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold
+                                   px-4 py-1 rounded-full transition">
+                        Responder
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const ta = document.getElementById(`mu-tr-${comentarioId}`);
+    if (ta) { ta.value = mention; ta.focus(); ta.setSelectionRange(mention.length, mention.length); }
+}
+
+// ── Enviar comentário ─────────────────────────────────────────────────────────
+
+async function muEnviarComentario(postId, paiId) {
+    const taId     = paiId ? `mu-tr-${paiId}` : 'mu-composer';
+    const textarea = document.getElementById(taId);
+    if (!textarea) return;
+
+    const conteudo = textarea.value.trim();
+    if (!conteudo) return;
+
+    try {
+        const res = await fetch(`/api/post/${postId}/comentar/`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': muGetCsrf() },
+            body:    JSON.stringify({ conteudo, pai_id: paiId }),
+        });
+        if (!res.ok) return;
+        const novo = await res.json();
+
+        textarea.value = '';
+
+        const totalEl  = document.getElementById('mu-total-comentarios');
+        const container = document.getElementById('mu-comentarios');
+        const atual    = parseInt(totalEl?.textContent?.replace(/\D/g, '') ?? '0') + 1;
+        if (totalEl) totalEl.textContent = `(${atual})`;
+
+        const cardTotal = document.getElementById(`total-comentarios-${postId}`);
+        if (cardTotal) cardTotal.textContent = atual;
+
+        if (!_mu.arvore[postId]) _mu.arvore[postId] = [];
+
+        if (paiId) {
+            if (novo.profundidade >= 5) { muAbrirForum(); return; }
+            const rs = document.getElementById(`mu-rs-${paiId}`);
+            if (rs) { rs.classList.remove('hidden'); rs.appendChild(muRenderComentario(novo, postId, novo.profundidade)); }
+            muToggleResposta(paiId, postId, '');
+        } else {
+            _mu.arvore[postId].push(novo);
+            const vazio = container.querySelector('p.text-gray-400');
+            if (vazio) vazio.remove();
+            container.appendChild(muRenderComentario(novo, postId, 0));
+        }
+    } catch (e) { console.error('Erro ao comentar:', e); }
+}
+
+// ── Votar ─────────────────────────────────────────────────────────────────────
+
+async function muVotar(comentarioId, direcao) {
+    try {
+        const res  = await fetch(`/api/comentario/${comentarioId}/votar/${direcao}/`, {
+            method:  'POST',
+            headers: { 'X-CSRFToken': muGetCsrf() },
+        });
+        const data = await res.json();
+        const sc   = document.getElementById(`mu-sc-${comentarioId}`);
+        if (sc) sc.textContent = data.score;
+    } catch (e) { console.error(e); }
+}
+
+// ── Excluir ───────────────────────────────────────────────────────────────────
+
+async function muExcluir(comentarioId) {
+    if (!confirm('Remover este comentário?')) return;
+    try {
+        await fetch(`/api/comentario/${comentarioId}/excluir/`, {
+            method:  'POST',
+            headers: { 'X-CSRFToken': muGetCsrf() },
+        });
+        const el = document.getElementById(`mu-c-${comentarioId}`);
+        const p  = el?.querySelector('p.text-sm');
+        if (p) { p.textContent = '[comentário removido]'; p.className = 'text-sm italic text-gray-400 leading-relaxed mb-1'; }
+        const acoes = el?.querySelector('.flex.items-center.gap-3');
+        if (acoes) acoes.remove();
+    } catch (e) { console.error(e); }
+}
+</script>
+{% endif %}

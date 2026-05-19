@@ -9,20 +9,75 @@
 
     {% if post.tem_capa %}
         {% if post.imagem_capa_2 %}
+
         <div class="grid grid-cols-2 h-[420px] cursor-pointer"
-             onclick="abrirModalFeed({{ post.id }})">
+             onclick="modalUniversalAbrir({
+                    id: {{ post.id }},
+                    titulo: '{{ post.titulo|escapejs }}',
+                    titulo_capa: '{{ post.titulo_capa|escapejs }}',
+                    conteudo: '{{ post.conteudo|escapejs }}',
+                    conteudo_completo: '{{ post.conteudo|escapejs }}',
+                    autor: '{{ post.autor.nome_exibicao|escapejs }}',
+                    username: '{{ post.autor.usuario.username }}',
+                    data: '{{ post.data_criacao|date:"d/m/Y H:i" }}',
+                    curtidas: {{ post.total_curtidas }},
+                    clips: {{ post.total_clips }},
+                    imagem_capa: '{% if post.imagem_capa_1 %}{{ post.imagem_capa_1.url }}{% endif %}',
+                    imagem_capa_2: '{% if post.imagem_capa_2 %}{{ post.imagem_capa_2.url }}{% endif %}',
+                    categorias: [
+                        {% for cat in post.categorias.all %}
+                        {
+                            'nome':'{{ cat.nome|escapejs }}',
+                            'cor':'{{ cat.cor }}'
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ],
+                    url_detalhe: '{% url "detalhe_post" post.id %}'
+                 })">
             <img src="{{ post.imagem_capa_1.url }}" class="w-full h-full object-cover" alt="">
             <img src="{{ post.imagem_capa_2.url }}" class="w-full h-full object-cover" alt="">
         </div>
+
         {% else %}
         <img src="{{ post.imagem_capa_1.url }}"
              class="w-full h-[420px] object-cover cursor-pointer"
-             onclick="abrirModalFeed({{ post.id }})" alt="">
+             onclick="modalUniversalAbrir({
+                    id: {{ post.id }},
+                    titulo: '{{ post.titulo|escapejs }}',
+                    titulo_capa: '{{ post.titulo_capa|escapejs }}',
+                    conteudo: '{{ post.conteudo|escapejs }}',
+                    conteudo_completo: '{{ post.conteudo|escapejs }}',
+                    autor: '{{ post.autor.nome_exibicao|escapejs }}',
+                    username: '{{ post.autor.usuario.username }}',
+                    data: '{{ post.data_criacao|date:"d/m/Y H:i" }}',
+                    curtidas: {{ post.total_curtidas }},
+                    clips: {{ post.total_clips }},
+                    imagem_capa: '{% if post.imagem_capa_1 %}{{ post.imagem_capa_1.url }}{% endif %}',
+                    imagem_capa_2: '{% if post.imagem_capa_2 %}{{ post.imagem_capa_2.url }}{% endif %}',
+                    categorias: [{% for cat in post.categorias.all %}{'nome':'{{ cat.nome }}','cor':'{{ cat.cor }}'}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    url_detalhe: '{% url "detalhe_post" post.id %}'
+                })">
         {% endif %}
     {% else %}
     <div class="w-full h-[420px] cursor-pointer"
          style="background: linear-gradient(135deg, {{ post.cor|default:'#6366f1' }}cc, {{ post.cor|default:'#6366f1' }}44);"
-         onclick="abrirModalFeed({{ post.id }})"></div>
+         onclick="modalUniversalAbrir({
+                id: {{ post.id }},
+                titulo: '{{ post.titulo|escapejs }}',
+                titulo_capa: '{{ post.titulo_capa|escapejs }}',
+                conteudo: '{{ post.conteudo|escapejs }}',
+                conteudo_completo: '{{ post.conteudo|escapejs }}',
+                autor: '{{ post.autor.nome_exibicao|escapejs }}',
+                username: '{{ post.autor.usuario.username }}',
+                data: '{{ post.data_criacao|date:"d/m/Y H:i" }}',
+                curtidas: {{ post.total_curtidas }},
+                clips: {{ post.total_clips }},
+                imagem_capa: '{% if post.imagem_capa_1 %}{{ post.imagem_capa_1.url }}{% endif %}',
+                imagem_capa_2: '{% if post.imagem_capa_2 %}{{ post.imagem_capa_2.url }}{% endif %}',
+                categorias: [{% for cat in post.categorias.all %}{'nome':'{{ cat.nome }}','cor':'{{ cat.cor }}'}{% if not forloop.last %},{% endif %}{% endfor %}],
+                url_detalhe: '{% url "detalhe_post" post.id %}'
+                })">
+    </div>
     {% endif %}
 
     <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 pointer-events-none"></div>
@@ -58,12 +113,42 @@
 
         <div>
             <h3 class="text-white font-black text-2xl leading-tight drop-shadow mb-2 line-clamp-2 cursor-pointer"
-                onclick="abrirModalFeed({{ post.id }})">
+                onclick="modalUniversalAbrir({
+                        id: {{ post.id }},
+                        titulo: '{{ post.titulo|escapejs }}',
+                        titulo_capa: '{{ post.titulo_capa|escapejs }}',
+                        conteudo: '{{ post.conteudo|escapejs }}',
+                        conteudo_completo: '{{ post.conteudo|escapejs }}',
+                        autor: '{{ post.autor.nome_exibicao|escapejs }}',
+                        username: '{{ post.autor.usuario.username }}',
+                        data: '{{ post.data_criacao|date:"d/m/Y H:i" }}',
+                        curtidas: {{ post.total_curtidas }},
+                        clips: {{ post.total_clips }},
+                        imagem_capa: '{% if post.imagem_capa_1 %}{{ post.imagem_capa_1.url }}{% endif %}',
+                        imagem_capa_2: '{% if post.imagem_capa_2 %}{{ post.imagem_capa_2.url }}{% endif %}',
+                        categorias: [{% for cat in post.categorias.all %}{'nome':'{{ cat.nome }}','cor':'{{ cat.cor }}'}{% if not forloop.last %},{% endif %}{% endfor %}],
+                        url_detalhe: '{% url "detalhe_post" post.id %}'
+                    })">
                 {{ post.titulo_capa|default:post.titulo }}
             </h3>
 
             <p class="text-white/75 text-sm leading-relaxed line-clamp-2 mb-3 cursor-pointer"
-               onclick="abrirModalFeed({{ post.id }})">
+               onclick="modalUniversalAbrir({
+                    id: {{ post.id }},
+                    titulo: '{{ post.titulo|escapejs }}',
+                    titulo_capa: '{{ post.titulo_capa|escapejs }}',
+                    conteudo: '{{ post.conteudo|escapejs }}',
+                    conteudo_completo: '{{ post.conteudo|escapejs }}',
+                    autor: '{{ post.autor.nome_exibicao|escapejs }}',
+                    username: '{{ post.autor.usuario.username }}',
+                    data: '{{ post.data_criacao|date:"d/m/Y H:i" }}',
+                    curtidas: {{ post.total_curtidas }},
+                    clips: {{ post.total_clips }},
+                    imagem_capa: '{% if post.imagem_capa_1 %}{{ post.imagem_capa_1.url }}{% endif %}',
+                    imagem_capa_2: '{% if post.imagem_capa_2 %}{{ post.imagem_capa_2.url }}{% endif %}',
+                    categorias: [{% for cat in post.categorias.all %}{'nome':'{{ cat.nome }}','cor':'{{ cat.cor }}'}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    url_detalhe: '{% url "detalhe_post" post.id %}'
+                })">
                 {{ post.conteudo|truncatewords:20 }}
             </p>
 
@@ -104,168 +189,41 @@
                 <div id="lista-comentarios-{{ post.id }}" class="space-y-2">
                     <p class="text-white/40 text-xs text-center py-2">Carregando...</p>
                 </div>
-                <button onclick="event.stopPropagation(); abrirModalFeed({{ post.id }})"
-                        class="w-full mt-2 text-xs text-white/50 hover:text-white/80 transition text-center py-1 border-t border-white/10 pt-2">
-                    ✏️ Comentar — abrir post completo
-                </button>
+                    <button
+                            onclick="event.stopPropagation(); modalUniversalAbrir({
+                                id: {{ post.id }},
+                                titulo: '{{ post.titulo|escapejs }}',
+                                titulo_capa: '{{ post.titulo_capa|escapejs }}',
+                                conteudo: '{{ post.conteudo|escapejs }}',
+                                conteudo_completo: '{{ post.conteudo|escapejs }}',
+                                autor: '{{ post.autor.nome_exibicao|escapejs }}',
+                                username: '{{ post.autor.usuario.username }}',
+                                data: '{{ post.data_criacao|date:"d/m/Y H:i" }}',
+                                curtidas: {{ post.total_curtidas }},
+                                clips: {{ post.total_clips }},
+                                imagem_capa: '{% if post.imagem_capa_1 %}{{ post.imagem_capa_1.url }}{% endif %}',
+                                imagem_capa_2: '{% if post.imagem_capa_2 %}{{ post.imagem_capa_2.url }}{% endif %}',
+                                categorias: [
+                                    {% for cat in post.categorias.all %}
+                                    {
+                                        'nome':'{{ cat.nome|escapejs }}',
+                                        'cor':'{{ cat.cor }}'
+                                    }{% if not forloop.last %},{% endif %}
+                                    {% endfor %}
+                                ],
+                                url_detalhe: '{% url "detalhe_post" post.id %}'
+                            })"
+                            class="w-full mt-2 text-xs text-white/50 hover:text-white/80 transition text-center py-1 border-t border-white/10 pt-2">
+                            
+                            ✏️ Comentar — abrir post completo
+                    </button>
             </div>
         </div>
     </div>
 </article>
 
 <!-- ── Modal do post completo ──────────────────────────────────────────────── -->
-<div id="modal-feed-{{ post.id }}"
-     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-     onclick="fecharModalFora(event, 'feed-{{ post.id }}')">
 
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl relative max-h-[90vh] overflow-y-auto"
-         onclick="event.stopPropagation()">
-
-        <!-- Barra superior -->
-        <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-between px-5 py-3 border-b border-gray-100 rounded-t-2xl">
-            <a href="{% url 'detalhe_post' post.id %}"
-               class="text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition flex items-center gap-1">
-                ⛶ Ver em tela cheia
-            </a>
-            <button onclick="fecharModal('feed-{{ post.id }}')"
-                    class="text-gray-400 hover:text-gray-700 text-2xl font-bold leading-none">✕</button>
-        </div>
-
-        {% if post.tem_capa %}
-        <div class="relative w-full overflow-hidden">
-            {% if post.imagem_capa_2 %}
-            <div class="grid grid-cols-2 h-56">
-                <img src="{{ post.imagem_capa_1.url }}" class="w-full h-full object-cover" alt="">
-                <img src="{{ post.imagem_capa_2.url }}" class="w-full h-full object-cover" alt="">
-            </div>
-            {% else %}
-            <img src="{{ post.imagem_capa_1.url }}" class="w-full h-56 object-cover" alt="">
-            {% endif %}
-            <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent flex items-end px-6 pb-3">
-                <p class="text-white font-bold text-lg leading-snug">{{ post.titulo_capa|default:post.titulo }}</p>
-            </div>
-        </div>
-        {% endif %}
-
-        <div class="p-6">
-            <div class="flex flex-wrap gap-2 mb-4">
-                {% for cat in post.categorias.all %}
-                <span class="text-xs font-semibold px-3 py-1 rounded-full"
-                      style="background-color: {{ cat.cor }}25; color: {{ cat.cor }}">
-                    {{ cat.nome }}
-                </span>
-                {% endfor %}
-            </div>
-
-            <h2 class="text-2xl font-bold text-gray-800 mb-3">{{ post.titulo }}</h2>
-            <div class="flex gap-4 text-sm text-gray-400 mb-5 border-b pb-4">
-                <button onclick="abrirModalPerfil('{{ post.autor.usuario.username }}')"
-                        class="hover:underline hover:text-indigo-500 transition font-medium">
-                    ✍️ {{ post.autor.nome_exibicao }}
-                </button>
-                <span>📅 {{ post.data_criacao|date:"d/m/Y H:i" }}</span>
-            </div>
-
-            {% if post.autor_original %}
-            <p class="text-xs text-gray-400 mb-4">
-                💡 Ideia original de <strong>{{ post.autor_original.nome_exibicao }}</strong>
-            </p>
-            {% endif %}
-
-            <div class="text-gray-700 leading-relaxed mb-6">{{ post.conteudo }}</div>
-
-            <div class="flex items-center gap-5 pb-5 border-b border-gray-100">
-                <button onclick="reagir({{ post.id }}, 'curtida', this)"
-                        class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 transition">
-                    ❤️ <span id="modal-total-curtida-{{ post.id }}">{{ post.total_curtidas }}</span>
-                </button>
-                <button onclick="reagir({{ post.id }}, 'clip', this)"
-                        class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-500 transition ml-auto">
-                    📌 <span id="modal-total-clip-{{ post.id }}">{{ post.total_clips }}</span>
-                    <span class="text-xs">clips</span>
-                </button>
-            </div>
-
-            <!-- Seção de comentários -->
-            <div class="mt-5">
-                <h3 class="text-base font-bold text-gray-700 mb-4">
-                    💬 Comentários
-                    <span class="text-sm font-normal text-gray-400 ml-1"
-                          id="modal-total-comentarios-{{ post.id }}"></span>
-                </h3>
-
-                {% if user.is_authenticated %}
-                <div class="flex gap-3 mb-5">
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
-                        {% if user.autor.foto_perfil %}
-                            <img src="{{ user.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
-                        {% else %}
-                            <div class="w-full h-full flex items-center justify-center text-gray-600 font-bold text-xs bg-gradient-to-br from-indigo-100 to-purple-100">
-                                {{ user.autor.nome_exibicao|first|upper }}
-                            </div>
-                        {% endif %}
-                    </div>
-                    <div class="flex-1">
-                        <textarea id="composer-{{ post.id }}"
-                                  rows="2"
-                                  placeholder="Adicione um comentário..."
-                                  class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm
-                                         focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
-                        <div class="flex justify-end mt-1">
-                            <button onclick="enviarComentario({{ post.id }}, null)"
-                                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-1.5 rounded-full transition">
-                                Comentar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-
-                <div id="modal-comentarios-{{ post.id }}" class="space-y-4"></div>
-
-                <!-- Modal de geração 5+ (sobreposto ao modal do note) -->
-                <div id="modal-subthread-{{ post.id }}"
-                     class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-                     onclick="fecharSubthread({{ post.id }}, event)">
-                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-y-auto"
-                         onclick="event.stopPropagation()">
-                        <div class="sticky top-0 bg-white/95 backdrop-blur-sm flex items-center justify-between px-5 py-3 border-b border-gray-100 rounded-t-2xl">
-                            <span class="text-sm font-bold text-gray-700">🧵 Thread aprofundada</span>
-                            <button onclick="fecharSubthread({{ post.id }})"
-                                    class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
-                        </div>
-                        <div id="conteudo-subthread-{{ post.id }}" class="p-5 space-y-4"></div>
-                    </div>
-                </div>
-
-                <!-- Modal de alerta de forumização -->
-                <div id="modal-forum-{{ post.id }}"
-                     class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-                        <p class="text-2xl text-center mb-2">🔥</p>
-                        <h3 class="text-lg font-bold text-gray-800 text-center mb-2">Thread forumizada!</h3>
-                        <p class="text-sm text-gray-500 text-center mb-5">
-                            Esta conversa cresceu além do esperado e foi promovida a Fórum.
-                            Continue o debate na aba <strong>Forumização</strong>.
-                        </p>
-                        <div class="flex flex-col gap-2">
-                            <a href="/?aba=forumizacao"
-                               class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
-                                      py-2.5 rounded-xl transition text-center">
-                                🏛️ Ir para Forumização
-                            </a>
-                            <button onclick="document.getElementById('modal-forum-{{ post.id }}').classList.add('hidden'); document.getElementById('modal-forum-{{ post.id }}').classList.remove('flex');"
-                                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm py-2.5 rounded-xl transition">
-                                Agora não
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-</div>
 
 {% endfor %}
 </div>
@@ -376,8 +334,7 @@ async function carregarPreviewComentarios(postId) {
 
         if (data.total > 3) {
             lista.innerHTML += `
-                <button onclick="abrirModalFeed(${postId})"
-                        class="w-full text-xs text-white/40 hover:text-white/70 transition text-center pt-1">
+                <button class="w-full text-xs text-white/40 hover:text-white/70 transition text-center pt-1">
                     Ver todos os ${data.total} comentários →
                 </button>`;
         }
