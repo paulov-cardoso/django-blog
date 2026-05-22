@@ -1,16 +1,3 @@
-/**
- * modal-universal.js
- * Singleton ModalUniversal — abre, fecha e popula o modal de post compartilhado
- * entre Feed e Campo das Ideias.
- *
- * Substitui o bloco <script> inline de modal_post_universal.html,
- * que após esta etapa fica com HTML puro.
- *
- * Depende de:
- *   - utils.js      → getCsrf
- *   - comentarios.js → ThreadManager (via window._criarThreadModal)
- */
-
 import { getCsrf } from './utils.js';
 
 // ── Estado ────────────────────────────────────────────────────────────────────
