@@ -24,6 +24,7 @@
 - [Funcionalidades](#-funcionalidades)
 - [Fluxo de uma ideia](#-fluxo-de-uma-ideia)
 - [Entroncamento de comentários](#-entroncamento-de-comentários)
+- [Arquitetura frontend](#-arquitetura-frontend)
 - [Stack](#️-stack)
 - [Como rodar localmente](#-como-rodar-localmente)
 - [Variáveis de ambiente](#-variáveis-de-ambiente)
@@ -78,7 +79,7 @@ Ideias públicas que "pairam" esperando colaboração. Comentários infinitos es
 - Capa obrigatória (imagem principal + opcional secundária + título de capa) para posts no Feed
 - Reações em posts — curtida ❤️ e clip 📌 sem refresh de página via fetch
 - Categorias com autocomplete, validator animado e restauração após erros de validação
-- Modal de post completo com conteúdo, imagens, comentários e botão "Ver em tela cheia"
+- Modal universal de post compartilhado entre Feed e Campo — conteúdo, imagens e comentários
 - Comentários infinitos threaded com **Entroncamento de Comentários** (ver seção abaixo)
 - Votos em comentários com toggle (upvote ▲ / downvote ▼) e score em tempo real
 - Soft delete de comentários — preserva o thread, exibe `[comentário removido]`
@@ -89,14 +90,15 @@ Ideias públicas que "pairam" esperando colaboração. Comentários infinitos es
   - 👤 **Pessoas** — novos seguidores
 - Modal de perfil externo carregado via `fetch` com botão Seguir/Deixar de seguir
 - Toast PRG animado com lâmpada ao completar ações
+- Campo das Ideias com grid 2D infinito, drag navigation e algoritmo de dupla camada
+- Composer modal compartilhado entre Feed e Campo das Ideias
 
 ### 🔄 Em desenvolvimento
 
 - Aba Forumização — threads promovidas por profundidade ou volume de participantes
 - Modo TDAH — tunnel vision, Pomodoro, micro-steps, gamificação
 - Kanban de ideias com drag and drop
-- Aba Trending
-- Busca global de posts e ideias
+- UX mobile e dark mode
 - Login social (Google, GitHub)
 - Deploy no Railway
 
@@ -143,12 +145,57 @@ Quando forumizada, a thread sai do modal e ganha uma aba própria para debate es
 
 ---
 
+## 🧩 Arquitetura frontend
+
+O frontend foi refatorado em 6 etapas para eliminar JavaScript inline dos templates, centralizar lógica duplicada e separar responsabilidades. Os templates agora contêm apenas HTML estrutural — todo o comportamento vive em módulos ES carregados via `main.js`.
+
+### Módulos JS (`posts/static/posts/js/`)
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `main.js` | Entry point — importa todos os módulos, registra globais, instancia controllers |
+| `utils.js` | `getCsrf`, `timesince`, `abrirModal`, `fecharModal` — funções puras sem dependência de DOM |
+| `config.js` | Lê o bloco `#bn-config` do Django e exporta `{ isAuth, meUsername, meAvatar }` |
+| `categoria.js` | `CategorySelector` — autocomplete, validator e criação de categorias |
+| `image-upload.js` | `ImageUploadWidget` — preview e remoção de imagens de capa |
+| `comentarios.js` | `ThreadManager` — threading completo, subthread, forumização, votos, exclusão |
+| `modal-universal.js` | `ModalUniversal` singleton — abre, fecha e popula o modal de post |
+| `composer.js` | `PostComposer` — abre, valida e publica posts via composer modal |
+| `feed.js` | `FeedController` — reações, toggle de categorias, preview de comentários |
+| `campo.js` | `CampoController` — grid 2D, drag, snap, modal de detalhe, sub-abas |
+
+### Resultado da refatoração
+
+| Template | Antes | Depois |
+|---|---|---|
+| `grid_campo.html` | ~1400 linhas (~1100 JS) | 354 linhas (0 JS) |
+| `card_feed.html` | ~800 linhas (~600 JS) | 227 linhas (0 JS) |
+| `composer_bar.html` | ~500 linhas (~350 JS) | 0 JS |
+| `modal_post_universal.html` | ~600 linhas (~450 JS) | 0 JS |
+
+### Padrão de dados Django → JS
+
+Dados de sessão são injetados via bloco JSON no `base.html`, eliminando interpolações Django dentro de arquivos JS:
+
+```html
+<script type="application/json" id="bn-config">
+{
+  "isAuth":     true,
+  "meUsername": "paulo",
+  "meAvatar":   "/media/fotos/paulo.jpg"
+}
+</script>
+```
+
+---
+
 ## 🛠️ Stack
 
 | Camada    | Tecnologia                            |
 |-----------|---------------------------------------|
 | Backend   | Python 3.13 + Django 6.0              |
 | Frontend  | Tailwind CSS v4 Standalone (sem Node) |
+| JS        | ES Modules nativos (sem bundler)      |
 | Banco     | PostgreSQL (produção) / SQLite (dev)  |
 | Imagens   | Pillow                                |
 | Deploy    | Railway *(planejado)*                 |
@@ -179,10 +226,13 @@ cp .env.example .env
 # 5. Rode as migrations
 python manage.py migrate
 
-# 6. Crie o superusuário (opcional)
+# 6. Colete os arquivos estáticos
+python manage.py collectstatic --noinput
+
+# 7. Crie o superusuário (opcional)
 python manage.py createsuperuser
 
-# 7. Inicie o servidor
+# 8. Inicie o servidor
 python manage.py runserver
 ```
 
@@ -233,8 +283,7 @@ django-blog/
 │   ├── urls.py
 │   └── wsgi.py
 ├── posts/                        # App principal
-│   ├── models.py                 # Post, Autor, Seguidor, ModeradorPost, CandidaturaModerador,
-│   │                             # PostReacao, Notificacao, Comentario, VotoComentario
+│   ├── models.py
 │   ├── views.py
 │   ├── urls.py
 │   ├── forms.py
@@ -242,52 +291,48 @@ django-blog/
 │   ├── templatetags/
 │   │   ├── __init__.py
 │   │   └── comentario_tags.py    # Filtros curtida_ativa, clip_ativo e tag render_comentario
+│   ├── static/posts/js/          # Módulos ES — sem bundler, sem Node
+│   │   ├── main.js               # Entry point
+│   │   ├── utils.js              # Funções puras reutilizáveis
+│   │   ├── config.js             # Dados de sessão Django → JS
+│   │   ├── categoria.js          # CategorySelector
+│   │   ├── image-upload.js       # ImageUploadWidget
+│   │   ├── comentarios.js        # ThreadManager
+│   │   ├── modal-universal.js    # ModalUniversal singleton
+│   │   ├── composer.js           # PostComposer
+│   │   ├── feed.js               # FeedController
+│   │   └── campo.js              # CampoController
 │   └── templates/posts/
-│       ├── base.html             # Layout global — navbar, toast, modal de busca
-│       ├── home.html             # Orquestrador das abas (~30 linhas)
-│       ├── auth/                 # Autenticação
-│       │   ├── login.html
-│       │   ├── registrar.html
-│       │   ├── senha_reset.html
-│       │   ├── senha_reset_confirmar.html
-│       │   ├── senha_reset_enviado.html
-│       │   └── senha_reset_concluido.html
-│       ├── perfil/               # Perfil de usuário
-│       │   ├── perfil.html
-│       │   └── editar_perfil.html
-│       ├── posts/                # Posts individuais
+│       ├── base.html             # Layout global — navbar, toast, bn-config, main.js
+│       ├── home.html             # Orquestrador das abas
+│       ├── auth/
+│       ├── perfil/
+│       ├── posts/
 │       │   ├── criar.html
 │       │   ├── editar.html
 │       │   ├── detail.html       # Tela cheia com threading server-side
 │       │   └── listar.html
 │       ├── moderacao/
-│       │   └── eleger_moderador.html
 │       ├── notificacoes/
-│       │   └── notificacoes.html # 3 canais: sino, carta, pessoas
 │       ├── social/
-│       │   ├── buscar_usuarios.html
-│       │   └── lista_seguidores.html
-│       └── partials/             # Componentes reutilizáveis
+│       └── partials/
 │           ├── abas_nav.html
 │           ├── perfil/
-│           │   ├── card_perfil.html
-│           │   └── painel_ideias.html
 │           ├── feed/
-│           │   ├── composer_bar.html
-│           │   ├── card_feed.html  # Modal completo, threading JS, reações AJAX
+│           │   ├── composer_bar.html       # HTML puro — comportamento em composer.js
+│           │   ├── card_feed.html          # HTML puro — comportamento em feed.js
 │           │   └── modais_feed.html
 │           ├── notes/
-│           │   ├── card_note.html
-│           │   └── modais_notes.html
 │           ├── campo/
-│           │   ├── card_campo.html
+│           │   ├── grid_campo.html         # HTML puro — comportamento em campo.js
 │           │   └── modais_campo.html
 │           └── shared/
 │               ├── dropdown_post.html
 │               ├── modal_perfil_externo.html
 │               ├── moderadores_painel.html
-│               └── comentario_node.html  # Nó recursivo de comentário (detail.html)
-├── media/                        # Uploads de fotos (gitignored)
+│               ├── comentario_node.html    # Nó recursivo server-side (detail.html)
+│               └── modal_post_universal.html  # HTML puro — comportamento em modal-universal.js
+├── media/
 ├── .env.example
 ├── manage.py
 └── requirements.txt
@@ -310,13 +355,14 @@ django-blog/
 | 7 | Perfil, seguidores e notificações | ✅ Concluído |
 | 8 | Capa obrigatória no Feed — tabloid/revista | ✅ Concluído |
 | 9 | Comentários infinitos threaded + Entroncamento | ✅ Concluído |
-| 10 | Reações AJAX, modal completo, busca de usuários | ✅ Concluído |
-| 11 | Aba Forumização — threads promovidas | 🔄 Em andamento |
-| 12 | Modo TDAH — tunnel vision, Pomodoro, gamificação | ⏳ Planejado |
-| 13 | Kanban de ideias — drag and drop | ⏳ Planejado |
-| 14 | UX avançada — mobile, dark mode, busca global | ⏳ Planejado |
-| 15 | Login social — Google, GitHub, SendGrid | ⏳ Planejado |
-| 16 | Deploy — Railway, SEO, sitemap, domínio | ⏳ Planejado |
+| 10 | Reações AJAX, modal universal, Campo das Ideias | ✅ Concluído |
+| 11 | Refatoração frontend — ES Modules, separação de responsabilidades | ✅ Concluído |
+| 12 | Aba Forumização — threads promovidas | 🔄 Em andamento |
+| 13 | Modo TDAH — tunnel vision, Pomodoro, gamificação | ⏳ Planejado |
+| 14 | Kanban de ideias — drag and drop | ⏳ Planejado |
+| 15 | UX avançada — mobile, dark mode, busca global | ⏳ Planejado |
+| 16 | Login social — Google, GitHub, SendGrid | ⏳ Planejado |
+| 17 | Deploy — Railway, SEO, sitemap, domínio | ⏳ Planejado |
 
 ---
 
@@ -330,4 +376,3 @@ django-blog/
 <div align="center">
   <sub>Feito com Django + Tailwind CSS · © 2026</sub>
 </div>
-```
