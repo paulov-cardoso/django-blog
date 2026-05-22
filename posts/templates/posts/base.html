@@ -12,323 +12,305 @@
     {% tailwind_css %}
   </head>
 
- <body class="{% block body_class %}bg-gray-100{% endblock %} min-h-screen flex flex-col">
-      {% block nav %}
-     <nav class="sticky top-0 z-40 bg-gradient-to-r from-blue-900 via-purple-600 to-orange-500 bg-opacity-90 backdrop-blur-md text-white px-6 py-4 shadow-md">
-          {% block navbar %}
-        <div class="max-w-5xl mx-auto flex justify-between items-center">
-        
+  <body class="{% block body_class %}bg-gray-100{% endblock %} min-h-screen flex flex-col">
+
+    <script type="application/json" id="bn-config">
+    {
+      "isAuth":     {{ user.is_authenticated|yesno:"true,false" }},
+      "meUsername": "{{ user.username|escapejs }}",
+      "meAvatar":   "{% if user.autor.foto_perfil %}{{ user.autor.foto_perfil.url }}{% endif %}"
+    }
+    </script>
+
+    {% block nav %}
+    <nav class="sticky top-0 z-40 bg-gradient-to-r from-blue-900 via-purple-600 to-orange-500 bg-opacity-90 backdrop-blur-md text-white px-6 py-4 shadow-md">
+      {% block navbar %}
+      <div class="max-w-5xl mx-auto flex justify-between items-center">
+
         <a href="/?aba=notes_privados" class="text-3xl font-semibold tracking-tight" style="font-family: 'Poppins', sans-serif;">Meu Blognotes</a>
 
-          <div class="flex gap-4 text-sm items-center">
-            {% if user.is_authenticated %}
+        <div class="flex gap-4 text-sm items-center">
+          {% if user.is_authenticated %}
 
-            <!-- Notificações: sino (interações) -->
-            <a href="{% url 'notificacoes' 'sino' %}"
-              class="relative hover:opacity-80 transition"
-              title="Curtidas, clips e comentários">
-                <span class="text-xl">🔔</span>
-                {% if notif_sino > 0 %}
-                <span class="absolute -top-1.5 -right-1.5 bg-red-500 text-white
-                            text-[10px] font-bold rounded-full w-4 h-4
-                            flex items-center justify-center leading-none">
-                    {{ notif_sino }}
-                </span>
-                {% endif %}
-            </a>
+          <!-- Notificações: sino -->
+          <a href="{% url 'notificacoes' 'sino' %}"
+             class="relative hover:opacity-80 transition"
+             title="Curtidas, clips e comentários">
+            <span class="text-xl">🔔</span>
+            {% if notif_sino > 0 %}
+            <span class="absolute -top-1.5 -right-1.5 bg-red-500 text-white
+                         text-[10px] font-bold rounded-full w-4 h-4
+                         flex items-center justify-center leading-none">
+              {{ notif_sino }}
+            </span>
+            {% endif %}
+          </a>
 
-            <!-- Notificações: carta (colaboração/moderação) -->
-            <a href="{% url 'notificacoes' 'carta' %}"
-              class="relative hover:opacity-80 transition"
-              title="Colaborações e Moderação">
-                <span class="text-xl">✉️</span>
-                {% if notif_carta > 0 %}
-                <span class="absolute -top-1.5 -right-1.5 bg-yellow-400 text-gray-900
-                            text-[10px] font-bold rounded-full w-4 h-4
-                            flex items-center justify-center leading-none">
-                    {{ notif_carta }}
-                </span>
-                {% endif %}
-            </a>
+          <!-- Notificações: carta -->
+          <a href="{% url 'notificacoes' 'carta' %}"
+             class="relative hover:opacity-80 transition"
+             title="Colaborações e Moderação">
+            <span class="text-xl">✉️</span>
+            {% if notif_carta > 0 %}
+            <span class="absolute -top-1.5 -right-1.5 bg-yellow-400 text-gray-900
+                         text-[10px] font-bold rounded-full w-4 h-4
+                         flex items-center justify-center leading-none">
+              {{ notif_carta }}
+            </span>
+            {% endif %}
+          </a>
 
-            <!-- Notificações: pessoa (seguidores) -->
-            <a href="{% url 'notificacoes' 'pessoa' %}"
-              class="relative hover:opacity-80 transition"
-              title="Novos seguidores">
-                <span class="text-xl">👤</span>
-                {% if notif_pessoa > 0 %}
-                <span class="absolute -top-1.5 -right-1.5 bg-green-400 text-white
-                            text-[10px] font-bold rounded-full w-4 h-4
-                            flex items-center justify-center leading-none">
-                    {{ notif_pessoa }}
-                </span>
-                {% endif %}
-            </a>
+          <!-- Notificações: pessoa -->
+          <a href="{% url 'notificacoes' 'pessoa' %}"
+             class="relative hover:opacity-80 transition"
+             title="Novos seguidores">
+            <span class="text-xl">👤</span>
+            {% if notif_pessoa > 0 %}
+            <span class="absolute -top-1.5 -right-1.5 bg-green-400 text-white
+                         text-[10px] font-bold rounded-full w-4 h-4
+                         flex items-center justify-center leading-none">
+              {{ notif_pessoa }}
+            </span>
+            {% endif %}
+          </a>
 
-            <!-- Lupa — abre modal de busca -->
-<button onclick="abrirModalBusca()"
-        class="hover:opacity-80 transition relative"
-        title="Buscar usuários">
-    <span class="text-xl">🔍</span>
-</button>
+          <!-- Lupa — abre modal de busca -->
+          <button onclick="abrirModalBusca()"
+                  class="hover:opacity-80 transition relative"
+                  title="Buscar usuários">
+            <span class="text-xl">🔍</span>
+          </button>
 
-          <!-- LUPA: Modal de busca de usuários -->
-
+          <!-- Modal de busca de usuários -->
           <div id="modal-busca-usuarios"
-              class="fixed inset-0 z-[99999] hidden items-center justify-start bg-black/40 backdrop-blur-sm pt-24 px-4"
-              onclick="fecharModalBuscaFora(event)">
-              <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto p-5">
-                  <div class="flex items-center gap-3 mb-4">
-                      <span class="text-xl">🔍</span>
-                      <input type="text"
-                          id="input-modal-busca"
-                          placeholder="Buscar pessoas por nome ou @username..."
-                          autocomplete="off"
-                          class="flex-1 text-sm text-gray-800 placeholder-gray-400 focus:outline-none">
-                      <button onclick="fecharModalBusca()" class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
-                  </div>
-                  <div id="resultado-modal-busca" class="space-y-2 max-h-80 overflow-y-auto"></div>
+               class="fixed inset-0 z-[99999] hidden items-center justify-start bg-black/40 backdrop-blur-sm pt-24 px-4"
+               onclick="fecharModalBuscaFora(event)">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="text-xl">🔍</span>
+                <input type="text"
+                       id="input-modal-busca"
+                       placeholder="Buscar pessoas por nome ou @username..."
+                       autocomplete="off"
+                       class="flex-1 text-sm text-gray-800 placeholder-gray-400 focus:outline-none">
+                <button onclick="fecharModalBusca()" class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
               </div>
+              <div id="resultado-modal-busca" class="space-y-2 max-h-80 overflow-y-auto"></div>
+            </div>
           </div>
 
-          <script>
-          function abrirModalBusca() {
-              const modal = document.getElementById('modal-busca-usuarios');
-              modal.classList.remove('hidden');
-              modal.classList.add('flex');
-              document.getElementById('input-modal-busca').focus();
-          }
-
-          function fecharModalBusca() {
-              const modal = document.getElementById('modal-busca-usuarios');
-              modal.classList.add('hidden');
-              modal.classList.remove('flex');
-              document.getElementById('input-modal-busca').value = '';
-              document.getElementById('resultado-modal-busca').innerHTML = '';
-          }
-
-          function fecharModalBuscaFora(e) {
-              if (e.target === e.currentTarget) fecharModalBusca();
-          }
-
-          document.addEventListener('DOMContentLoaded', function () {
-              const input     = document.getElementById('input-modal-busca');
-              const resultado = document.getElementById('resultado-modal-busca');
-              let debounce;
-
-              input.addEventListener('input', function () {
-                  clearTimeout(debounce);
-                  const termo = this.value.trim();
-                  if (termo.length < 2) { resultado.innerHTML = ''; return; }
-
-                  debounce = setTimeout(async () => {
-                      try {
-                          const res  = await fetch(`/api/usuarios/buscar/?q=${encodeURIComponent(termo)}`);
-                          const data = await res.json();
-
-                          if (!data.usuarios.length) {
-                              resultado.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Nenhum usuário encontrado.</p>';
-                              return;
-                          }
-
-                          resultado.innerHTML = data.usuarios.map(u => `
-                              <a href="/perfil/${u.username}/"
-                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition">
-                                  <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0
-                                              flex items-center justify-center text-gray-600 font-bold text-sm">
-                                      ${u.foto
-                                          ? `<img src="${u.foto}" class="w-full h-full object-cover" alt="">`
-                                          : u.nome_exibicao.charAt(0).toUpperCase()
-                                      }
-                                  </div>
-                                  <div>
-                                      <p class="text-sm font-semibold text-gray-800">${u.nome_exibicao}</p>
-                                      <p class="text-xs text-gray-400">@${u.username}</p>
-                                  </div>
-                              </a>
-                          `).join('');
-                      } catch (e) {
-                          resultado.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Erro ao buscar.</p>';
-                      }
-                  }, 300);
-              });
-
-              document.addEventListener('keydown', function (e) {
-                  if (e.key === 'Escape') fecharModalBusca();
-              });
-          });
-          </script>
-
           <span class="text-sm opacity-80">Olá, {{ user.username }}</span>
-          <a href="{% url 'criar_post' %}" class="bg-white text-blue-700 px-4 py-1 rounded-full font-semibold hover:bg-blue-50 transition transform hover:scale-105 active:scale-95">
+
+          <a href="{% url 'criar_post' %}"
+             class="bg-white text-blue-700 px-4 py-1 rounded-full font-semibold hover:bg-blue-50 transition transform hover:scale-105 active:scale-95">
             + Novo Note
           </a>
 
-          <!-- Botão de sair -->
-          <button
-            onclick="
-              document.getElementById('modal-logout').classList.remove('hidden')
-            "
-            class="hover:opacity-80 transition"
-          >
+          <button onclick="document.getElementById('modal-logout').classList.remove('hidden')"
+                  class="hover:opacity-80 transition">
             Sair
           </button>
 
           {% else %}
-          <a href="{% url 'login' %}" class="hover:opacity-80 transition"
-            >Login</a
-          >
+          <a href="{% url 'login' %}" class="hover:opacity-80 transition">Login</a>
           {% endif %}
         </div>
-        
+
       </div>
       {% endblock %}
     </nav>
     {% endblock %}
 
-
-    <!-- Modal de confirmação de loggout -->
-
-          <div
-            id="modal-logout"
-            class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden"
-          >
-            <div
-              class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center"
-            >
-              <p class="text-xl font-bold text-gray-800 mb-2">Tem certeza?</p>
-              <p class="text-gray-500 text-sm mb-6">
-                Você será redirecionado para a tela de login.
-              </p>
-              <div class="flex gap-4 justify-center">
-                <button
-                  onclick="
-                    document
-                      .getElementById('modal-logout')
-                      .classList.add('hidden')
-                  "
-                  class="px-6 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition"
-                >
-                  Cancelar
-                </button>
-                <form method="POST" action="{% url 'logout' %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="next" value="{% url 'login' %}" />
-                  <button
-                    type="submit"
-                    class="px-6 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 transition"
-                  >
-                    Sim, sair
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
+    <!-- Modal de confirmação de logout -->
+    <div id="modal-logout"
+         class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+        <p class="text-xl font-bold text-gray-800 mb-2">Tem certeza?</p>
+        <p class="text-gray-500 text-sm mb-6">Você será redirecionado para a tela de login.</p>
+        <div class="flex gap-4 justify-center">
+          <button onclick="document.getElementById('modal-logout').classList.add('hidden')"
+                  class="px-6 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition">
+            Cancelar
+          </button>
+          <form method="POST" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'login' %}">
+            <button type="submit"
+                    class="px-6 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 transition">
+              Sim, sair
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
 
     <main class="max-w-5xl mx-auto w-full px-4 py-8 flex-grow">
-      {% block conteudo %} {% endblock %}
+      {% block conteudo %}{% endblock %}
     </main>
 
     <footer class="{% block footer_class %}bg-gradient-to-r from-blue-900 via-purple-600 to-orange-500{% endblock %} text-white text-center py-4 text-sm">
-        <p>© Copyright 2026 Meu Blognotes — Feito com Django + Tailwind</p>
+      <p>© 2026 Synapsoo · Python · Django · Tailwind CSS · Todas as ideias pertencem aos seus autores</p>
     </footer>
 
-
-
-   <!-- TOAST DE PUBLICAÇÃO E TRANSFERENCIA -->
-<div id="toast-overlay"
-     class="fixed inset-0 z-[999999] flex items-center justify-center
-            pointer-events-none opacity-0 transition-opacity duration-300"
-     style="background: rgba(0,0,0,0);">
-
-    <div id="toast-prg"
-         class="flex flex-col items-center gap-3 px-10 py-8 rounded-3xl shadow-2xl
-                bg-white border border-gray-100
-                translate-y-6 transition-all duration-500 opacity-0"
-         style="min-width: 280px;">
-
+    <!-- Toast de publicação -->
+    <div id="toast-overlay"
+         class="fixed inset-0 z-[999999] flex items-center justify-center
+                pointer-events-none opacity-0 transition-opacity duration-300"
+         style="background: rgba(0,0,0,0);">
+      <div id="toast-prg"
+           class="flex flex-col items-center gap-3 px-10 py-8 rounded-3xl shadow-2xl
+                  bg-white border border-gray-100
+                  translate-y-6 transition-all duration-500 opacity-0"
+           style="min-width: 280px;">
         <div id="toast-lampada" class="text-6xl select-none" aria-hidden="true">💡</div>
         <span id="toast-texto" class="text-base font-semibold text-gray-800 text-center"></span>
+      </div>
     </div>
-</div>
 
-<style>
-@keyframes lampada-liga {
-    0%   { filter: drop-shadow(0 0 0px transparent);    transform: scale(1);    }
-    20%  { filter: drop-shadow(0 0 2px #fbbf24);        transform: scale(1.05); }
-    40%  { filter: drop-shadow(0 0 0px transparent);    transform: scale(1);    }
-    60%  { filter: drop-shadow(0 0 8px #fde68a);        transform: scale(1.08); }
-    75%  { filter: drop-shadow(0 0 18px #fcd34d);       transform: scale(1.12); }
-    100% { filter: drop-shadow(0 0 24px #fbbf24);       transform: scale(1.1);  }
-}
+    <style>
+    @keyframes lampada-liga {
+        0%   { filter: drop-shadow(0 0 0px transparent);  transform: scale(1);    }
+        20%  { filter: drop-shadow(0 0 2px #fbbf24);      transform: scale(1.05); }
+        40%  { filter: drop-shadow(0 0 0px transparent);  transform: scale(1);    }
+        60%  { filter: drop-shadow(0 0 8px #fde68a);      transform: scale(1.08); }
+        75%  { filter: drop-shadow(0 0 18px #fcd34d);     transform: scale(1.12); }
+        100% { filter: drop-shadow(0 0 24px #fbbf24);     transform: scale(1.1);  }
+    }
+    #toast-lampada.ligando {
+        animation: lampada-liga 0.7s ease-out forwards;
+    }
+    </style>
 
-#toast-lampada.ligando {
-    animation: lampada-liga 0.7s ease-out forwards;
-}
-</style>
+    {% load static %}
+    <script type="module" src="{% static 'posts/js/main.js' %}"></script>
 
+    <script>
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    (function () {
+        const MENSAGENS = {
+            note_criado:      { icon: '💡', texto: 'Seu note foi criado!' },
+            ideia_editada:    { icon: '✏️', texto: 'Ideia editada com sucesso!' },
+            ideia_feed:       { icon: '👥', texto: 'Ideia enviada para o Feed!' },
+            ideia_campo:      { icon: '🌍', texto: 'Ideia jogada para o Campo das Ideias!' },
+            ideia_privada:    { icon: '🔒', texto: 'Ideia retirada para seus Notes privados.' },
+            moderador_eleito: { icon: '🤝', texto: 'Moderador eleito com sucesso!' },
+            desistiu:         { icon: '😔', texto: 'Você desistiu da ideia.' },
+            bem_vindo:        { icon: '🌟', texto: 'Bem-vindo ao Blognotes!', especial: true },
+            perfil_editado:   { icon: '👤', texto: 'Perfil atualizado com sucesso!' },
+        };
 
-<script>
-(function () {
-    const MENSAGENS = {
-        note_criado:      { icon: '💡', texto: 'Seu note foi criado!' },
-        ideia_editada:    { icon: '✏️', texto: 'Ideia editada com sucesso!' },
-        ideia_feed:       { icon: '👥', texto: 'Ideia enviada para o Feed!' },
-        ideia_campo:      { icon: '🌍', texto: 'Ideia jogada para o Campo das Ideias!' },
-        ideia_privada:    { icon: '🔒', texto: 'Ideia retirada para seus Notes privados.' },
-        moderador_eleito: { icon: '🤝', texto: 'Moderador eleito com sucesso!' },
-        desistiu:         { icon: '😔', texto: 'Você desistiu da ideia.' },
-        bem_vindo:        { icon: '🌟', texto: 'Bem-vindo ao Blognotes!', especial: true },
-        perfil_editado:   { icon: '👤', texto: 'Perfil atualizado com sucesso!' },
-    };
+        const params = new URLSearchParams(window.location.search);
+        const chave  = params.get('msg');
+        const config = MENSAGENS[chave];
+        if (!config) return;
 
-    const params = new URLSearchParams(window.location.search);
-    const chave  = params.get('msg');
-    const config = MENSAGENS[chave];
-    if (!config) return;
+        params.delete('msg');
+        const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
+        history.replaceState(null, '', novaUrl);
 
-    params.delete('msg');
-    const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
-    history.replaceState(null, '', novaUrl);
+        const overlay = document.getElementById('toast-overlay');
+        const toast   = document.getElementById('toast-prg');
+        const lampada = document.getElementById('toast-lampada');
+        const textoEl = document.getElementById('toast-texto');
 
-    const overlay = document.getElementById('toast-overlay');
-    const toast   = document.getElementById('toast-prg');
-    const lampada = document.getElementById('toast-lampada');
-    const textoEl = document.getElementById('toast-texto');
+        textoEl.textContent = config.texto;
 
-    textoEl.textContent = config.texto;
+        const duracao = config.especial ? 3000 : 2500;
+        if (config.especial) {
+            toast.style.padding    = '3rem 4rem';
+            textoEl.style.fontSize = '1.25rem';
+        }
 
-    const duracao = config.especial ? 3000 : 2500;
-    if (config.especial) {
-        toast.style.padding    = '3rem 4rem';
-        textoEl.style.fontSize = '1.25rem';
+        overlay.style.background    = 'rgba(0,0,0,0)';
+        overlay.style.pointerEvents = 'all';
+        overlay.classList.remove('opacity-0');
+
+        requestAnimationFrame(() => {
+            overlay.style.transition = 'background 0.4s ease';
+            overlay.style.background = config.especial ? 'rgba(30,0,60,0.85)' : 'rgba(0,0,0,0.45)';
+            toast.classList.remove('opacity-0', 'translate-y-6');
+            setTimeout(() => lampada.classList.add('ligando'), 200);
+        });
+
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-6');
+            overlay.style.background = 'rgba(0,0,0,0)';
+            setTimeout(() => {
+                overlay.style.pointerEvents = 'none';
+                overlay.classList.add('opacity-0');
+            }, 500);
+        }, duracao);
+    })();
+
+    // ── Modal de busca de usuários ────────────────────────────────────────────
+
+    function abrirModalBusca() {
+        const modal = document.getElementById('modal-busca-usuarios');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.getElementById('input-modal-busca').focus();
     }
 
-    overlay.style.background    = 'rgba(0,0,0,0)';
-    overlay.style.pointerEvents = 'all';
-    overlay.classList.remove('opacity-0');
+    function fecharModalBusca() {
+        const modal = document.getElementById('modal-busca-usuarios');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.getElementById('input-modal-busca').value = '';
+        document.getElementById('resultado-modal-busca').innerHTML = '';
+    }
 
-    requestAnimationFrame(() => {
-        overlay.style.transition = 'background 0.4s ease';
-        overlay.style.background = config.especial
-            ? 'rgba(30,0,60,0.85)'
-            : 'rgba(0,0,0,0.45)';
+    function fecharModalBuscaFora(e) {
+        if (e.target === e.currentTarget) fecharModalBusca();
+    }
 
-        toast.classList.remove('opacity-0', 'translate-y-6');
-        setTimeout(() => lampada.classList.add('ligando'), 200);
+    document.addEventListener('DOMContentLoaded', function () {
+        const input     = document.getElementById('input-modal-busca');
+        const resultado = document.getElementById('resultado-modal-busca');
+        if (!input) return;
+
+        let debounce;
+        input.addEventListener('input', function () {
+            clearTimeout(debounce);
+            const termo = this.value.trim();
+            if (termo.length < 2) { resultado.innerHTML = ''; return; }
+
+            debounce = setTimeout(async () => {
+                try {
+                    const res  = await fetch(`/api/usuarios/buscar/?q=${encodeURIComponent(termo)}`);
+                    const data = await res.json();
+
+                    if (!data.usuarios.length) {
+                        resultado.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Nenhum usuário encontrado.</p>';
+                        return;
+                    }
+
+                    resultado.innerHTML = data.usuarios.map(u => `
+                        <a href="/perfil/${u.username}/"
+                           class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition">
+                            <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0
+                                        flex items-center justify-center text-gray-600 font-bold text-sm">
+                                ${u.foto
+                                    ? `<img src="${u.foto}" class="w-full h-full object-cover" alt="">`
+                                    : u.nome_exibicao.charAt(0).toUpperCase()
+                                }
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-800">${u.nome_exibicao}</p>
+                                <p class="text-xs text-gray-400">@${u.username}</p>
+                            </div>
+                        </a>
+                    `).join('');
+                } catch {
+                    resultado.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Erro ao buscar.</p>';
+                }
+            }, 300);
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') fecharModalBusca();
+        });
     });
-
-    setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-6');
-        overlay.style.background = 'rgba(0,0,0,0)';
-        setTimeout(() => {
-            overlay.style.pointerEvents = 'none';
-            overlay.classList.add('opacity-0');
-        }, 500);
-    }, duracao);
-
-})();
-</script>
+    </script>
 
   </body>
 </html>

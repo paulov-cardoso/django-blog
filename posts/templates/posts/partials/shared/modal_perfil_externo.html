@@ -1,6 +1,7 @@
+
 <div id="modal-perfil-externo"
      class="fixed inset-0 backdrop-blur-sm bg-black/40 items-center justify-center z-[99999] hidden"
-     onclick="if(event.target===this){fecharModal('perfil-externo')}">
+     onclick="if(event.target===this){ fecharModal('perfil-externo') }">
     <div class="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-3xl mx-4 relative max-h-[90vh] overflow-y-auto">
         <button onclick="fecharModal('perfil-externo')"
                 class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">✕</button>
@@ -11,120 +12,110 @@
 </div>
 
 <script>
-    let dropdownAberto = false;
+// ── Modal de perfil externo ───────────────────────────────────────────────────
+// Exposto globalmente pois é chamado via onclick em card_feed.html,
+// grid_campo.html e outros templates com onclick="abrirModalPerfil(...)".
+window.abrirModalPerfil = function abrirModalPerfil(username) {
+    const modal    = document.getElementById('modal-perfil-externo');
+    const conteudo = document.getElementById('perfil-externo-conteudo');
 
-    function abrirModal(id) {
-        const el = document.getElementById('modal-' + id);
-        el.classList.remove('hidden');
-        el.classList.add('flex');
-        document.body.style.overflow = 'hidden';
-    }
+    conteudo.innerHTML = '<p class="py-12 text-gray-400">Carregando...</p>';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
 
-    function fecharModal(id) {
-        const el = document.getElementById('modal-' + id);
-        el.classList.add('hidden');
-        el.classList.remove('flex');
-        document.body.style.overflow = '';
-    }
-
-    function fecharModalFora(event, id) {
-        if (event.target === document.getElementById('modal-' + id)) {
-            fecharModal(id);
-        }
-    }
-
-    function abrirModalPerfil(username) {
-        const modal = document.getElementById('modal-perfil-externo');
-        const conteudo = document.getElementById('perfil-externo-conteudo');
-        conteudo.innerHTML = '<p class="py-12 text-gray-400">Carregando...</p>';
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.body.style.overflow = 'hidden';
-
-        fetch(`/perfil/${username}/`)
-            .then(r => r.text())
-            .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const bloco = doc.querySelector('#perfil-conteudo');
-                conteudo.innerHTML = bloco
-                    ? bloco.innerHTML
-                    : '<p class="py-12 text-gray-400">Perfil não encontrado.</p>';
-            })
-            .catch(() => {
-                conteudo.innerHTML = '<p class="py-12 text-red-400">Erro ao carregar o perfil.</p>';
-            });
-    }
-
-    function toggleDropdown(id) {
-        const btn = document.querySelector(`#dropdown-container-${id} button`);
-        const dropdown = document.getElementById('dropdown-' + id);
-
-        document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
-            if (!d.id.includes('container') && d.id !== 'dropdown-' + id) {
-                d.classList.add('hidden');
-            }
+    fetch(`/perfil/${username}/`)
+        .then(r => r.text())
+        .then(html => {
+            const doc   = new DOMParser().parseFromString(html, 'text/html');
+            const bloco = doc.querySelector('#perfil-conteudo');
+            conteudo.innerHTML = bloco
+                ? bloco.innerHTML
+                : '<p class="py-12 text-gray-400">Perfil não encontrado.</p>';
+        })
+        .catch(() => {
+            conteudo.innerHTML = '<p class="py-12 text-red-400">Erro ao carregar o perfil.</p>';
         });
+};
 
-        const estaFechado = dropdown.classList.contains('hidden');
-        if (estaFechado) {
-            const rect = btn.getBoundingClientRect();
-            dropdown.style.top  = (rect.bottom + 8) + 'px';
-            dropdown.style.right = (window.innerWidth - rect.right) + 'px';
-            dropdown.classList.remove('hidden');
-            dropdownAberto = true;
-        } else {
-            dropdown.classList.add('hidden');
-            dropdownAberto = false;
-        }
-    }
+// ── Dropdown de ações do post ─────────────────────────────────────────────────
+// toggleDropdown e o listener de fechamento permanecem aqui até a etapa 6.
+// São específicos ao dropdown_post.html e dependem do DOM dos cards.
 
-    document.addEventListener('click', function (event) {
-        if (!dropdownAberto) return;
-        const clicouDentroDeContainer = [...document.querySelectorAll('[id^="dropdown-container-"]')]
-            .some(c => c.contains(event.target));
-        if (!clicouDentroDeContainer) {
-            document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
-                if (!d.id.includes('container')) d.classList.add('hidden');
-            });
-            dropdownAberto = false;
+let _dropdownAberto = false;
+
+window.toggleDropdown = function toggleDropdown(id) {
+    const btn      = document.querySelector(`#dropdown-container-${id} button`);
+    const dropdown = document.getElementById(`dropdown-${id}`);
+    if (!btn || !dropdown) return;
+
+    // Fecha qualquer outro dropdown aberto
+    document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+        if (!d.id.includes('container') && d.id !== `dropdown-${id}`) {
+            d.classList.add('hidden');
         }
     });
 
-    // Exibe modal de bloqueio se vier ?erro=sem_categoria
-    (function () {
+    const estaFechado = dropdown.classList.contains('hidden');
+    if (estaFechado) {
+        const rect = btn.getBoundingClientRect();
+        dropdown.style.top   = `${rect.bottom + 8}px`;
+        dropdown.style.right = `${window.innerWidth - rect.right}px`;
+        dropdown.classList.remove('hidden');
+        _dropdownAberto = true;
+    } else {
+        dropdown.classList.add('hidden');
+        _dropdownAberto = false;
+    }
+};
+
+document.addEventListener('click', function (event) {
+    if (!_dropdownAberto) return;
+    const dentroDe = [...document.querySelectorAll('[id^="dropdown-container-"]')]
+        .some(c => c.contains(event.target));
+    if (!dentroDe) {
+        document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+            if (!d.id.includes('container')) d.classList.add('hidden');
+        });
+        _dropdownAberto = false;
+    }
+});
+
+// ── Alerta de sem_categoria (vindo de query string) ───────────────────────────
+// Permanece aqui pois é acionado globalmente e o modal está neste arquivo.
+(function verificarErroCategoria() {
     const params       = new URLSearchParams(window.location.search);
     const erro         = params.get('erro');
     const titulo       = params.get('titulo') || '';
     const conteudo     = params.get('conteudo_inicial') || '';
     const visibilidade = params.get('visibilidade') || 'feed';
 
-    if (erro === 'sem_categoria') {
-        params.delete('erro');
-        params.delete('titulo');
-        params.delete('conteudo_inicial');
-        params.delete('visibilidade');
-        const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
-        history.replaceState(null, '', novaUrl);
+    if (erro !== 'sem_categoria') return;
 
-        const btn = document.getElementById('btn-adicionar-categoria');
-        if (btn) {
-            btn.href = `/novo/?titulo_inicial=${encodeURIComponent(titulo)}&conteudo_inicial=${encodeURIComponent(conteudo)}&visibilidade=${visibilidade}`;
-        }
+    params.delete('erro');
+    params.delete('titulo');
+    params.delete('conteudo_inicial');
+    params.delete('visibilidade');
+    const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
+    history.replaceState(null, '', novaUrl);
 
-        const alerta = document.getElementById('modal-alerta-sem-categoria');
-        if (alerta) {
-            alerta.classList.remove('hidden');
-            alerta.classList.add('flex');
-        }
+    const btn = document.getElementById('btn-adicionar-categoria');
+    if (btn) {
+        btn.href = `/novo/?titulo_inicial=${encodeURIComponent(titulo)}&conteudo_inicial=${encodeURIComponent(conteudo)}&visibilidade=${visibilidade}`;
+    }
+
+    const alerta = document.getElementById('modal-alerta-sem-categoria');
+    if (alerta) {
+        alerta.classList.remove('hidden');
+        alerta.classList.add('flex');
     }
 })();
 
-function fecharModalAlertaCategoria() {
+window.fecharModalAlertaCategoria = function fecharModalAlertaCategoria() {
     const alerta = document.getElementById('modal-alerta-sem-categoria');
     if (alerta) {
-        alerta.classList.add('hidden'); 
+        alerta.classList.add('hidden');
         alerta.classList.remove('flex');
     }
-}
+};
 </script>

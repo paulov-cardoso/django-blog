@@ -1,4 +1,6 @@
 {% if user.is_authenticated %}
+
+<!-- Trigger bar -->
 <div class="mb-6 bg-white rounded-2xl shadow-sm border border-purple-100 p-4">
     <div class="flex items-center gap-3">
         <div class="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200 overflow-hidden">
@@ -23,8 +25,7 @@
 <!-- Modal do Composer do Feed -->
 <div id="modal-composer-feed"
      class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg"
-         onclick="event.stopPropagation()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onclick="event.stopPropagation()">
 
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h3 class="font-bold text-gray-800">👥 Nova ideia no Feed</h3>
@@ -34,26 +35,18 @@
 
         <div class="p-5 space-y-4">
 
-            <!-- Título -->
-            <input type="text"
-                   id="feed-composer-titulo"
-                   placeholder="Título da ideia..."
-                   maxlength="200"
+            <input type="text" id="feed-composer-titulo"
+                   placeholder="Título da ideia..." maxlength="200"
                    class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm
                           focus:outline-none focus:ring-2 focus:ring-purple-400">
 
-            <!-- Conteúdo -->
-            <textarea id="feed-composer-conteudo"
-                      rows="4"
+            <textarea id="feed-composer-conteudo" rows="4"
                       placeholder="Desenvolva sua ideia..."
                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm
                              focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"></textarea>
 
-            <!-- Título de capa -->
-            <input type="text"
-                   id="feed-composer-titulo-capa"
-                   placeholder="Título de capa (chamada provocadora, opcional)..."
-                   maxlength="120"
+            <input type="text" id="feed-composer-titulo-capa"
+                   placeholder="Título de capa (chamada provocadora, opcional)..." maxlength="120"
                    class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm
                           focus:outline-none focus:ring-2 focus:ring-purple-400">
 
@@ -64,7 +57,6 @@
                     <span class="text-gray-400 font-normal">(obrigatória no feed)</span>
                 </label>
 
-                <!-- Capa 1 -->
                 <div id="feed-preview-capa-1"
                      class="relative w-full h-40 rounded-xl border-2 border-dashed border-gray-300
                             bg-gray-50 flex items-center justify-center overflow-hidden cursor-pointer
@@ -76,16 +68,12 @@
                         <p class="text-sm font-semibold">Imagem principal</p>
                         <p class="text-xs">Clique para selecionar</p>
                     </div>
-                    <button type="button"
-                            id="feed-btn-remover-1"
-                            onclick="feedRemoverImagem(event, 1)"
+                    <button type="button" id="feed-btn-remover-1"
                             class="hidden absolute top-2 right-2 bg-black/50 hover:bg-black/70
                                    text-white rounded-full w-7 h-7 text-sm font-bold transition">✕</button>
                 </div>
-                <input type="file" id="feed-input-capa-1" accept="image/*" class="hidden"
-                       onchange="feedPreviewImagem(this, 1)">
+                <input type="file" id="feed-input-capa-1" accept="image/*" class="hidden">
 
-                <!-- Capa 2 (opcional) -->
                 <div id="feed-preview-capa-2"
                      class="relative w-full h-28 rounded-xl border-2 border-dashed border-gray-200
                             bg-gray-50 flex items-center justify-center overflow-hidden cursor-pointer
@@ -96,14 +84,11 @@
                         <p class="text-xl mb-1">➕</p>
                         <p class="text-xs">Segunda imagem (opcional)</p>
                     </div>
-                    <button type="button"
-                            id="feed-btn-remover-2"
-                            onclick="feedRemoverImagem(event, 2)"
+                    <button type="button" id="feed-btn-remover-2"
                             class="hidden absolute top-2 right-2 bg-black/50 hover:bg-black/70
                                    text-white rounded-full w-7 h-7 text-sm font-bold transition">✕</button>
                 </div>
-                <input type="file" id="feed-input-capa-2" accept="image/*" class="hidden"
-                       onchange="feedPreviewImagem(this, 2)">
+                <input type="file" id="feed-input-capa-2" accept="image/*" class="hidden">
             </div>
 
             <!-- Categorias -->
@@ -114,18 +99,15 @@
                 <div id="feed-cats-selecionadas" class="flex flex-wrap gap-2 mb-2 min-h-[24px]"></div>
                 <div class="flex gap-2">
                     <div class="relative flex-1">
-                        <input type="text"
-                               id="feed-busca-cat"
-                               placeholder="Buscar categoria..."
-                               autocomplete="off"
+                        <input type="text" id="feed-busca-cat"
+                               placeholder="Buscar categoria..." autocomplete="off"
                                class="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm
                                       focus:outline-none focus:ring-2 focus:ring-purple-400">
                         <div id="feed-dropdown-cat"
                              class="hidden absolute z-50 w-full bg-white border border-gray-200
                                     rounded-xl shadow-lg mt-1 overflow-hidden"></div>
                     </div>
-                    <button type="button"
-                            onclick="abrirValidatorCatFeed()"
+                    <button type="button" onclick="abrirValidatorCatFeed()"
                             class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white
                                    text-sm font-semibold rounded-xl transition">
                         + Nova
@@ -141,8 +123,7 @@
                     class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-xl transition">
                 Cancelar
             </button>
-            <button onclick="publicarNoFeed()"
-                    id="btn-publicar-feed"
+            <button onclick="publicarNoFeed()" id="btn-publicar-feed"
                     class="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold py-2.5 rounded-xl transition">
                 👥 Publicar no Feed
             </button>
@@ -150,7 +131,7 @@
     </div>
 </div>
 
-<!-- Modal validator de nova categoria (feed) -->
+<!-- Modal validator nova categoria (feed) -->
 <div id="modal-cat-feed"
      class="fixed inset-0 z-[999999] hidden items-center justify-center bg-black/50">
     <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
@@ -171,7 +152,7 @@
                     class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
                 Cancelar
             </button>
-            <button type="button" id="feed-btn-salvar-cat" onclick="salvarNovaCatFeed()" disabled
+            <button type="button" id="feed-btn-salvar-cat" disabled
                     class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
                            py-2 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed">
                 Criar
@@ -180,289 +161,4 @@
     </div>
 </div>
 
-<script>
-// ── Preview de imagens ────────────────────────────────────────────────────────
-
-function feedPreviewImagem(input, n) {
-    const file = input.files[0];
-    if (!file) return;
-    const img  = document.getElementById(`feed-img-preview-${n}`);
-    const ph   = document.getElementById(`feed-placeholder-${n}`);
-    const btn  = document.getElementById(`feed-btn-remover-${n}`);
-    const reader = new FileReader();
-    reader.onload = e => {
-        img.src = e.target.result;
-        img.classList.remove('hidden');
-        ph.classList.add('hidden');
-        btn.classList.remove('hidden');
-    };
-    reader.readAsDataURL(file);
-}
-
-function feedRemoverImagem(event, n) {
-    event.stopPropagation();
-    document.getElementById(`feed-input-capa-${n}`).value = '';
-    document.getElementById(`feed-img-preview-${n}`).src  = '';
-    document.getElementById(`feed-img-preview-${n}`).classList.add('hidden');
-    document.getElementById(`feed-placeholder-${n}`).classList.remove('hidden');
-    document.getElementById(`feed-btn-remover-${n}`).classList.add('hidden');
-}
-
-// ── Abrir / fechar composer ───────────────────────────────────────────────────
-
-function abrirComposerFeed() {
-    const m = document.getElementById('modal-composer-feed');
-    m.classList.remove('hidden');
-    m.classList.add('flex');
-    document.getElementById('feed-composer-titulo').focus();
-}
-
-function fecharComposerFeed() {
-    document.getElementById('modal-composer-feed').classList.add('hidden');
-    document.getElementById('modal-composer-feed').classList.remove('flex');
-    ['feed-composer-titulo','feed-composer-conteudo','feed-composer-titulo-capa'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    feedRemoverImagem({ stopPropagation: () => {} }, 1);
-    feedRemoverImagem({ stopPropagation: () => {} }, 2);
-    document.getElementById('feed-cats-selecionadas').innerHTML = '';
-    document.getElementById('feed-busca-cat').value = '';
-    document.getElementById('feed-composer-erro').classList.add('hidden');
-    _feedCats.clear();
-}
-
-// ── Categorias ────────────────────────────────────────────────────────────────
-
-const _feedCats = new Set();
-
-(function iniciarAutocompleteFeed() {
-    document.addEventListener('DOMContentLoaded', () => {
-        const input    = document.getElementById('feed-busca-cat');
-        const dropdown = document.getElementById('feed-dropdown-cat');
-        if (!input) return;
-
-        input.addEventListener('input', async function () {
-            const termo = this.value.trim();
-            if (termo.length < 2) { dropdown.classList.add('hidden'); return; }
-
-            const res  = await fetch(`/api/categorias/buscar/?q=${encodeURIComponent(termo)}`);
-            const data = await res.json();
-
-            if (!data.categorias.length) { dropdown.classList.add('hidden'); return; }
-
-            dropdown.innerHTML = data.categorias.map(c => `
-                <button type="button"
-                        onclick="selecionarCatFeed(${c.id}, '${c.nome}', '${c.cor}')"
-                        class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${c.cor}"></span>
-                    ${c.nome}
-                </button>
-            `).join('');
-            dropdown.classList.remove('hidden');
-        });
-
-        document.addEventListener('click', e => {
-            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
-                dropdown.classList.add('hidden');
-            }
-        });
-    });
-})();
-
-function selecionarCatFeed(id, nome, cor) {
-    if (_feedCats.has(id)) return;
-    _feedCats.add(id);
-    const container = document.getElementById('feed-cats-selecionadas');
-    const tag = document.createElement('span');
-    tag.className = 'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold';
-    tag.style.backgroundColor = cor + '25';
-    tag.style.color = cor;
-    tag.innerHTML = `${nome} <button onclick="removerCatFeed(${id}, this.parentElement)" class="ml-1 hover:text-red-500">✕</button>`;
-    container.appendChild(tag);
-    document.getElementById('feed-busca-cat').value = '';
-    document.getElementById('feed-dropdown-cat').classList.add('hidden');
-}
-
-function removerCatFeed(id, el) {
-    _feedCats.delete(id);
-    el.remove();
-}
-
-// ── Validator nova categoria ──────────────────────────────────────────────────
-
-function abrirValidatorCatFeed() {
-    document.getElementById('modal-cat-feed').classList.remove('hidden');
-    document.getElementById('modal-cat-feed').classList.add('flex');
-    document.getElementById('feed-nova-cat-input').focus();
-}
-
-function fecharValidatorCatFeed() {
-    document.getElementById('modal-cat-feed').classList.add('hidden');
-    document.getElementById('modal-cat-feed').classList.remove('flex');
-    document.getElementById('feed-nova-cat-input').value = '';
-    _feedResetarChecks();
-}
-
-const _FEED_REGEX_LETRAS = /^[A-Za-zÀ-ÿ]+$/;
-
-document.addEventListener('DOMContentLoaded', () => {
-    const input = document.getElementById('feed-nova-cat-input');
-    if (!input) return;
-    input.addEventListener('input', function () {
-        document.getElementById('feed-btn-salvar-cat').disabled = !_feedValidarChecks(this.value.trim());
-    });
-});
-
-function _feedValidarChecks(v) {
-    const checks = {
-        'feed-check-letras':  _FEED_REGEX_LETRAS.test(v),
-        'feed-check-palavra': !v.includes(' '),
-        'feed-check-minimo':  v.length >= 3,
-        'feed-check-maximo':  v.length <= 30,
-    };
-    let tudo = true;
-    for (const [id, valido] of Object.entries(checks)) {
-        const li = document.getElementById(id);
-        if (!li) continue;
-        const lamp = li.querySelector('span');
-        if (valido) {
-            li.classList.replace('text-gray-400', 'text-green-600');
-            if (lamp) lamp.style.filter = 'drop-shadow(0 0 6px #fbbf24)';
-        } else {
-            li.classList.replace('text-green-600', 'text-gray-400');
-            if (lamp) lamp.style.filter = 'none';
-            tudo = false;
-        }
-    }
-    return tudo;
-}
-
-function _feedResetarChecks() {
-    ['feed-check-letras','feed-check-palavra','feed-check-minimo','feed-check-maximo'].forEach(id => {
-        const li = document.getElementById(id);
-        if (!li) return;
-        li.className = 'flex items-center gap-2 text-gray-400';
-        const lamp = li.querySelector('span');
-        if (lamp) lamp.style.filter = 'none';
-    });
-    const btn = document.getElementById('feed-btn-salvar-cat');
-    if (btn) btn.disabled = true;
-}
-
-async function salvarNovaCatFeed() {
-    const nome     = document.getElementById('feed-nova-cat-input').value.trim();
-    const feedback = document.getElementById('feed-cat-feedback');
-    const btn      = document.getElementById('feed-btn-salvar-cat');
-
-    btn.disabled = true;
-    btn.textContent = 'Salvando...';
-
-    try {
-        const res  = await fetch('/api/categorias/criar/', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _getFeedCsrf() },
-            body:    JSON.stringify({ nome }),
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-            feedback.textContent = data.erro;
-            feedback.className   = 'text-sm mb-4 text-red-500';
-            feedback.classList.remove('hidden');
-            btn.disabled    = false;
-            btn.textContent = 'Criar';
-            return;
-        }
-
-        fecharValidatorCatFeed();
-        selecionarCatFeed(data.id, data.nome, data.cor);
-    } catch {
-        feedback.textContent = 'Erro de conexão.';
-        feedback.className   = 'text-sm mb-4 text-red-500';
-        feedback.classList.remove('hidden');
-        btn.disabled    = false;
-        btn.textContent = 'Criar';
-    }
-}
-
-// ── Publicar no feed ──────────────────────────────────────────────────────────
-
-async function publicarNoFeed() {
-    const titulo      = document.getElementById('feed-composer-titulo').value.trim();
-    const conteudo    = document.getElementById('feed-composer-conteudo').value.trim();
-    const tituloCapa  = document.getElementById('feed-composer-titulo-capa').value.trim();
-    const capa1Input  = document.getElementById('feed-input-capa-1');
-    const erroEl      = document.getElementById('feed-composer-erro');
-    const btn         = document.getElementById('btn-publicar-feed');
-
-    erroEl.classList.add('hidden');
-
-    if (!titulo || !conteudo) {
-        erroEl.textContent = 'Título e conteúdo são obrigatórios.';
-        erroEl.classList.remove('hidden');
-        return;
-    }
-    if (!capa1Input.files.length) {
-        erroEl.textContent = 'A imagem de capa é obrigatória para o Feed de Ideias.';
-        erroEl.classList.remove('hidden');
-        return;
-    }
-    if (!_feedCats.size) {
-        erroEl.textContent = 'Ao menos uma categoria é obrigatória.';
-        erroEl.classList.remove('hidden');
-        return;
-    }
-
-    btn.disabled    = true;
-    btn.textContent = 'Publicando...';
-
-    try {
-        const formData = new FormData();
-        formData.append('titulo',       titulo);
-        formData.append('conteudo',     conteudo);
-        formData.append('titulo_capa',  tituloCapa);
-        formData.append('visibilidade', 'feed');
-        formData.append('publicado',    'true');
-        formData.append('cor',          '#8B5CF6');
-        formData.append('imagem_capa_1', capa1Input.files[0]);
-
-        const capa2Input = document.getElementById('feed-input-capa-2');
-        if (capa2Input.files.length) {
-            formData.append('imagem_capa_2', capa2Input.files[0]);
-        }
-
-        _feedCats.forEach(id => formData.append('categorias_selecionadas', id));
-
-        const res = await fetch('/novo/', {
-            method:  'POST',
-            headers: { 'X-CSRFToken': _getFeedCsrf() },
-            body:    formData,
-        });
-
-        // A view criar_post redireciona com PRG — seguimos o redirect
-        if (res.redirected) {
-            window.location.href = res.url;
-        } else if (res.ok) {
-            window.location.href = '/?aba=feed&msg=ideia_feed';
-        } else {
-            erroEl.textContent = 'Erro ao publicar. Tente novamente.';
-            erroEl.classList.remove('hidden');
-            btn.disabled    = false;
-            btn.textContent = '👥 Publicar no Feed';
-        }
-    } catch (e) {
-        erroEl.textContent = 'Erro de conexão.';
-        erroEl.classList.remove('hidden');
-        btn.disabled    = false;
-        btn.textContent = '👥 Publicar no Feed';
-    }
-}
-
-function _getFeedCsrf() {
-    return document.cookie.split(';')
-        .find(c => c.trim().startsWith('csrftoken='))
-        ?.split('=')[1] ?? '';
-}
-</script>
 {% endif %}
