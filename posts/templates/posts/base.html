@@ -103,7 +103,7 @@
 
           <a href="{% url 'criar_post' %}"
              class="bg-white text-blue-700 px-4 py-1 rounded-full font-semibold hover:bg-blue-50 transition transform hover:scale-105 active:scale-95">
-            + Novo Note
+            ✏️ Criar
           </a>
 
           <button onclick="document.getElementById('modal-logout').classList.remove('hidden')"
@@ -149,7 +149,7 @@
     </main>
 
     <footer class="{% block footer_class %}bg-gradient-to-r from-blue-900 via-purple-600 to-orange-500{% endblock %} text-white text-center py-4 text-sm">
-      <p>© 2026 Synapsoo · Python · Django · Tailwind CSS · Todas as ideias pertencem aos seus autores</p>
+      <p>© Copyright 2026 Meu Blognotes — Feito com Django + Tailwind</p>
     </footer>
 
     <!-- Toast de publicação -->
@@ -184,6 +184,7 @@
     {% load static %}
     <script type="module" src="{% static 'posts/js/main.js' %}"></script>
 
+  
     <script>
     // ── Toast ─────────────────────────────────────────────────────────────────
     (function () {
@@ -311,7 +312,6 @@
         });
     });
     </script>
-
 
     {% include 'posts/partials/shared/modal_post_universal.html' %}
   </body>

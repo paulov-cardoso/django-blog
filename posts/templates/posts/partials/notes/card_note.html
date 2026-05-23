@@ -8,9 +8,7 @@
     <!-- Miniatura da capa (se existir) -->
     {% if post.tem_capa %}
     <div class="absolute top-4 right-4 w-16 h-16 rounded-lg overflow-hidden shadow-md border-2 border-white/60">
-        <img src="{{ post.imagem_capa_1.url }}"
-             alt=""
-             class="w-full h-full object-cover">
+        <img src="{{ post.imagem_capa_1.url }}" alt="" class="w-full h-full object-cover">
     </div>
     {% endif %}
 
@@ -49,12 +47,9 @@
      onclick="fecharModalFora(event, 'notes_privados-{{ post.id }}')">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
 
-        <!-- Miniatura de capa no topo do modal -->
         {% if post.tem_capa %}
         <div class="w-full h-40 rounded-t-2xl overflow-hidden">
-            <img src="{{ post.imagem_capa_1.url }}"
-                 alt=""
-                 class="w-full h-full object-cover">
+            <img src="{{ post.imagem_capa_1.url }}" alt="" class="w-full h-full object-cover">
         </div>
         {% endif %}
 
@@ -99,7 +94,7 @@
 <div class="col-span-3 text-center text-gray-400 py-20">
     <p class="text-6xl mb-4">📓</p>
     <p class="text-xl font-semibold">Nenhum note ainda</p>
-    <p class="text-sm mt-2">Clique em <strong>+ Novo Note</strong> para começar!</p>
+    <p class="text-sm mt-2">Clique na barra acima para escrever seu primeiro note!</p>
 </div>
 {% endfor %}
 
@@ -154,56 +149,37 @@
     </div>
 </div>
 
-
 <script>
 (function () {
-    const params  = new URLSearchParams(window.location.search);
-    const erro    = params.get('erro');
-    const postId  = params.get('post_id');
+    const params = new URLSearchParams(window.location.search);
+    const erro   = params.get('erro');
+    const postId = params.get('post_id');
 
     if (erro === 'sem_categoria') {
-        const postIdInt = parseInt(postId, 10);
-        if (postIdInt) {
-            const btnAdicionar = document.getElementById('btn-adicionar-categoria');
-            if (btnAdicionar) {
-                btnAdicionar.href = `/post/${postIdInt}/editar/?erro=sem_categoria`;
-            }
+        const id = parseInt(postId, 10);
+        if (id) {
+            const btn = document.getElementById('btn-adicionar-categoria');
+            if (btn) btn.href = `/post/${id}/editar/?erro=sem_categoria`;
         }
-        abrirModalAlerta('modal-alerta-sem-categoria');
+        window.abrirModal?.('alerta-sem-categoria');
     }
 
     if (erro === 'sem_capa') {
-        const postIdInt = parseInt(postId, 10);
-        if (postIdInt) {
-            const btnEditar = document.getElementById('btn-editar-para-capa');
-            if (btnEditar) {
-                btnEditar.href = `/post/${postIdInt}/editar/`;
-            }
+        const id = parseInt(postId, 10);
+        if (id) {
+            const btn = document.getElementById('btn-editar-para-capa');
+            if (btn) btn.href = `/post/${id}/editar/`;
         }
-        abrirModalAlerta('modal-alerta-sem-capa');
+        window.abrirModal?.('alerta-sem-capa');
     }
 
     if (erro) {
         params.delete('erro');
         params.delete('post_id');
-        const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
-        history.replaceState(null, '', novaUrl);
+        history.replaceState(null, '', [window.location.pathname, params.toString()].filter(Boolean).join('?'));
     }
 })();
 
-function abrirModalAlerta(id) {
-    const el = document.getElementById(id);
-    if (el) { el.classList.remove('hidden'); el.classList.add('flex'); }
-}
-
-function fecharModalAlertaCategoria() {
-    const el = document.getElementById('modal-alerta-sem-categoria');
-    if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
-}
-
-function fecharModalAlertaCapa() {
-    const el = document.getElementById('modal-alerta-sem-capa');
-    if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
-}
-
+function fecharModalAlertaCategoria() { window.fecharModal?.('alerta-sem-categoria'); }
+function fecharModalAlertaCapa()      { window.fecharModal?.('alerta-sem-capa'); }
 </script>

@@ -1,0 +1,97 @@
+{% if user.is_authenticated %}
+
+<!-- Trigger bar -->
+<div class="mb-6 bg-white rounded-2xl shadow-sm border border-blue-100 p-4">
+    <div class="flex items-center gap-3">
+        <div class="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200 overflow-hidden">
+            {% if user.autor.foto_perfil %}
+                <img src="{{ user.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
+            {% else %}
+                <div class="w-full h-full flex items-center justify-center text-gray-600 font-bold text-sm
+                            bg-gradient-to-br from-blue-100 to-indigo-100">
+                    {{ user.autor.nome_exibicao|first|upper }}
+                </div>
+            {% endif %}
+        </div>
+        <button onclick="abrirComposerNotes()"
+                class="flex-1 text-left text-sm text-gray-400 bg-gray-50 hover:bg-blue-50
+                       border border-gray-200 hover:border-blue-300
+                       rounded-xl px-4 py-2.5 transition cursor-text">
+            📓 Escreva um note privado...
+        </button>
+    </div>
+</div>
+
+<!-- Modal do Composer dos Notes -->
+<div id="modal-composer-notes"
+     class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onclick="event.stopPropagation()">
+
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h3 class="font-bold text-gray-800">📓 Novo Note Privado</h3>
+            <button onclick="fecharComposerNotes()"
+                    class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
+        </div>
+
+        <div class="p-5 space-y-4">
+
+            <input type="text" id="notes-composer-titulo"
+                   placeholder="Título do note..." maxlength="200"
+                   class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-400">
+
+            <textarea id="notes-composer-conteudo" rows="5"
+                      placeholder="O que está na sua cabeça? Escreva à vontade..."
+                      class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
+
+            <!-- Cor do card -->
+            <div class="flex items-center gap-3 flex-wrap">
+                <label class="text-xs font-semibold text-gray-500 whitespace-nowrap">Cor do card</label>
+                <input type="color" id="notes-composer-cor" value="#3B82F6"
+                       class="w-10 h-8 rounded-lg cursor-pointer border border-gray-300 p-0.5">
+                <div class="flex gap-2 flex-wrap">
+                    <button type="button" onclick="document.getElementById('notes-composer-cor').value='#3B82F6'"
+                            class="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition"
+                            style="background:#3B82F6"></button>
+                    <button type="button" onclick="document.getElementById('notes-composer-cor').value='#8B5CF6'"
+                            class="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition"
+                            style="background:#8B5CF6"></button>
+                    <button type="button" onclick="document.getElementById('notes-composer-cor').value='#10B981'"
+                            class="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition"
+                            style="background:#10B981"></button>
+                    <button type="button" onclick="document.getElementById('notes-composer-cor').value='#F59E0B'"
+                            class="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition"
+                            style="background:#F59E0B"></button>
+                    <button type="button" onclick="document.getElementById('notes-composer-cor').value='#EF4444'"
+                            class="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition"
+                            style="background:#EF4444"></button>
+                    <button type="button" onclick="document.getElementById('notes-composer-cor').value='#EC4899'"
+                            class="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition"
+                            style="background:#EC4899"></button>
+                    <button type="button" onclick="document.getElementById('notes-composer-cor').value='#06B6D4'"
+                            class="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition"
+                            style="background:#06B6D4"></button>
+                    <button type="button" onclick="document.getElementById('notes-composer-cor').value='#6B7280'"
+                            class="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition"
+                            style="background:#6B7280"></button>
+                </div>
+            </div>
+
+            <div id="notes-composer-erro" class="hidden text-sm text-red-500"></div>
+        </div>
+
+        <div class="px-5 pb-5 flex gap-3">
+            <button onclick="fecharComposerNotes()"
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-xl transition">
+                Cancelar
+            </button>
+            <button onclick="publicarNote()" id="btn-publicar-note"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition">
+                📓 Salvar Note
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endif %}

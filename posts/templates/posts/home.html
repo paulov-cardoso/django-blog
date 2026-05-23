@@ -8,7 +8,7 @@
     {% include 'posts/partials/perfil/card_perfil.html' %}
 
 {% elif aba == 'notes_privados' %}
-    <p class="text-gray-500 -mt-4 mb-6 text-sm">📓 Guarde desde seus lembretes, ideias e rascunhos aqui. Ninguém vai ler.</p>
+    {% include 'posts/partials/notes/composer_bar_notes.html' %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% include 'posts/partials/notes/card_note.html' %}
     </div>
