@@ -1,4 +1,4 @@
-# Blognotes
+# Synapsoo
 
 > **Ideias são maiores que perfis.**
 > Do lembrete do dia a dia à ideia disruptiva colaborativa — o lugar onde nenhuma ideia morre por falta de foco ou motivação.
@@ -24,6 +24,7 @@
 - [Funcionalidades](#-funcionalidades)
 - [Fluxo de uma ideia](#-fluxo-de-uma-ideia)
 - [Entroncamento de comentários](#-entroncamento-de-comentários)
+- [Rolamento Cubo Mágico](#-rolamento-cubo-mágico)
 - [Arquitetura frontend](#-arquitetura-frontend)
 - [Stack](#️-stack)
 - [Como rodar localmente](#-como-rodar-localmente)
@@ -36,14 +37,14 @@
 
 ## 💡 O que é?
 
-O **Blognotes** é um sistema de anotações de ideias — do lembrete simples do dia a dia à grande ideia disruptiva compartilhada para colaboração com amigos ou com o mundo.
+O **Synapsoo** é um sistema de anotações de ideias — do lembrete simples do dia a dia à grande ideia disruptiva compartilhada para colaboração com amigos ou com o mundo.
 
 Funciona como um sistema de **foco**, **antiesquecimento** e **antiprocrastinação**, com um **Modo TDAH** projetado para combater dispersão, bloqueio mental, *brain fog* e déficit de atenção.
 
 O resultado: ideias ignoram as limitações humanas — inclusive a desmotivação — e se transformam em **força coletiva**.
 
 > [!NOTE]
-> No Blognotes, a primeira pessoa é a dona da ideia — mas a ideia pode se tornar maior que ela.
+> No Synapsoo, a primeira pessoa é a dona da ideia — mas a ideia pode se tornar maior que ela.
 
 ---
 
@@ -62,9 +63,11 @@ Ideias públicas que "pairam" esperando colaboração. Comentários infinitos es
 ### ✅ Implementadas
 
 - Autenticação completa — login, cadastro, recuperação de senha
+- Nova identidade visual premium — fundo gradiente lilás/roxo/rosa, card com glassmorphism e textura metálica fosca, canvas com post-its caindo, mascote Psoo
 - Password validator animado com checks de força no cadastro
 - Toast de boas-vindas animado pós-cadastro
 - Sistema de visibilidade em 3 níveis: **Privado → Feed de Ideias → Campo das Ideias**
+- Composer modal por aba — Notes Privados (simples), Feed (com capa obrigatória), Campo (sem capa)
 - Dropdown *"O que fazer com a ideia?"* com modais de confirmação por cenário
 - Sistema de moderação com candidatura, eleição de moderadores e privilégios configuráveis
 - Transferência de autoria ao moderador quando o autor desiste
@@ -90,11 +93,13 @@ Ideias públicas que "pairam" esperando colaboração. Comentários infinitos es
   - 👤 **Pessoas** — novos seguidores
 - Modal de perfil externo carregado via `fetch` com botão Seguir/Deixar de seguir
 - Toast PRG animado com lâmpada ao completar ações
-- Campo das Ideias com grid 2D infinito, drag navigation e algoritmo de dupla camada
-- Composer modal compartilhado entre Feed e Campo das Ideias
+- Campo das Ideias com **Rolamento Cubo Mágico** — colunas independentes e algoritmo de dupla camada (ver seção abaixo)
+- Frontend refatorado em ES Modules — 11 módulos, zero JS inline nos templates
 
 ### 🔄 Em desenvolvimento
 
+- Rolamento Cubo Mágico — reescrita de `campo.js` com colunas independentes
+- Animação da Psoo no login após autenticação
 - Aba Forumização — threads promovidas por profundidade ou volume de participantes
 - Modo TDAH — tunnel vision, Pomodoro, micro-steps, gamificação
 - Kanban de ideias com drag and drop
@@ -106,18 +111,16 @@ Ideias públicas que "pairam" esperando colaboração. Comentários infinitos es
 
 ## 🔄 Fluxo de uma ideia
 
-```
 Criação (Privado)
-      │
-      ├──▶  Feed de Ideias  ──▶  Campo das Ideias
-      │          │                      │
-      │     [sem cooperação]       [com moderador]
-      │          │                      │
-      │     volta para             transfere autoria
-      │      Privado               ao moderador
-      │
-      └──▶  Excluída permanentemente
-```
+│
+├──▶  Feed de Ideias  ──▶  Campo das Ideias
+│          │                      │
+│     [sem cooperação]       [com moderador]
+│          │                      │
+│     volta para             transfere autoria
+│      Privado               ao moderador
+│
+└──▶  Excluída permanentemente
 
 > [!TIP]
 > Posts no **Campo das Ideias** com interações não podem ser removidos pelo autor — eles pertencem à comunidade.
@@ -129,7 +132,7 @@ Criação (Privado)
 
 ## 🌿 Entroncamento de Comentários
 
-O Blognotes tem um sistema único de threading chamado **Entroncamento de Comentários**. Comentários formam troncos que se ramificam infinitamente, com comportamento adaptado à profundidade da conversa:
+O Synapsoo tem um sistema único de threading chamado **Entroncamento de Comentários**. Comentários formam troncos que se ramificam infinitamente, com comportamento adaptado à profundidade da conversa:
 
 | Geração | Comportamento |
 |---------|---------------|
@@ -145,16 +148,39 @@ Quando forumizada, a thread sai do modal e ganha uma aba própria para debate es
 
 ---
 
+## 🎲 Rolamento Cubo Mágico
+
+O Campo das Ideias usa uma mecânica de navegação única chamada **Rolamento Cubo Mágico** — diferente de qualquer feed existente.
+
+Em vez de mover o grid inteiro como uma câmera, cada coluna vertical se move **independentemente**, como as fatias de um cubo mágico físico. Arrastar verticalmente dentro de uma coluna move apenas aquela coluna — as outras ficam paradas.
+
+| Monitor | Resolução | Colunas visíveis | Linhas visíveis | Cards |
+|---------|-----------|-----------------|-----------------|-------|
+| 27" FHD | 1920×1080 | 5 | 2 | 10 |
+| 18.5" HD | 1366×768 | 3 | 2 | 6 |
+
+**Algoritmo de dupla camada:**
+- **Camada A** (sempre ativa) — agrupa posts por categorias compartilhadas, cada coluna é um cluster temático
+- **Camada B** (≥10 interações) — refina por afinidade de comportamento: scroll, tempo no card, aberturas de modal
+
+**Score com decaimento gravitacional:**
+
+score = (curtidas×3 + clips×2 + comentários×5) ÷ idade_horas^1.5
+
+A metáfora é literal: um campo onde ideias coexistem no espaço, e você navega por elas como exploraria um território — girando fatias para descobrir o que está por trás.
+
+---
+
 ## 🧩 Arquitetura frontend
 
-O frontend foi refatorado em 6 etapas para eliminar JavaScript inline dos templates, centralizar lógica duplicada e separar responsabilidades. Os templates agora contêm apenas HTML estrutural — todo o comportamento vive em módulos ES carregados via `main.js`.
+O frontend foi refatorado em 6 etapas para eliminar JavaScript inline dos templates. Os templates agora contêm apenas HTML estrutural — todo o comportamento vive em módulos ES carregados via `main.js`.
 
 ### Módulos JS (`posts/static/posts/js/`)
 
 | Arquivo | Responsabilidade |
 |---|---|
 | `main.js` | Entry point — importa todos os módulos, registra globais, instancia controllers |
-| `utils.js` | `getCsrf`, `timesince`, `abrirModal`, `fecharModal` — funções puras sem dependência de DOM |
+| `utils.js` | `getCsrf`, `timesince`, `abrirModal`, `fecharModal` — funções puras |
 | `config.js` | Lê o bloco `#bn-config` do Django e exporta `{ isAuth, meUsername, meAvatar }` |
 | `categoria.js` | `CategorySelector` — autocomplete, validator e criação de categorias |
 | `image-upload.js` | `ImageUploadWidget` — preview e remoção de imagens de capa |
@@ -163,6 +189,7 @@ O frontend foi refatorado em 6 etapas para eliminar JavaScript inline dos templa
 | `composer.js` | `PostComposer` — abre, valida e publica posts via composer modal |
 | `feed.js` | `FeedController` — reações, toggle de categorias, preview de comentários |
 | `campo.js` | `CampoController` — grid 2D, drag, snap, modal de detalhe, sub-abas |
+| `notes.js` | `NotesController` — composer bar dos Notes Privados |
 
 ### Resultado da refatoração
 
@@ -276,67 +303,87 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 <details>
 <summary>Ver estrutura</summary>
 
-```
 django-blog/
-├── django_blog/                  # Configurações do projeto Django
-│   ├── settings.py               # Banco dinâmico (PostgreSQL/SQLite via .env)
+├── django_blog/
+│   ├── settings.py
 │   ├── urls.py
 │   └── wsgi.py
-├── posts/                        # App principal
+├── posts/
 │   ├── models.py
 │   ├── views.py
 │   ├── urls.py
 │   ├── forms.py
-│   ├── context_processors.py     # Contadores de notificação injetados globalmente
+│   ├── context_processors.py
 │   ├── templatetags/
-│   │   ├── __init__.py
-│   │   └── comentario_tags.py    # Filtros curtida_ativa, clip_ativo e tag render_comentario
-│   ├── static/posts/js/          # Módulos ES — sem bundler, sem Node
-│   │   ├── main.js               # Entry point
-│   │   ├── utils.js              # Funções puras reutilizáveis
-│   │   ├── config.js             # Dados de sessão Django → JS
-│   │   ├── categoria.js          # CategorySelector
-│   │   ├── image-upload.js       # ImageUploadWidget
-│   │   ├── comentarios.js        # ThreadManager
-│   │   ├── modal-universal.js    # ModalUniversal singleton
-│   │   ├── composer.js           # PostComposer
-│   │   ├── feed.js               # FeedController
-│   │   └── campo.js              # CampoController
+│   │   ├── init.py
+│   │   └── comentario_tags.py
+│   ├── static/posts/
+│   │   ├── js/
+│   │   │   ├── main.js
+│   │   │   ├── utils.js
+│   │   │   ├── config.js
+│   │   │   ├── categoria.js
+│   │   │   ├── image-upload.js
+│   │   │   ├── comentarios.js
+│   │   │   ├── modal-universal.js
+│   │   │   ├── composer.js
+│   │   │   ├── feed.js
+│   │   │   ├── campo.js
+│   │   │   └── notes.js
+│   │   └── images/
+│   │       └── Oficial_Soo.png
 │   └── templates/posts/
-│       ├── base.html             # Layout global — navbar, toast, bn-config, main.js
-│       ├── home.html             # Orquestrador das abas
+│       ├── base.html
+│       ├── home.html
 │       ├── auth/
+│       │   ├── login.html
+│       │   ├── registrar.html
+│       │   ├── senha_reset.html
+│       │   ├── senha_reset_confirmar.html
+│       │   ├── senha_reset_enviado.html
+│       │   └── senha_reset_concluido.html
 │       ├── perfil/
+│       │   ├── perfil.html
+│       │   └── editar_perfil.html
 │       ├── posts/
 │       │   ├── criar.html
 │       │   ├── editar.html
-│       │   ├── detail.html       # Tela cheia com threading server-side
+│       │   ├── detail.html
 │       │   └── listar.html
 │       ├── moderacao/
+│       │   └── eleger_moderador.html
 │       ├── notificacoes/
+│       │   └── notificacoes.html
 │       ├── social/
+│       │   ├── buscar_usuarios.html
+│       │   └── lista_seguidores.html
 │       └── partials/
 │           ├── abas_nav.html
 │           ├── perfil/
+│           │   ├── card_perfil.html
+│           │   └── painel_ideias.html
 │           ├── feed/
-│           │   ├── composer_bar.html       # HTML puro — comportamento em composer.js
-│           │   ├── card_feed.html          # HTML puro — comportamento em feed.js
-│           │   └── modais_feed.html
+│           │   ├── composer_bar.html
+│           │   └── card_feed.html
 │           ├── notes/
+│           │   ├── composer_bar_notes.html
+│           │   ├── card_note.html
+│           │   └── modais_notes.html
 │           ├── campo/
-│           │   ├── grid_campo.html         # HTML puro — comportamento em campo.js
+│           │   ├── grid_campo.html
 │           │   └── modais_campo.html
 │           └── shared/
 │               ├── dropdown_post.html
 │               ├── modal_perfil_externo.html
+│               ├── modal_post_universal.html
 │               ├── moderadores_painel.html
-│               ├── comentario_node.html    # Nó recursivo server-side (detail.html)
-│               └── modal_post_universal.html  # HTML puro — comportamento em modal-universal.js
+│               └── comentario_node.html
 ├── media/
+├── staticfiles/
 ├── .env.example
 ├── manage.py
-└── requirements.txt
-```
+├── requirements.txt
+└── README.md
 
 </details>
 
@@ -355,14 +402,20 @@ django-blog/
 | 7 | Perfil, seguidores e notificações | ✅ Concluído |
 | 8 | Capa obrigatória no Feed — tabloid/revista | ✅ Concluído |
 | 9 | Comentários infinitos threaded + Entroncamento | ✅ Concluído |
-| 10 | Reações AJAX, modal universal, Campo das Ideias | ✅ Concluído |
-| 11 | Refatoração frontend — ES Modules, separação de responsabilidades | ✅ Concluído |
-| 12 | Aba Forumização — threads promovidas | 🔄 Em andamento |
-| 13 | Modo TDAH — tunnel vision, Pomodoro, gamificação | ⏳ Planejado |
-| 14 | Kanban de ideias — drag and drop | ⏳ Planejado |
-| 15 | UX avançada — mobile, dark mode, busca global | ⏳ Planejado |
-| 16 | Login social — Google, GitHub, SendGrid | ⏳ Planejado |
-| 17 | Deploy — Railway, SEO, sitemap, domínio | ⏳ Planejado |
+| 10 | Reações AJAX, modal universal, busca de usuários | ✅ Concluído |
+| 11 | Campo das Ideias — grid 2D + algoritmo dupla camada | ✅ Concluído |
+| 12 | Composer bar para Notes Privados | ✅ Concluído |
+| 13 | Refatoração frontend — ES Modules, 11 módulos, zero JS inline | ✅ Concluído |
+| 14 | Nova identidade visual Synapsoo — fluxo auth completo + mascote Psoo | ✅ Concluído |
+| 15 | Rolamento Cubo Mágico — colunas independentes no Campo das Ideias | 🔄 Em andamento |
+| 16 | Animação da Psoo no login após autenticação | ⏳ Planejado |
+| 17 | Aba Forumização — lógica real de threads promovidas | ⏳ Planejado |
+| 18 | Modo TDAH — tunnel vision, Pomodoro, gamificação | ⏳ Planejado |
+| 19 | Kanban de ideias — drag and drop | ⏳ Planejado |
+| 20 | Componentes reutilizáveis auth — mini design system | ⏳ Planejado |
+| 21 | UX avançada — mobile, dark mode, busca global | ⏳ Planejado |
+| 22 | Login social — Google, GitHub, SendGrid | ⏳ Planejado |
+| 23 | Deploy — Railway, SEO, sitemap, domínio | ⏳ Planejado |
 
 ---
 
@@ -374,5 +427,5 @@ django-blog/
 ---
 
 <div align="center">
-  <sub>Feito com Django + Tailwind CSS · © 2026</sub>
+  <sub>Feito com Django + Tailwind CSS · © 2026 Synapsoo</sub>
 </div>
