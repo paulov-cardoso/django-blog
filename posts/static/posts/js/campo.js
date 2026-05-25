@@ -1,16 +1,14 @@
 /**
  * campo.js
- * CampoController — comportamentos específicos do Campo das Ideias.
+ * CampoController — Rolamento Cubo Mágico.
  *
- * Substitui o <script> restante em grid_campo.html:
- *   - Estado e renderização do grid 2D
- *   - Drag (mouse e touch)
- *   - Snap e navegação por setas
- *   - Carregamento paginado
- *   - Modal de detalhe (abrirDetalhe / fecharDetalhe / reagirDetalhe)
- *   - Subthread do campo
- *   - Sub-abas (Explorar / Meus Notes)
- *   - carregarMeusNotes
+ * Mecânica:
+ *   - N colunas verticais visíveis simultaneamente (5 em FHD, 3 em HD)
+ *   - Cada coluna rola para cima/baixo de forma independente
+ *   - Arrastar verticalmente dentro de uma coluna move só aquela coluna
+ *   - Arrastar horizontalmente move o cubo inteiro (navega entre grupos de colunas)
+ *   - Snap encaixa no card mais próximo por coluna
+ *   - Scroll infinito por coluna: quando chega ao fim busca mais posts
  *
  * Depende de:
  *   - utils.js       → getCsrf
@@ -19,98 +17,174 @@
 
 import { getCsrf } from './utils.js';
 
-// ── Estado do grid ────────────────────────────────────────────────────────────
-
-const _estado = {
-    linhas: [], paginaY: 0, totalLinhas: 0, temMaisY: false,
-    cardWidth: 280, cardHeight: 320, cols: 2, rows: 2,
-    offsetX: 0, offsetY: 0, carregando: false,
-};
-
 // ── Breakpoints ───────────────────────────────────────────────────────────────
 
-function _getCols() {
+function _getNumColunas() {
     const w = window.innerWidth;
-    if (w >= 2560) return 4;
-    if (w >= 1440) return 3;
-    if (w >= 768)  return 2;
-    return 2;
+    if (w >= 1920) return 5;  // FHD 27"
+    if (w >= 1440) return 4;  // QHD / laptop grande
+    if (w >= 1024) return 3;  // tablet landscape / HD 18.5"
+    return 2;                 // mobile
 }
 
-function _getRows() { return 2; }
+function _getNumLinhas() {
+    return 2; // sempre 2 linhas visíveis — face do cubo
+}
 
-function _getCardWidth() {
+function _getCardWidth(numColunas) {
     const viewport = document.getElementById('campo-viewport');
     if (!viewport) return 280;
-    const cols = _getCols();
-    return Math.floor((viewport.clientWidth - (cols - 1) * 12) / cols);
+    const gap = (numColunas - 1) * 8;
+    return Math.floor((viewport.clientWidth - gap) / numColunas);
 }
 
-// ── Carregar grid ─────────────────────────────────────────────────────────────
+function _getCardHeight(cardWidth) {
+    return Math.round(cardWidth * 1.4);
+}
 
-async function carregarGrid(py = 0, append = false) {
-    if (_estado.carregando) return;
-    _estado.carregando = true;
+// ── Estado global do cubo ─────────────────────────────────────────────────────
+
+const _cubo = {
+    colunas:    [],
+    numColunas: 5,
+    numLinhas:  2,
+    cardWidth:  280,
+    cardHeight: 392,
+    offsetX:    0,
+    carregando: false,
+};
+
+function _criarEstadoColuna(index) {
+    return {
+        index,
+        cards:      [],
+        offsetY:    0,
+        offset:     0,
+        temMais:    false,
+        carregando: false,
+    };
+}
+
+// ── Carregar grid completo ────────────────────────────────────────────────────
+
+async function carregarGrid() {
+    if (_cubo.carregando) return;
+    _cubo.carregando = true;
     _mostrarLoading(true);
 
     try {
-        const cols = _getCols(), rows = _getRows();
-        _estado.cols = cols; _estado.rows = rows;
+        const numColunas = _getNumColunas();
+        const numLinhas  = _getNumLinhas();
+        _cubo.numColunas = numColunas;
+        _cubo.numLinhas  = numLinhas;
 
-        const res  = await fetch(`/api/campo/grid/?py=${py}&cols=${cols}&rows=${rows}`);
+        const res  = await fetch(`/api/campo/grid/?cols=${numColunas}&rows=${numLinhas}`);
         const data = await res.json();
 
-        _estado.linhas      = append ? _estado.linhas.concat(data.linhas) : data.linhas;
-        _estado.paginaY     = data.pagina_y;
-        _estado.totalLinhas = data.total_linhas;
-        _estado.temMaisY    = data.tem_mais_y;
-        if (!append) { _estado.offsetX = 0; _estado.offsetY = 0; }
+        _cubo.cardWidth  = _getCardWidth(numColunas);
+        _cubo.cardHeight = _getCardHeight(_cubo.cardWidth);
+        _cubo.offsetX    = 0;
 
-        if (!_estado.linhas.length) {
-            _mostrarLoading(false);
-            document.getElementById('campo-vazio')?.classList.remove('hidden');
+        _cubo.colunas = data.colunas.map(col => {
+            const estado   = _criarEstadoColuna(col.index);
+            estado.cards   = col.cards;
+            estado.offset  = col.cards.length;
+            estado.temMais = col.tem_mais;
+            return estado;
+        });
+
+        if (_cubo.colunas.every(col => col.cards.length === 0)) {
+            _mostrarVazio(true);
             return;
         }
 
         renderizarGrid();
+
     } catch (e) {
         console.error('[CampoController] Erro ao carregar grid:', e);
     } finally {
-        _estado.carregando = false;
+        _cubo.carregando = false;
         _mostrarLoading(false);
+    }
+}
+
+// ── Carregar mais cards por coluna ────────────────────────────────────────────
+
+async function _carregarMaisColuna(colIndex) {
+    const col = _cubo.colunas[colIndex];
+    if (!col || col.carregando || !col.temMais) return;
+    col.carregando = true;
+
+    try {
+        const res  = await fetch(
+            `/api/campo/coluna/${colIndex}/mais/?offset=${col.offset}&cols=${_cubo.numColunas}&rows=${_cubo.numLinhas}`
+        );
+        const data = await res.json();
+
+        col.cards   = col.cards.concat(data.cards);
+        col.offset += data.cards.length;
+        col.temMais = data.tem_mais;
+
+        const colEl = document.getElementById(`campo-col-${colIndex}`);
+        if (colEl) {
+            data.cards.forEach(card => colEl.appendChild(_criarCardEl(card, colIndex)));
+        }
+    } catch (e) {
+        console.error(`[CampoController] Erro ao carregar mais da coluna ${colIndex}:`, e);
+    } finally {
+        col.carregando = false;
     }
 }
 
 // ── Renderizar grid ───────────────────────────────────────────────────────────
 
 function renderizarGrid() {
-    const grid = document.getElementById('campo-grid');
-    if (!grid) return;
-    document.getElementById('campo-vazio')?.classList.add('hidden');
+    const viewport = document.getElementById('campo-viewport');
+    const grid     = document.getElementById('campo-grid');
+    if (!grid || !viewport) return;
 
-    _estado.cardWidth  = _getCardWidth();
-    _estado.cardHeight = Math.round(_estado.cardWidth * 1.3);
-    grid.innerHTML = '';
+    _mostrarVazio(false);
 
-    _estado.linhas.forEach((linha, li) => {
-        const rowEl = document.createElement('div');
-        rowEl.className     = 'campo-linha flex gap-3';
-        rowEl.dataset.linha = li;
-        linha.forEach((card, ci) => rowEl.appendChild(_criarCardEl(card, li, ci)));
-        grid.appendChild(rowEl);
+    _cubo.cardWidth  = _getCardWidth(_cubo.numColunas);
+    _cubo.cardHeight = _getCardHeight(_cubo.cardWidth);
+
+    // Altura fixa = exatamente 2 cards + 1 gap
+    const alturaViewport = (_cubo.cardHeight * _cubo.numLinhas) + (8 * (_cubo.numLinhas - 1));
+    viewport.style.height   = `${alturaViewport}px`;
+    viewport.style.overflow = 'hidden';
+
+    grid.innerHTML          = '';
+    grid.style.display      = 'flex';
+    grid.style.flexDirection = 'row';
+    grid.style.gap          = '8px';
+    grid.style.transform    = `translateX(${_cubo.offsetX}px)`;
+    grid.style.transition   = 'none';
+    grid.style.willChange   = 'transform';
+
+    _cubo.colunas.forEach((col, i) => {
+        const colEl = document.createElement('div');
+        colEl.id              = `campo-col-${i}`;
+        colEl.className       = 'campo-coluna flex-shrink-0 flex flex-col gap-2';
+        colEl.style.width     = `${_cubo.cardWidth}px`;
+        colEl.style.transform = `translateY(${col.offsetY}px)`;
+        colEl.style.transition = 'none';
+        colEl.style.willChange = 'transform';
+
+        col.cards.forEach(card => colEl.appendChild(_criarCardEl(card, i)));
+        grid.appendChild(colEl);
     });
-
-    _aplicarTransform();
 }
 
-function _criarCardEl(card, li, ci) {
+// ── Criar card element ────────────────────────────────────────────────────────
+
+function _criarCardEl(card, colIndex) {
     const el = document.createElement('div');
-    el.className    = 'campo-card flex-shrink-0 rounded-2xl overflow-hidden relative';
-    el.style.width  = `${_estado.cardWidth}px`;
-    el.style.height = `${_estado.cardHeight}px`;
-    el.dataset.id = card.id;
-    el.dataset.li = li;
-    el.dataset.ci = ci;
+    el.className      = 'campo-card flex-shrink-0 rounded-2xl overflow-hidden relative cursor-pointer';
+    el.style.width    = `${_cubo.cardWidth}px`;
+    el.style.height   = `${_cubo.cardHeight}px`;
+    el.dataset.id     = card.id;
+    el.dataset.col    = colIndex;
+    el.dataset.arrastou = 'false';
 
     const bg = card.imagem_capa
         ? `<img src="${card.imagem_capa}" class="absolute inset-0 w-full h-full object-cover" alt="">`
@@ -131,22 +205,17 @@ function _criarCardEl(card, li, ci) {
         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div>
         ${card.procura_mod
             ? `<div class="absolute top-2 right-2 bg-orange-400 text-white text-xs px-2 py-0.5 rounded-full font-semibold">
-                   🤝 Procura Mod
-               </div>` : ''}
+                   🤝 Procura Mod</div>` : ''}
         <div class="absolute inset-x-0 bottom-0 p-3">
             <div class="flex flex-wrap gap-1 mb-2">${cats}</div>
             <h3 class="text-white font-bold text-sm leading-snug line-clamp-2 mb-2 drop-shadow">
                 ${card.titulo_capa || card.titulo}</h3>
             <p class="text-white/70 text-xs leading-relaxed line-clamp-2 mb-2">${card.conteudo}</p>
             <div class="flex items-center justify-between">
-                <div class="flex items-center gap-1.5">
-                    ${avatar}
-                    <span class="text-white/70 text-xs">${card.autor}</span>
-                </div>
+                <div class="flex items-center gap-1.5">${avatar}
+                    <span class="text-white/70 text-xs">${card.autor}</span></div>
                 <div class="flex items-center gap-2 text-white/60 text-xs">
-                    <span>❤️ ${card.curtidas}</span>
-                    <span>📌 ${card.clips}</span>
-                </div>
+                    <span>❤️ ${card.curtidas}</span><span>📌 ${card.clips}</span></div>
             </div>
         </div>`;
 
@@ -155,10 +224,10 @@ function _criarCardEl(card, li, ci) {
 }
 
 function _registrarEventosCard(el, card) {
-    let cliques = 0, timerClique = null, _dragMoveu = false;
+    let cliques = 0, timerClique = null;
 
     el.addEventListener('click', () => {
-        if (_dragMoveu) return;
+        if (el.dataset.arrastou === 'true') return;
         cliques++;
         if (cliques === 1) {
             timerClique = setTimeout(() => {
@@ -172,121 +241,185 @@ function _registrarEventosCard(el, card) {
             window.location.href = card.url_detalhe;
         }
     });
-    el.addEventListener('mousedown', () => { _dragMoveu = false; });
-    el.addEventListener('mousemove', () => { _dragMoveu = true; });
 }
 
-// ── Drag ──────────────────────────────────────────────────────────────────────
+// ── Drag — detecção de eixo e coluna ─────────────────────────────────────────
 
 function _configurarDrag() {
     const viewport = document.getElementById('campo-viewport');
     if (!viewport) return;
 
-    let arrastando = false, startX = 0, startY = 0;
-    let startOffX = 0, startOffY = 0, tempoInicio = 0, cardAtivo = null;
+    let arrastando  = false;
+    let startX      = 0;
+    let startY      = 0;
+    let startOffX   = 0;
+    let startOffY   = 0;
+    let eixo        = null;
+    let colAtiva    = null;
+    let tempoInicio = 0;
+    let cardAtivoId = null;
+    let arrastou    = false;
 
-    function _getCardAtual() {
-        return {
-            li: Math.max(0, Math.round(-_estado.offsetY / (_estado.cardHeight + 12))),
-            ci: Math.max(0, Math.round(-_estado.offsetX / (_estado.cardWidth  + 12))),
-        };
+    function _getColIndex(clientX) {
+        const rect = viewport.getBoundingClientRect();
+        const relX = clientX - rect.left - _cubo.offsetX;
+        const step = _cubo.cardWidth + 8;
+        return Math.max(0, Math.min(
+            Math.floor(relX / step),
+            _cubo.colunas.length - 1
+        ));
     }
 
-    function _dispararInteracao(dx, dy, tempo) {
-        const direcao = Math.abs(dx) > Math.abs(dy)
-            ? (dx > 0 ? 'left' : 'right')
-            : (dy > 0 ? 'up'   : 'down');
-        const card = _estado.linhas[cardAtivo?.li]?.[cardAtivo?.ci];
-        if (card) _registrarInteracao(card.id, direcao, tempo);
-    }
+    function _iniciarDrag(x, y) {
+        arrastando  = true;
+        arrastou    = false;
+        startX      = x;
+        startY      = y;
+        eixo        = null;
+        tempoInicio = Date.now();
+        colAtiva    = _getColIndex(x);
+        startOffX   = _cubo.offsetX;
+        startOffY   = _cubo.colunas[colAtiva]?.offsetY ?? 0;
 
-    viewport.addEventListener('mousedown', (e) => {
-        arrastando = true;
-        startX = e.clientX; startY = e.clientY;
-        startOffX = _estado.offsetX; startOffY = _estado.offsetY;
-        tempoInicio = Date.now(); cardAtivo = _getCardAtual();
+        const colEl = document.getElementById(`campo-col-${colAtiva}`);
+        cardAtivoId = colEl?.querySelector('.campo-card')?.dataset.id ?? null;
+
         viewport.style.cursor = 'grabbing';
-        e.preventDefault();
-    });
+    }
 
-    window.addEventListener('mousemove', (e) => {
+    function _moverDrag(x, y) {
         if (!arrastando) return;
-        _estado.offsetX = startOffX + (e.clientX - startX);
-        _estado.offsetY = startOffY + (e.clientY - startY);
-        _aplicarTransform(false);
-    });
+        const dx = x - startX;
+        const dy = y - startY;
 
-    window.addEventListener('mouseup', (e) => {
+        if (!eixo && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+            eixo = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        }
+        if (!eixo) return;
+        arrastou = true;
+
+        if (eixo === 'y' && colAtiva !== null) {
+            const col   = _cubo.colunas[colAtiva];
+            if (!col) return;
+            col.offsetY = startOffY + dy;
+            const colEl = document.getElementById(`campo-col-${colAtiva}`);
+            if (colEl) {
+                colEl.style.transition = 'none';
+                colEl.style.transform  = `translateY(${col.offsetY}px)`;
+            }
+        } else if (eixo === 'x') {
+            _cubo.offsetX = startOffX + dx;
+            const grid = document.getElementById('campo-grid');
+            if (grid) {
+                grid.style.transition = 'none';
+                grid.style.transform  = `translateX(${_cubo.offsetX}px)`;
+            }
+        }
+    }
+
+    function _finalizarDrag(x, y) {
         if (!arrastando) return;
         arrastando = false;
         viewport.style.cursor = 'grab';
-        const dx = e.clientX - startX, dy = e.clientY - startY;
-        _snapGrid();
-        if (Math.abs(dx) > 40 || Math.abs(dy) > 40) {
-            _dispararInteracao(dx, dy, Date.now() - tempoInicio);
+
+        const tempo = Date.now() - tempoInicio;
+
+        if (arrastou && colAtiva !== null) {
+            const colEl = document.getElementById(`campo-col-${colAtiva}`);
+            colEl?.querySelectorAll('.campo-card').forEach(el => {
+                el.dataset.arrastou = 'true';
+                setTimeout(() => { el.dataset.arrastou = 'false'; }, 50);
+            });
         }
-    });
+
+        if (eixo === 'y' && colAtiva !== null) {
+            _snapColuna(colAtiva);
+            if (cardAtivoId) {
+                const dy      = y - startY;
+                const direcao = dy > 0 ? 'up' : 'down';
+                _registrarInteracao(parseInt(cardAtivoId), direcao, tempo);
+            }
+        } else if (eixo === 'x') {
+            _snapHorizontal();
+        }
+    }
+
+    viewport.addEventListener('mousedown', (e) => { _iniciarDrag(e.clientX, e.clientY); e.preventDefault(); });
+    window.addEventListener('mousemove',   (e) => _moverDrag(e.clientX, e.clientY));
+    window.addEventListener('mouseup',     (e) => _finalizarDrag(e.clientX, e.clientY));
 
     viewport.addEventListener('touchstart', (e) => {
         const t = e.touches[0];
-        arrastando = true;
-        startX = t.clientX; startY = t.clientY;
-        startOffX = _estado.offsetX; startOffY = _estado.offsetY;
-        tempoInicio = Date.now(); cardAtivo = _getCardAtual();
+        _iniciarDrag(t.clientX, t.clientY);
     }, { passive: true });
-
     viewport.addEventListener('touchmove', (e) => {
-        if (!arrastando) return;
         const t = e.touches[0];
-        _estado.offsetX = startOffX + (t.clientX - startX);
-        _estado.offsetY = startOffY + (t.clientY - startY);
-        _aplicarTransform(false);
+        _moverDrag(t.clientX, t.clientY);
     }, { passive: true });
-
     viewport.addEventListener('touchend', (e) => {
-        if (!arrastando) return;
-        arrastando = false;
         const t = e.changedTouches[0];
-        _snapGrid();
-        _dispararInteracao(t.clientX - startX, t.clientY - startY, Date.now() - tempoInicio);
+        _finalizarDrag(t.clientX, t.clientY);
     });
 }
 
-// ── Snap ──────────────────────────────────────────────────────────────────────
+// ── Snap por coluna ───────────────────────────────────────────────────────────
 
-function _snapGrid() {
-    const stepX = _estado.cardWidth  + 12;
-    const stepY = _estado.cardHeight + 12;
-    const maxC  = Math.max(0, ..._estado.linhas.map(l => l.length)) - _estado.cols;
-    const maxL  = _estado.linhas.length - _estado.rows;
+function _snapColuna(colIndex) {
+    const col   = _cubo.colunas[colIndex];
+    const colEl = document.getElementById(`campo-col-${colIndex}`);
+    if (!col || !colEl) return;
 
-    _estado.offsetX = Math.max(-(maxC * stepX), Math.min(0, Math.round(_estado.offsetX / stepX) * stepX));
-    _estado.offsetY = Math.max(-(maxL * stepY), Math.min(0, Math.round(_estado.offsetY / stepY) * stepY));
-    _aplicarTransform(true);
+    const step      = _cubo.cardHeight + 8;
+    const maxOffset = 0;
+    const minOffset = -((col.cards.length - _cubo.numLinhas) * step);
 
-    if (_estado.offsetY <= -((_estado.linhas.length - _estado.rows - 1) * stepY)
-        && _estado.temMaisY && !_estado.carregando) {
-        carregarGrid(_estado.paginaY + _estado.rows, true);
+    let snapY   = Math.round(col.offsetY / step) * step;
+    snapY       = Math.max(minOffset, Math.min(maxOffset, snapY));
+    col.offsetY = snapY;
+
+    colEl.style.transition = 'transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)';
+    colEl.style.transform  = `translateY(${snapY}px)`;
+
+    // Carrega mais se chegou perto do fim
+    if (snapY <= minOffset + step && col.temMais) {
+        _carregarMaisColuna(colIndex);
     }
 }
 
-function moverGrid(direcao) {
-    const stepX = _estado.cardWidth  + 12;
-    const stepY = _estado.cardHeight + 12;
-    if (direcao === 'right') _estado.offsetX -= stepX;
-    if (direcao === 'left')  _estado.offsetX += stepX;
-    if (direcao === 'down')  _estado.offsetY -= stepY;
-    if (direcao === 'up')    _estado.offsetY += stepY;
-    _snapGrid();
-}
+// ── Snap horizontal ───────────────────────────────────────────────────────────
 
-function _aplicarTransform(animado = true) {
+function _snapHorizontal() {
     const grid = document.getElementById('campo-grid');
     if (!grid) return;
-    grid.style.transition = animado
-        ? 'transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)'
-        : 'none';
-    grid.style.transform = `translate(${_estado.offsetX}px, ${_estado.offsetY}px)`;
+
+    const step      = _cubo.cardWidth + 8;
+    const viewWidth = document.getElementById('campo-viewport')?.clientWidth ?? 0;
+    const totalW    = _cubo.colunas.length * step;
+    const minOffset = Math.min(0, -(totalW - viewWidth));
+    const maxOffset = 0;
+
+    let snapX     = Math.round(_cubo.offsetX / step) * step;
+    snapX         = Math.max(minOffset, Math.min(maxOffset, snapX));
+    _cubo.offsetX = snapX;
+
+    grid.style.transition = 'transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)';
+    grid.style.transform  = `translateX(${snapX}px)`;
+}
+
+// ── Navegação por botões ──────────────────────────────────────────────────────
+
+function moverColuna(colIndex, direcao) {
+    const col = _cubo.colunas[colIndex];
+    if (!col) return;
+    const step  = _cubo.cardHeight + 8;
+    col.offsetY += direcao === 'up' ? step : -step;
+    _snapColuna(colIndex);
+}
+
+function moverHorizontal(direcao) {
+    const step    = _cubo.cardWidth + 8;
+    _cubo.offsetX += direcao === 'esquerda' ? step : -step;
+    _snapHorizontal();
 }
 
 // ── Interação ─────────────────────────────────────────────────────────────────
@@ -347,7 +480,6 @@ function abrirDetalhe(card) {
     if (thread) {
         const btnComentar = document.getElementById('detalhe-btn-comentar');
         if (btnComentar) btnComentar.onclick = () => thread.enviar(null);
-
         window._abrirSubthreadCampo = (pid, cid) => _abrirSubthreadCampo(pid, cid, thread);
     }
 
@@ -368,13 +500,13 @@ function fecharDetalhe() {
 async function _reagirDetalhe(postId, tipo) {
     try {
         const res  = await fetch(`/api/post/${postId}/reagir/${tipo}/`, {
-            method:  'POST',
-            headers: { 'X-CSRFToken': getCsrf() },
+            method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
         });
         const data = await res.json();
-        const elId = tipo === 'curtida' ? 'detalhe-total-curtida' : 'detalhe-total-clip';
-        document.getElementById(elId).textContent = data.total;
-    } catch (e) { console.error('[CampoController] Erro ao reagir:', e); }
+        document.getElementById(
+            tipo === 'curtida' ? 'detalhe-total-curtida' : 'detalhe-total-clip'
+        ).textContent = data.total;
+    } catch (e) { console.error(e); }
 }
 
 // ── Subthread ─────────────────────────────────────────────────────────────────
@@ -384,7 +516,6 @@ function _abrirSubthreadCampo(postId, comentarioId, thread) {
     const conteudo = document.getElementById('conteudo-subthread-campo');
     if (!modal || !conteudo) return;
     conteudo.innerHTML = '';
-
     const pai = thread.buscar(comentarioId);
     if (pai?.respostas) {
         pai.respostas.forEach(r => {
@@ -396,7 +527,6 @@ function _abrirSubthreadCampo(postId, comentarioId, thread) {
             conteudo.appendChild(thread._renderComentario(r, 0));
         });
     }
-
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -412,12 +542,10 @@ function fecharSubthreadCampo(event) {
 function mostrarSubaba(qual) {
     const ativo   = 'px-4 py-1.5 rounded-full text-sm font-semibold transition bg-orange-500 text-white';
     const inativo = 'px-4 py-1.5 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200';
-
     const grid = document.getElementById('painel-grid');
     const meus = document.getElementById('painel-meus');
     const btnG = document.getElementById('subaba-grid');
     const btnM = document.getElementById('subaba-meus');
-
     if (qual === 'grid') {
         grid?.classList.remove('hidden'); meus?.classList.add('hidden');
         if (btnG) btnG.className = ativo;
@@ -434,20 +562,16 @@ async function carregarMeusNotes() {
     const lista = document.getElementById('lista-meus-notes');
     if (!lista) return;
     lista.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">Carregando...</p>';
-
     try {
         const res  = await fetch('/api/campo/meus-notes/');
         const data = await res.json();
-
         if (!data.posts.length) {
             lista.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">Você ainda não publicou no Campo das Ideias.</p>';
             return;
         }
-
         lista.innerHTML = data.posts.map(p => `
             <a href="/post/${p.id}/"
-               class="block bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4
-                      hover:border-orange-200 transition">
+               class="block bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 hover:border-orange-200 transition">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex-1 min-w-0">
                         <h4 class="text-sm font-semibold text-gray-800 truncate">${p.titulo}</h4>
@@ -455,9 +579,7 @@ async function carregarMeusNotes() {
                     </div>
                     <div class="flex-shrink-0 text-right">
                         <p class="text-xs text-gray-400">${p.data}</p>
-                        <p class="text-xs text-orange-500 font-semibold mt-1">
-                            ❤️ ${p.curtidas} · 📌 ${p.clips}
-                        </p>
+                        <p class="text-xs text-orange-500 font-semibold mt-1">❤️ ${p.curtidas} · 📌 ${p.clips}</p>
                     </div>
                 </div>
             </a>`).join('');
@@ -472,28 +594,34 @@ function _mostrarLoading(sim) {
     document.getElementById('campo-loading')?.classList.toggle('hidden', !sim);
 }
 
+function _mostrarVazio(sim) {
+    document.getElementById('campo-vazio')?.classList.toggle('hidden', !sim);
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 function _init() {
     if (!document.getElementById('campo-grid-wrapper')) return;
-
-    carregarGrid(0);
+    carregarGrid();
     _configurarDrag();
-
     let resizeTimer;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => renderizarGrid(), 200);
+        resizeTimer = setTimeout(() => {
+            _cubo.numColunas = _getNumColunas();
+            carregarGrid();
+        }, 300);
     });
 }
 
 // ── Export e globais ──────────────────────────────────────────────────────────
 
 export function registrarCampoGlobal() {
-    window.moverGrid           = moverGrid;
-    window.fecharDetalhe       = fecharDetalhe;
-    window.mostrarSubaba       = mostrarSubaba;
+    window.fecharDetalhe        = fecharDetalhe;
+    window.mostrarSubaba        = mostrarSubaba;
     window.fecharSubthreadCampo = fecharSubthreadCampo;
+    window.moverColuna          = moverColuna;
+    window.moverHorizontal      = moverHorizontal;
 }
 
 export function iniciarCampo() {

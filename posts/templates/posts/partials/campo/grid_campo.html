@@ -1,5 +1,5 @@
 
-<!-- Grid 2D do Campo das Ideias -->
+<!-- Campo das Ideias -->
 <div class="campo-wrapper relative select-none" id="campo-grid-wrapper">
 
     <!-- Composer trigger -->
@@ -36,28 +36,38 @@
         </button>
     </div>
 
-    <!-- Painel: Grid 2D -->
+    <!-- Painel: Cubo Mágico -->
     <div id="painel-grid">
+
+        <!-- Dica de navegação desktop -->
         <div class="hidden md:flex items-center justify-between mb-3 text-xs text-gray-400">
-            <span>🖱️ Arraste para navegar · Duplo clique para abrir</span>
-            <div class="flex gap-2">
-                <button onclick="moverGrid('left')"  class="seta-campo px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition">◀</button>
-                <button onclick="moverGrid('up')"    class="seta-campo px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition">▲</button>
-                <button onclick="moverGrid('down')"  class="seta-campo px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition">▼</button>
-                <button onclick="moverGrid('right')" class="seta-campo px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition">▶</button>
+            <span>🖱️ Arraste verticalmente numa coluna para rolá-la · Arraste horizontalmente para navegar</span>
+            <div class="flex items-center gap-3">
+                <button onclick="moverHorizontal('esquerda')"
+                        class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition text-sm">◀</button>
+                <button onclick="moverHorizontal('direita')"
+                        class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition text-sm">▶</button>
             </div>
         </div>
 
-        <div id="campo-viewport" class="overflow-hidden relative rounded-2xl" style="cursor: grab;">
-            <div id="campo-grid" class="flex flex-col gap-3 transition-transform duration-300 ease-out"
-                 style="will-change: transform;"></div>
+        <!-- Viewport do cubo — altura controlada por campo.js -->
+        <div id="campo-viewport"
+             class="overflow-hidden relative rounded-2xl"
+             style="cursor: grab;">
+            <div id="campo-grid"
+                 class="flex flex-row gap-2"
+                 style="will-change: transform;">
+                {# Colunas injetadas por campo.js #}
+            </div>
         </div>
 
+        <!-- Loading -->
         <div id="campo-loading" class="hidden text-center py-8 text-gray-400">
             <p class="text-2xl mb-2">🌍</p>
             <p class="text-sm">Montando o Campo das Ideias...</p>
         </div>
 
+        <!-- Vazio -->
         <div id="campo-vazio" class="hidden text-center text-gray-400 py-20">
             <p class="text-6xl mb-4">🌍</p>
             <p class="text-xl font-semibold">O Campo das Ideias está vazio</p>
@@ -78,12 +88,10 @@
 
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h3 class="font-bold text-gray-800">🌍 Nova ideia no Campo</h3>
-            <button onclick="fecharComposerCampo()"
-                    class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
+            <button onclick="fecharComposerCampo()" class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
         </div>
 
         <div class="p-5 space-y-4">
-
             <input type="text" id="composer-campo-titulo"
                    placeholder="Título da ideia..." maxlength="200"
                    class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm
@@ -102,10 +110,8 @@
             <!-- Imagens de capa -->
             <div>
                 <label class="block text-xs font-semibold text-gray-500 mb-2">
-                    Imagem de capa
-                    <span class="text-gray-400 font-normal">(opcional no campo)</span>
+                    Imagem de capa <span class="text-gray-400 font-normal">(opcional no campo)</span>
                 </label>
-
                 <div id="campo-preview-capa-1"
                      class="relative w-full h-40 rounded-xl border-2 border-dashed border-gray-300
                             bg-gray-50 flex items-center justify-center overflow-hidden cursor-pointer

@@ -1258,18 +1258,32 @@ def excluir_comentario_json(request, comentario_id):
     return JsonResponse({'ok': True})
 
 
-# ── Campo das Ideias — algoritmo ──────────────────────────────────────────────
+# ── Campo das ideias ──────────────────────────────────────────────
+
+# ── ROLAMENTO CUBO MÁGICO ─────────────────────────────────
+#
+# Arquitetura de dados:
+#   O grid é composto por N colunas verticais independentes.
+#   Cada coluna tem seu próprio pool de posts e pode ser paginada separadamente.
+#   O frontend exibe sempre `linhas_visiveis` posts por coluna (padrão: 2).
+#   O usuário rola cada coluna individualmente para cima/baixo.
+#
+# Endpoint principal:  GET /api/campo/grid/
+#   Retorna todas as colunas com os primeiros `linhas` posts cada.
+#
+# Endpoint de paginação: GET /api/campo/coluna/<col_index>/mais/
+#   Retorna mais posts para uma coluna específica (scroll infinito por coluna).
 
 import math
-from django.db.models import Count, Sum, FloatField, ExpressionWrapper, F
+import json
+from django.db.models import Count
 from django.utils import timezone
-from datetime import timedelta
 
 
 def _calcular_score(post, agora=None):
     """
-    Score = curtidas×3 + clips×2 + comentários×5 − decaimento temporal.
-    Decaimento: divide pela idade em horas elevada a 1.5 (gravitational decay).
+    Score = curtidas×3 + clips×2 + comentários×5 com decaimento temporal.
+    Decaimento gravitacional: divide pela idade em horas elevada a 1.5.
     """
     if agora is None:
         agora = timezone.now()
@@ -1278,20 +1292,21 @@ def _calcular_score(post, agora=None):
     clips       = post.reacoes.filter(tipo='clip').count()
     comentarios = post.comentarios.filter(removido=False).count()
 
-    raw = (curtidas * 3) + (clips * 2) + (comentarios * 5)
-
+    raw         = (curtidas * 3) + (clips * 2) + (comentarios * 5)
     idade_horas = max((agora - post.data_criacao).total_seconds() / 3600, 1)
-    score = raw / math.pow(idade_horas, 1.5)
+    score       = raw / math.pow(idade_horas, 1.5)
 
     return round(score, 4)
 
 
 def _recalcular_scores_campo():
-    """Recalcula ScorePost para todos os posts do campo. Chamado pela view."""
+    """Recalcula ScorePost para todos os posts do campo."""
     agora = timezone.now()
-    posts = Post.objects.filter(publicado=True, visibilidade='campo').prefetch_related(
-        'reacoes', 'comentarios'
-    )
+    posts = Post.objects.filter(
+        publicado=True,
+        visibilidade='campo',
+    ).prefetch_related('reacoes', 'comentarios')
+
     for post in posts:
         score = _calcular_score(post, agora)
         ScorePost.objects.update_or_create(
@@ -1302,8 +1317,8 @@ def _recalcular_scores_campo():
 
 def _afinidade_usuario(autor):
     """
-    Retorna dict {categoria_id: peso} baseado nas interações do usuário.
-    Camada B do algoritmo — ativo com ≥10 interações.
+    Retorna dict {categoria_id: peso_normalizado} baseado nas interações do usuário.
+    Camada B do algoritmo — ativo apenas com ≥10 interações registradas.
     """
     interacoes = CampoInteracao.objects.filter(autor=autor).select_related('post')
     if interacoes.count() < 10:
@@ -1311,161 +1326,203 @@ def _afinidade_usuario(autor):
 
     pesos = {}
     for inter in interacoes:
-        # Peso por direção: open > down/up > left/right
         peso_direcao = {'open': 5, 'down': 2, 'up': 2, 'left': 1, 'right': 1}.get(inter.direcao, 1)
-        # Boost por tempo no card (normalizado: 1pt por segundo, cap 10)
-        peso_tempo = min(inter.tempo_ms / 1000, 10)
-        peso_total = peso_direcao + peso_tempo
+        peso_tempo   = min(inter.tempo_ms / 1000, 10)
+        peso_total   = peso_direcao + peso_tempo
 
         for cat in inter.post.categorias.all():
             pesos[cat.id] = pesos.get(cat.id, 0) + peso_total
 
-    # Normaliza para 0–1
     if pesos:
         max_peso = max(pesos.values())
-        pesos = {k: v / max_peso for k, v in pesos.items()}
+        pesos    = {k: v / max_peso for k, v in pesos.items()}
 
     return pesos
 
 
-def _montar_grid(autor, pagina_y=0, pagina_x=0, colunas=4, linhas=2):
-    """
-    Monta o grid 2D para o campo das ideias.
-    Retorna lista de linhas, cada linha = lista de posts.
+def _serializar_card(post):
+    """Serializa um post para o formato esperado pelo frontend do Campo."""
+    score_cache = getattr(post, 'score_cache', None)
+    return {
+        'id':          post.id,
+        'titulo':      post.titulo,
+        'titulo_capa': post.titulo_capa,
+        'conteudo':    post.conteudo[:120] + ('...' if len(post.conteudo) > 120 else ''),
+        'cor':         post.cor,
+        'autor':       post.autor.nome_exibicao,
+        'username':    post.autor.usuario.username if post.autor.usuario else '',
+        'foto_autor':  post.autor.foto_perfil.url if post.autor.foto_perfil else None,
+        'imagem_capa': post.imagem_capa_1.url if post.imagem_capa_1 else None,
+        'categorias':  [{'nome': c.nome, 'cor': c.cor} for c in post.categorias.all()],
+        'score':       score_cache.score if score_cache else 0,
+        'curtidas':    post.total_curtidas,
+        'clips':       post.total_clips,
+        'data':        post.data_criacao.strftime('%d/%m/%Y'),
+        'procura_mod': post.procura_moderador,
+        'url_detalhe': f'/post/{post.id}/',
+    }
 
-    Camada A: agrupa posts por categorias compartilhadas (cluster).
-    Camada B: reordena linhas e posts dentro de cada linha por afinidade do usuário.
+
+def _montar_colunas(autor, num_colunas=5, linhas_visiveis=2):
+    """
+    Distribui os posts do Campo em N colunas verticais independentes.
+
+    Lógica de distribuição:
+      1. Obtém todos os posts ordenados por score + afinidade (Camada A + B).
+      2. Distribui em round-robin pelas colunas: post 0 → col 0, post 1 → col 1, ...
+         Isso garante que posts de alta relevância apareçam em colunas diferentes,
+         e que cada coluna tenha uma mistura de conteúdo ao invés de uma coluna
+         dominada por um único cluster de categorias.
+      3. Cada coluna retorna os primeiros `linhas_visiveis` posts visíveis
+         e o total para o frontend saber se há mais para paginar.
+
+    Retorna lista de dicts com estrutura:
+      [
+        {"index": 0, "cards": [...], "total": N, "tem_mais": bool},
+        ...
+      ]
     """
     posts_campo = Post.objects.filter(
         publicado=True,
         visibilidade='campo',
     ).prefetch_related('categorias', 'reacoes', 'comentarios', 'score_cache')
 
-    # Garante que scores existam
+    # Garante que scores existam para posts novos
     ids_sem_score = posts_campo.exclude(
         id__in=ScorePost.objects.values_list('post_id', flat=True)
     ).values_list('id', flat=True)
     if ids_sem_score:
         _recalcular_scores_campo()
+        # Recarrega com scores atualizados
+        posts_campo = Post.objects.filter(
+            publicado=True,
+            visibilidade='campo',
+        ).prefetch_related('categorias', 'reacoes', 'comentarios', 'score_cache')
 
-    # Afinidade do usuário (camada B)
     afinidade = _afinidade_usuario(autor)
 
-    # ── Camada A: cluster por categorias ─────────────────────────────────────
-    # Cada post pertence ao cluster das suas categorias.
-    # Um post com cats [Tech, IA] entra em clusters de Tech e de IA.
-    # Agrupa posts que compartilham ≥1 categoria em comum.
-
-    cluster_map = {}   # frozenset(cat_ids) → [posts]
-    post_visitado = set()
-
-    for post in posts_campo:
-        cat_ids = frozenset(post.categorias.values_list('id', flat=True))
-        if not cat_ids:
-            cat_ids = frozenset(['sem_categoria'])
-
-        # Tenta fundir com cluster existente que compartilhe ≥1 categoria
-        chave_destino = None
-        for chave in list(cluster_map.keys()):
-            if cat_ids & chave:  # interseção não vazia
-                chave_destino = chave
-                break
-
-        if chave_destino:
-            cluster_map[chave_destino].append(post)
-        else:
-            cluster_map[cat_ids] = [post]
-
-    # ── Camada B: reordena clusters por afinidade ─────────────────────────────
-    def score_cluster(chave, posts_cluster):
-        score_base = sum(
-            getattr(p, 'score_cache', None) and p.score_cache.score or 0
-            for p in posts_cluster
-        ) / max(len(posts_cluster), 1)
-
-        boost_afinidade = sum(
+    def _score_final(post):
+        base  = getattr(post, 'score_cache', None)
+        base  = base.score if base else 0
+        boost = sum(
             afinidade.get(cat_id, 0)
-            for cat_id in chave
-            if isinstance(cat_id, int)
+            for cat_id in post.categorias.values_list('id', flat=True)
         )
+        return base + (boost * 5)
 
-        return score_base + (boost_afinidade * 10)
+    posts_ordenados = sorted(posts_campo, key=_score_final, reverse=True)
 
-    clusters_ordenados = sorted(
-        cluster_map.items(),
-        key=lambda item: score_cluster(item[0], item[1]),
-        reverse=True,
-    )
+    # Distribui em round-robin pelas colunas
+    colunas_posts = [[] for _ in range(num_colunas)]
+    for i, post in enumerate(posts_ordenados):
+        colunas_posts[i % num_colunas].append(post)
 
-    # ── Pagina o grid ─────────────────────────────────────────────────────────
-    # Cada cluster = uma linha horizontal.
-    # pagina_y: qual linha começa a janela vertical.
-    # pagina_x: deslocamento horizontal dentro das linhas visíveis.
+    colunas = []
+    for idx, posts_col in enumerate(colunas_posts):
+        cards_visiveis = [_serializar_card(p) for p in posts_col[:linhas_visiveis]]
+        colunas.append({
+            'index':    idx,
+            'cards':    cards_visiveis,
+            'total':    len(posts_col),
+            'tem_mais': len(posts_col) > linhas_visiveis,
+        })
 
-    linhas_grid = []
-    for chave, posts_cluster in clusters_ordenados:
-        # Ordena posts dentro do cluster por score + afinidade
-        def score_post_linha(post):
-            base = getattr(post, 'score_cache', None) and post.score_cache.score or 0
-            boost = sum(
-                afinidade.get(cat_id, 0)
-                for cat_id in post.categorias.values_list('id', flat=True)
-            )
-            return base + (boost * 5)
+    return colunas
 
-        posts_ordenados = sorted(posts_cluster, key=score_post_linha, reverse=True)
-        linhas_grid.append(posts_ordenados)
 
-    # Seleciona as linhas visíveis
-    linhas_visiveis = linhas_grid[pagina_y: pagina_y + linhas]
+def _paginar_coluna(autor, col_index, num_colunas=5, offset=0, linhas=2):
+    """
+    Retorna mais cards para uma coluna específica a partir de `offset`.
+    Usado pelo endpoint de paginação individual de coluna.
+    """
+    posts_campo = Post.objects.filter(
+        publicado=True,
+        visibilidade='campo',
+    ).prefetch_related('categorias', 'reacoes', 'comentarios', 'score_cache')
 
-    # Serializa para JSON
-    resultado = []
-    for linha in linhas_visiveis:
-        cards = []
-        for post in linha:
-            score_val = getattr(post, 'score_cache', None)
-            cards.append({
-                'id':            post.id,
-                'titulo':        post.titulo,
-                'titulo_capa':   post.titulo_capa,
-                'conteudo':      post.conteudo[:120] + ('...' if len(post.conteudo) > 120 else ''),
-                'cor':           post.cor,
-                'autor':         post.autor.nome_exibicao,
-                'username':      post.autor.usuario.username if post.autor.usuario else '',
-                'foto_autor':    post.autor.foto_perfil.url if post.autor.foto_perfil else None,
-                'imagem_capa':   post.imagem_capa_1.url if post.imagem_capa_1 else None,
-                'categorias':    [{'nome': c.nome, 'cor': c.cor} for c in post.categorias.all()],
-                'score':         score_val.score if score_val else 0,
-                'curtidas':      post.total_curtidas,
-                'clips':         post.total_clips,
-                'data':          post.data_criacao.strftime('%d/%m/%Y'),
-                'procura_mod':   post.procura_moderador,
-                'url_detalhe':   f'/post/{post.id}/',
-            })
-        resultado.append(cards)
+    afinidade = _afinidade_usuario(autor)
+
+    def _score_final(post):
+        base  = getattr(post, 'score_cache', None)
+        base  = base.score if base else 0
+        boost = sum(
+            afinidade.get(cat_id, 0)
+            for cat_id in post.categorias.values_list('id', flat=True)
+        )
+        return base + (boost * 5)
+
+    posts_ordenados = sorted(posts_campo, key=_score_final, reverse=True)
+
+    # Reconstrói a mesma distribuição round-robin
+    colunas_posts = [[] for _ in range(num_colunas)]
+    for i, post in enumerate(posts_ordenados):
+        colunas_posts[i % num_colunas].append(post)
+
+    if col_index >= len(colunas_posts):
+        return {'cards': [], 'tem_mais': False}
+
+    posts_col   = colunas_posts[col_index]
+    fatia       = posts_col[offset: offset + linhas]
+    cards       = [_serializar_card(p) for p in fatia]
+    tem_mais    = (offset + linhas) < len(posts_col)
 
     return {
-        'linhas':       resultado,
-        'pagina_y':     pagina_y,
-        'total_linhas': len(linhas_grid),
-        'tem_mais_y':   pagina_y + linhas < len(linhas_grid),
+        'cards':    cards,
+        'tem_mais': tem_mais,
+        'offset':   offset + linhas,
     }
 
 
 @login_required
 def campo_grid_json(request):
-    """Endpoint JSON que o frontend chama para montar/expandir o grid."""
+    """
+    Endpoint principal do Campo das Ideias — Rolamento Cubo Mágico.
+
+    GET /api/campo/grid/?cols=5&rows=2
+
+    Retorna todas as colunas com os primeiros `rows` cards cada.
+    O frontend usa essa resposta para montar a face inicial do cubo.
+    """
     autor    = request.user.autor
-    pagina_y = int(request.GET.get('py', 0))
-    colunas  = int(request.GET.get('cols', 4))
+    colunas  = int(request.GET.get('cols', 5))
     linhas   = int(request.GET.get('rows', 2))
 
     colunas = max(2, min(colunas, 8))
-    linhas  = max(1, min(linhas, 3))
+    linhas  = max(1, min(linhas, 4))
 
-    data = _montar_grid(autor, pagina_y=pagina_y, colunas=colunas, linhas=linhas)
-    return JsonResponse(data)
+    resultado = _montar_colunas(autor, num_colunas=colunas, linhas_visiveis=linhas)
+
+    return JsonResponse({
+        'colunas':     resultado,
+        'num_colunas': colunas,
+        'linhas':      linhas,
+    })
+
+
+@login_required
+def campo_coluna_mais(request, col_index):
+    """
+    Endpoint de paginação por coluna — Rolamento Cubo Mágico.
+
+    GET /api/campo/coluna/<col_index>/mais/?offset=2&cols=5&rows=2
+
+    Chamado quando o usuário rola uma coluna específica até o fim.
+    Retorna os próximos `rows` cards daquela coluna a partir de `offset`.
+    """
+    autor      = request.user.autor
+    offset     = int(request.GET.get('offset', 0))
+    num_colunas = int(request.GET.get('cols', 5))
+    linhas     = int(request.GET.get('rows', 2))
+
+    resultado = _paginar_coluna(
+        autor,
+        col_index=col_index,
+        num_colunas=num_colunas,
+        offset=offset,
+        linhas=linhas,
+    )
+
+    return JsonResponse(resultado)
 
 
 @login_required
@@ -1556,13 +1613,13 @@ def meus_notes_campo(request):
     return JsonResponse({
         'posts': [
             {
-                'id':        p.id,
-                'titulo':    p.titulo,
-                'conteudo':  p.conteudo[:100],
-                'score':     p.score_cache.score if hasattr(p, 'score_cache') else 0,
-                'curtidas':  p.total_curtidas,
-                'clips':     p.total_clips,
-                'data':      p.data_criacao.strftime('%d/%m/%Y'),
+                'id':       p.id,
+                'titulo':   p.titulo,
+                'conteudo': p.conteudo[:100],
+                'score':    p.score_cache.score if hasattr(p, 'score_cache') else 0,
+                'curtidas': p.total_curtidas,
+                'clips':    p.total_clips,
+                'data':     p.data_criacao.strftime('%d/%m/%Y'),
             }
             for p in posts
         ]
