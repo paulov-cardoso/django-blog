@@ -1,51 +1,132 @@
 {% extends 'posts/base.html' %}
+{% load static %}
 
-{% block body_class %}bg-gradient-to-br from-blue-900 via-purple-600 to-orange-500{% endblock %}
+{% block body_class %}{% endblock %}
 {% block footer_class %}bg-transparent fixed bottom-0 w-full{% endblock %}
 {% block nav %}{% endblock %}
-{% block titulo %}Nova Senha — Blognotes{% endblock %}
+{% block titulo %}Nova Senha — Synapsoo{% endblock %}
 
 {% block conteudo %}
 
-<div class="flex flex-col items-center justify-center min-h-[90vh]">
+<style>
+    .login-root {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem 1rem 4rem;
+        background: linear-gradient(155deg, #d4b8d4 0%, #e2cde2 45%, #eddaed 100%);
+    }
 
-    <div style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);"
-         class="border border-white/20 rounded-xl text-white w-full max-w-md p-10 mx-4">
+    .card-noise {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%);
+    }
 
-        <h2 class="text-3xl font-bold text-center mb-8" style="font-family: 'Poppins', sans-serif;">
-            Nova senha
-        </h2>
+    #card-texture-confirm {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: inherit;
+        opacity: 0.18;
+        mix-blend-mode: soft-light;
+        pointer-events: none;
+        z-index: 0;
+    }
 
-        <form method="POST">
-            {% csrf_token %}
+    .card-noise > *:not(#card-texture-confirm) {
+        position: relative;
+        z-index: 1;
+    }
+</style>
 
-            <div class="relative mb-6">
-                <input type="password" name="new_password1" placeholder="Nova senha" required
-                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
-                       style="font-family: 'Poppins', sans-serif;"/>
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
-            </div>
+<div class="login-root" role="main">
 
-            <div class="relative mb-8">
-                <input type="password" name="new_password2" placeholder="Confirme a nova senha" required
-                       class="w-full h-12 bg-transparent border-2 border-white/20 rounded-full text-white placeholder-white px-5 pr-12 focus:outline-none focus:border-white/60 transition font-light"
-                       style="font-family: 'Poppins', sans-serif;"/>
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xl">🔒</span>
-            </div>
+    <div class="relative flex flex-col items-center w-full max-w-[400px]"
+         style="z-index:2;">
+
+        <div class="flex justify-center w-full relative" style="z-index:20;">
+            <img src="{% static 'posts/images/Oficial_Soo.png' %}"
+                 alt="Synapsoo"
+                 width="260"
+                 style="height:auto;
+                        filter: drop-shadow(0 6px 18px rgba(60,10,100,0.22));
+                        margin-bottom: -10px;">
+        </div>
+
+        <article class="card-noise w-full rounded-2xl px-8 pb-7 pt-8
+                        border border-white/20
+                        shadow-[0_28px_64px_rgba(50,15,100,0.30),0_4px_16px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.16)]">
+
+            <canvas id="card-texture-confirm" aria-hidden="true"></canvas>
+
+            <h1 class="text-center text-white font-bold text-3xl tracking-wide mb-2"
+                style="font-family:'Poppins',sans-serif;
+                       text-shadow: 0 2px 8px rgba(0,0,0,0.18);">
+                Nova senha
+            </h1>
+
+            <p class="text-center text-sm font-light text-white/65 mb-6"
+               style="font-family:'Poppins',sans-serif;">
+                Escolha uma nova senha para continuar protegendo suas ideias.
+            </p>
 
             {% if form.errors %}
-            <div class="bg-red-500/30 border border-red-300 text-white text-sm px-4 py-3 rounded-lg mb-6 text-center">
-                As senhas não conferem ou não atendem aos requisitos.
-            </div>
+            <p role="alert"
+               class="bg-red-500/20 border border-red-300/50 text-white text-xs
+                      font-light rounded-xl px-4 py-3 text-center mb-4"
+               style="font-family:'Poppins',sans-serif;">
+                As senhas não coincidem ou não atendem aos requisitos.
+            </p>
             {% endif %}
 
-            <button type="submit"
-                    class="w-full h-12 bg-white text-gray-800 font-medium rounded-full shadow-lg hover:bg-gray-100 transition text-base"
-                    style="font-family: 'Poppins', sans-serif;">
-                Redefinir senha
-            </button>
-        </form>
+            <form method="POST">
+                {% csrf_token %}
+
+                <div class="relative mb-3">
+                    <input type="password"
+                           name="new_password1"
+                           placeholder="Nova senha"
+                           required
+                           class="w-full h-12 bg-white/[0.13] border border-white/25
+                                  rounded-xl text-white placeholder-white/55 text-sm
+                                  font-light pl-4 pr-11 outline-none transition duration-200
+                                  focus:bg-white/20 focus:border-white/55
+                                  shadow-[inset_0_1px_3px_rgba(0,0,0,0.10)]"
+                           style="font-family:'Poppins',sans-serif;">
+                </div>
+
+                <div class="relative mb-6">
+                    <input type="password"
+                           name="new_password2"
+                           placeholder="Confirmar nova senha"
+                           required
+                           class="w-full h-12 bg-white/[0.13] border border-white/25
+                                  rounded-xl text-white placeholder-white/55 text-sm
+                                  font-light pl-4 pr-11 outline-none transition duration-200
+                                  focus:bg-white/20 focus:border-white/55
+                                  shadow-[inset_0_1px_3px_rgba(0,0,0,0.10)]"
+                           style="font-family:'Poppins',sans-serif;">
+                </div>
+
+                <button type="submit"
+                        class="w-full h-12 bg-white text-gray-700 font-medium text-base
+                               rounded-full cursor-pointer
+                               shadow-[0_4px_18px_rgba(0,0,0,0.18)]
+                               hover:bg-gray-100 active:scale-[0.98] transition duration-200"
+                        style="font-family:'Poppins',sans-serif;">
+                    Redefinir senha
+                </button>
+            </form>
+
+        </article>
     </div>
+
 </div>
 
 {% endblock %}
