@@ -10,7 +10,7 @@ from .models import (
     Seguidor, PostReacao, Notificacao, Categoria,
     Comentario, VotoComentario,
     ScorePost, CampoInteracao, CampoCluster,
-    CampoCardPenalidade,
+    CampoCardPenalidade,                   
 )
 from .forms import PostForm, RegistroForm, AutorForm
 
@@ -1347,17 +1347,14 @@ def _posts_ordenados(autor):
 
     afinidade = _afinidade_usuario(autor)
 
-    # IDs penalizados pelo usuário — vão para o fim da fila
     penalizados_ids = set(
         CampoCardPenalidade.objects.filter(autor=autor)
         .values_list('post_id', flat=True)
     )
 
     def _score_final(post):
-        # Card penalizado vai para o fim absoluto da fila
         if post.id in penalizados_ids:
             return -9999
-
         base  = getattr(post, 'score_cache', None)
         base  = base.score if base else 0
         boost = sum(
@@ -1527,15 +1524,6 @@ def meus_notes_campo(request):
 
 @login_required
 def campo_pool_json(request):
-    """
-    Entrega o pool global de posts do Campo das Ideias em lista plana,
-    ordenada por score final (com afinidade e penalidades aplicadas).
-    O frontend controla a matriz e fatia o pool conforme cresce.
-    
-    Query params:
-        offset (int) — índice de início no pool (default 0)
-        limit  (int) — quantos posts retornar   (default 20)
-    """
     autor  = request.user.autor
     offset = max(0, int(request.GET.get('offset', 0)))
     limit  = max(1, min(int(request.GET.get('limit', 20)), 50))
@@ -1554,11 +1542,6 @@ def campo_pool_json(request):
 
 @login_required
 def penalizar_card_campo(request):
-    """
-    Marca um card como repetitivo para o usuário.
-    O post vai para o fim da fila de exibição — não é removido do pool.
-    Idempotente: chamar duas vezes não gera erro.
-    """
     if request.method != 'POST':
         return JsonResponse({'erro': 'Método não permitido.'}, status=405)
 
@@ -1573,7 +1556,6 @@ def penalizar_card_campo(request):
 
     post = get_object_or_404(Post, id=post_id, publicado=True, visibilidade='campo')
 
-    # Não permite penalizar o próprio post
     if post.autor.usuario == request.user:
         return JsonResponse({'erro': 'Não é possível penalizar seu próprio post.'}, status=403)
 

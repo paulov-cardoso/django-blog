@@ -13,8 +13,8 @@ from .views import (
     votar_comentario_json, excluir_comentario_json,
     lista_seguidores, lista_seguindo,
     campo_grid_json, registrar_interacao_campo,
-    criar_post_campo, meus_notes_campo, campo_linha_mais,
-    penalizar_card_campo, campo_pool_json,
+    criar_post_campo, meus_notes_campo, campo_linha_mais, penalizar_card_campo,
+    campo_pool_json,
 )
 
 urlpatterns = [
