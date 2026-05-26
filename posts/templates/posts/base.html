@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{% block titulo %}Blog{% endblock %}</title>
+    <title>{% block titulo %}Synapsoo{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
@@ -23,11 +23,25 @@
     </script>
 
     {% block nav %}
-    <nav class="sticky top-0 z-40 bg-gradient-to-r from-blue-900 via-purple-600 to-orange-500 bg-opacity-90 backdrop-blur-md text-white px-6 py-4 shadow-md">
-      {% block navbar %}
-      <div class="max-w-5xl mx-auto flex justify-between items-center">
+    <nav class="sticky top-0 z-40 text-white px-6 py-4 shadow-md overflow-hidden"
+         style="background: linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%);">
 
-        <a href="/?aba=notes_privados" class="text-3xl font-semibold tracking-tight" style="font-family: 'Poppins', sans-serif;">Meu Blognotes</a>
+        <!-- Textura metálica fosca — mesma do card auth -->
+        <canvas id="nav-texture"
+                aria-hidden="true"
+                style="position:absolute; inset:0; width:100%; height:100%;
+                       opacity:0.18; mix-blend-mode:soft-light;
+                       pointer-events:none; z-index:0;"></canvas>
+
+      {% block navbar %}
+      <div class="max-w-5xl mx-auto flex justify-between items-center relative"
+           style="z-index:1;">
+
+        <a href="/?aba=notes_privados"
+           class="text-3xl font-semibold tracking-tight"
+           style="font-family: 'Poppins', sans-serif;">
+            Synapsoo
+        </a>
 
         <div class="flex gap-4 text-sm items-center">
           {% if user.is_authenticated %}
@@ -148,8 +162,9 @@
       {% block conteudo %}{% endblock %}
     </main>
 
-    <footer class="{% block footer_class %}bg-gradient-to-r from-blue-900 via-purple-600 to-orange-500{% endblock %} text-white text-center py-4 text-sm">
-      <p>© Copyright 2026 Meu Blognotes — Feito com Django + Tailwind</p>
+    <footer class="{% block footer_class %}{% endblock %} text-white text-center py-4 text-sm"
+            style="{% block footer_style %}background: linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%);{% endblock %}">
+      <p>© Copyright 2026 Synapsoo — Feito com Django + Tailwind</p>
     </footer>
 
     <!-- Toast de publicação -->
@@ -184,8 +199,40 @@
     {% load static %}
     <script type="module" src="{% static 'posts/js/main.js' %}"></script>
 
-  
     <script>
+    // ── Textura metálica fosca na navbar ──────────────────────────────────────
+    (function () {
+        const canvas = document.getElementById('nav-texture');
+        if (!canvas) return;
+
+        const nav = canvas.parentElement;
+        const w   = Math.ceil(nav.offsetWidth)  || 1920;
+        const h   = Math.ceil(nav.offsetHeight) || 64;
+
+        canvas.width  = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext('2d');
+        const img = ctx.createImageData(w, h);
+        const px  = img.data;
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const idx    = (y * w + x) * 4;
+                const grain  = Math.random();
+                const stripe = (Math.sin(y * 0.4 + Math.random() * 0.6) + 1) / 2;
+                const diag   = (Math.sin((x + y) * 0.08) + 1) / 2;
+                const val    = Math.floor((grain * 0.55 + stripe * 0.30 + diag * 0.15) * 255);
+                px[idx] = px[idx + 1] = px[idx + 2] = val;
+                px[idx + 3] = 255;
+            }
+        }
+
+        ctx.putImageData(img, 0, 0);
+        ctx.filter = 'blur(0.4px)';
+        ctx.drawImage(canvas, 0, 0);
+    }());
+
     // ── Toast ─────────────────────────────────────────────────────────────────
     (function () {
         const MENSAGENS = {
@@ -196,7 +243,7 @@
             ideia_privada:    { icon: '🔒', texto: 'Ideia retirada para seus Notes privados.' },
             moderador_eleito: { icon: '🤝', texto: 'Moderador eleito com sucesso!' },
             desistiu:         { icon: '😔', texto: 'Você desistiu da ideia.' },
-            bem_vindo:        { icon: '🌟', texto: 'Bem-vindo ao Blognotes!', especial: true },
+            bem_vindo:        { icon: '🌟', texto: 'Bem-vindo ao Synapsoo!', especial: true },
             perfil_editado:   { icon: '👤', texto: 'Perfil atualizado com sucesso!' },
         };
 
@@ -241,10 +288,9 @@
                 overlay.classList.add('opacity-0');
             }, 500);
         }, duracao);
-    })();
+    }());
 
     // ── Modal de busca de usuários ────────────────────────────────────────────
-
     function abrirModalBusca() {
         const modal = document.getElementById('modal-busca-usuarios');
         modal.classList.remove('hidden');
