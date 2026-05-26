@@ -10,6 +10,7 @@ from .models import (
     Seguidor, PostReacao, Notificacao, Categoria,
     Comentario, VotoComentario,
     ScorePost, CampoInteracao, CampoCluster,
+    CampoCardPenalidade,
 )
 from .forms import PostForm, RegistroForm, AutorForm
 
