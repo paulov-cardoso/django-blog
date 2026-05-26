@@ -1,0 +1,117 @@
+{% extends 'posts/base.html' %}
+{% load static %}
+
+{% block body_class %}{% endblock %}
+{% block footer_class %}bg-transparent fixed bottom-0 w-full{% endblock %}
+{% block nav %}{% endblock %}
+
+{% block conteudo %}
+<style>
+    .login-root {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem 1rem 4rem;
+        background: linear-gradient(155deg, #d4b8d4 0%, #e2cde2 45%, #eddaed 100%);
+    }
+
+    .card-noise {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%);
+    }
+
+    .auth-card-texture {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: inherit;
+        opacity: 0.18;
+        mix-blend-mode: soft-light;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .card-noise > *:not(.auth-card-texture) {
+        position: relative;
+        z-index: 1;
+    }
+
+    .cb-custom {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 15px;
+        height: 15px;
+        min-width: 15px;
+        border: 1.5px solid rgba(255, 255, 255, 0.45);
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.10);
+        cursor: pointer;
+        position: relative;
+        transition: background 0.2s, border-color 0.2s;
+    }
+
+    .cb-custom:checked { background: #a855f7; border-color: #a855f7; }
+
+    .cb-custom:checked::after {
+        content: '';
+        position: absolute;
+        left: 2px; top: 1px;
+        width: 8px; height: 5px;
+        border-left: 2px solid #fff;
+        border-bottom: 2px solid #fff;
+        transform: rotate(-45deg);
+    }
+</style>
+
+<div class="login-root" role="main">
+
+    <canvas id="postit-canvas" aria-hidden="true"
+            style="position:absolute; inset:0; width:100%; height:100%;
+                   z-index:1; pointer-events:none;"></canvas>
+
+    <div class="relative flex flex-col items-center w-full max-w-[400px]" style="z-index:2;">
+
+        <div class="flex justify-center w-full relative" style="z-index:20;">
+            <img src="{% static 'posts/images/Oficial_Soo.png' %}"
+                 alt="Synapsoo — Onde suas ideias jamais caem no esquecimento"
+                 width="260"
+                 style="height:auto;
+                        filter: drop-shadow(0 6px 18px rgba(60,10,100,0.22));
+                        margin-bottom: -10px;">
+        </div>
+
+        <article class="card-noise w-full rounded-2xl px-8 pb-7 pt-8
+                        border border-white/20
+                        shadow-[0_28px_64px_rgba(50,15,100,0.30),0_4px_16px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.16)]">
+
+            <canvas class="auth-card-texture" id="card-texture" aria-hidden="true"></canvas>
+
+            {% block auth_content %}{% endblock %}
+
+        </article>
+    </div>
+
+    <p class="text-lg font-light mt-6 text-center tracking-tighter"
+       aria-live="polite"
+       style="font-family:'Poppins',sans-serif; color:rgba(90,50,120,0.70);">
+        <span id="slogan"></span><span id="cursor" aria-hidden="true" style="opacity:0.9">|</span>
+    </p>
+
+    <footer class="fixed bottom-0 w-full text-center py-3 text-sm font-light text-purple-900/60"
+            style="font-family:'Poppins',sans-serif;">
+        © Copyright 2026 Synapsoo &nbsp;·&nbsp;
+        <a href="#" class="hover:text-purple-900 transition mx-1">Termos de uso</a> &nbsp;·&nbsp;
+        <a href="#" class="hover:text-purple-900 transition mx-1">Suporte</a>
+    </footer>
+
+</div>
+
+<script src="{% static 'posts/js/auth.js' %}"></script>
+
+{% endblock %}
