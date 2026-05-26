@@ -10,6 +10,7 @@ from .models import (
     Seguidor, PostReacao, Notificacao, Categoria,
     Comentario, VotoComentario,
     ScorePost, CampoInteracao, CampoCluster,
+    CampoCardPenalidade,
 )
 from .forms import PostForm, RegistroForm, AutorForm
 
@@ -1258,90 +1259,57 @@ def excluir_comentario_json(request, comentario_id):
     return JsonResponse({'ok': True})
 
 
-# ── Campo das ideias ──────────────────────────────────────────────
 
-# ── ROLAMENTO CUBO MÁGICO ─────────────────────────────────
-#
-# Arquitetura de dados:
-#   O grid é composto por N colunas verticais independentes.
-#   Cada coluna tem seu próprio pool de posts e pode ser paginada separadamente.
-#   O frontend exibe sempre `linhas_visiveis` posts por coluna (padrão: 2).
-#   O usuário rola cada coluna individualmente para cima/baixo.
-#
-# Endpoint principal:  GET /api/campo/grid/
-#   Retorna todas as colunas com os primeiros `linhas` posts cada.
-#
-# Endpoint de paginação: GET /api/campo/coluna/<col_index>/mais/
-#   Retorna mais posts para uma coluna específica (scroll infinito por coluna).
+
+# ── Campo das Ideias — Rolamento Cubo Mágico ──────────────────────────────────
+
+# ── Algoritimo do Rolamento Cubo Mágico ──────────────────────────────────
+
 
 import math
 import json
-from django.db.models import Count
 from django.utils import timezone
 
 
 def _calcular_score(post, agora=None):
-    """
-    Score = curtidas×3 + clips×2 + comentários×5 com decaimento temporal.
-    Decaimento gravitacional: divide pela idade em horas elevada a 1.5.
-    """
     if agora is None:
         agora = timezone.now()
-
     curtidas    = post.reacoes.filter(tipo='curtida').count()
     clips       = post.reacoes.filter(tipo='clip').count()
     comentarios = post.comentarios.filter(removido=False).count()
-
     raw         = (curtidas * 3) + (clips * 2) + (comentarios * 5)
     idade_horas = max((agora - post.data_criacao).total_seconds() / 3600, 1)
-    score       = raw / math.pow(idade_horas, 1.5)
-
-    return round(score, 4)
+    return round(raw / math.pow(idade_horas, 1.5), 4)
 
 
 def _recalcular_scores_campo():
-    """Recalcula ScorePost para todos os posts do campo."""
     agora = timezone.now()
     posts = Post.objects.filter(
-        publicado=True,
-        visibilidade='campo',
+        publicado=True, visibilidade='campo'
     ).prefetch_related('reacoes', 'comentarios')
-
     for post in posts:
-        score = _calcular_score(post, agora)
         ScorePost.objects.update_or_create(
-            post=post,
-            defaults={'score': score},
+            post=post, defaults={'score': _calcular_score(post, agora)}
         )
 
 
 def _afinidade_usuario(autor):
-    """
-    Retorna dict {categoria_id: peso_normalizado} baseado nas interações do usuário.
-    Camada B do algoritmo — ativo apenas com ≥10 interações registradas.
-    """
     interacoes = CampoInteracao.objects.filter(autor=autor).select_related('post')
     if interacoes.count() < 10:
         return {}
-
     pesos = {}
     for inter in interacoes:
-        peso_direcao = {'open': 5, 'down': 2, 'up': 2, 'left': 1, 'right': 1}.get(inter.direcao, 1)
-        peso_tempo   = min(inter.tempo_ms / 1000, 10)
-        peso_total   = peso_direcao + peso_tempo
-
+        peso = {'open': 5, 'down': 2, 'up': 2, 'left': 1, 'right': 1}.get(inter.direcao, 1)
+        peso += min(inter.tempo_ms / 1000, 10)
         for cat in inter.post.categorias.all():
-            pesos[cat.id] = pesos.get(cat.id, 0) + peso_total
-
+            pesos[cat.id] = pesos.get(cat.id, 0) + peso
     if pesos:
-        max_peso = max(pesos.values())
-        pesos    = {k: v / max_peso for k, v in pesos.items()}
-
+        mx = max(pesos.values())
+        pesos = {k: v / mx for k, v in pesos.items()}
     return pesos
 
 
 def _serializar_card(post):
-    """Serializa um post para o formato esperado pelo frontend do Campo."""
     score_cache = getattr(post, 'score_cache', None)
     return {
         'id':          post.id,
@@ -1363,45 +1331,33 @@ def _serializar_card(post):
     }
 
 
-def _montar_colunas(autor, num_colunas=5, linhas_visiveis=2):
-    """
-    Distribui os posts do Campo em N colunas verticais independentes.
-
-    Lógica de distribuição:
-      1. Obtém todos os posts ordenados por score + afinidade (Camada A + B).
-      2. Distribui em round-robin pelas colunas: post 0 → col 0, post 1 → col 1, ...
-         Isso garante que posts de alta relevância apareçam em colunas diferentes,
-         e que cada coluna tenha uma mistura de conteúdo ao invés de uma coluna
-         dominada por um único cluster de categorias.
-      3. Cada coluna retorna os primeiros `linhas_visiveis` posts visíveis
-         e o total para o frontend saber se há mais para paginar.
-
-    Retorna lista de dicts com estrutura:
-      [
-        {"index": 0, "cards": [...], "total": N, "tem_mais": bool},
-        ...
-      ]
-    """
+def _posts_ordenados(autor):
     posts_campo = Post.objects.filter(
-        publicado=True,
-        visibilidade='campo',
+        publicado=True, visibilidade='campo'
     ).prefetch_related('categorias', 'reacoes', 'comentarios', 'score_cache')
 
-    # Garante que scores existam para posts novos
     ids_sem_score = posts_campo.exclude(
         id__in=ScorePost.objects.values_list('post_id', flat=True)
     ).values_list('id', flat=True)
     if ids_sem_score:
         _recalcular_scores_campo()
-        # Recarrega com scores atualizados
         posts_campo = Post.objects.filter(
-            publicado=True,
-            visibilidade='campo',
+            publicado=True, visibilidade='campo'
         ).prefetch_related('categorias', 'reacoes', 'comentarios', 'score_cache')
 
     afinidade = _afinidade_usuario(autor)
 
+    # IDs penalizados pelo usuário — vão para o fim da fila
+    penalizados_ids = set(
+        CampoCardPenalidade.objects.filter(autor=autor)
+        .values_list('post_id', flat=True)
+    )
+
     def _score_final(post):
+        # Card penalizado vai para o fim absoluto da fila
+        if post.id in penalizados_ids:
+            return -9999
+
         base  = getattr(post, 'score_cache', None)
         base  = base.score if base else 0
         boost = sum(
@@ -1410,116 +1366,80 @@ def _montar_colunas(autor, num_colunas=5, linhas_visiveis=2):
         )
         return base + (boost * 5)
 
-    posts_ordenados = sorted(posts_campo, key=_score_final, reverse=True)
+    return sorted(posts_campo, key=_score_final, reverse=True)
 
-    # Distribui em round-robin pelas colunas
-    colunas_posts = [[] for _ in range(num_colunas)]
-    for i, post in enumerate(posts_ordenados):
-        colunas_posts[i % num_colunas].append(post)
 
-    colunas = []
-    for idx, posts_col in enumerate(colunas_posts):
-        cards_visiveis = [_serializar_card(p) for p in posts_col[:linhas_visiveis]]
-        colunas.append({
+def _montar_linhas(autor, num_linhas=2, cards_por_linha=5):
+    posts = _posts_ordenados(autor)
+
+    # Distribui em round-robin pelas linhas
+    linhas_posts = [[] for _ in range(num_linhas)]
+    for i, post in enumerate(posts):
+        linhas_posts[i % num_linhas].append(post)
+
+    resultado = []
+    for idx, posts_linha in enumerate(linhas_posts):
+        cards_visiveis = [_serializar_card(p) for p in posts_linha[:cards_por_linha]]
+        resultado.append({
             'index':    idx,
             'cards':    cards_visiveis,
-            'total':    len(posts_col),
-            'tem_mais': len(posts_col) > linhas_visiveis,
+            'total':    len(posts_linha),
+            'tem_mais': len(posts_linha) > cards_por_linha,
         })
 
-    return colunas
+    return resultado
 
 
-def _paginar_coluna(autor, col_index, num_colunas=5, offset=0, linhas=2):
-    """
-    Retorna mais cards para uma coluna específica a partir de `offset`.
-    Usado pelo endpoint de paginação individual de coluna.
-    """
-    posts_campo = Post.objects.filter(
-        publicado=True,
-        visibilidade='campo',
-    ).prefetch_related('categorias', 'reacoes', 'comentarios', 'score_cache')
+def _paginar_linha(autor, row_index, num_linhas=2, offset=0, cards=5):
+    posts = _posts_ordenados(autor)
 
-    afinidade = _afinidade_usuario(autor)
+    linhas_posts = [[] for _ in range(num_linhas)]
+    for i, post in enumerate(posts):
+        linhas_posts[i % num_linhas].append(post)
 
-    def _score_final(post):
-        base  = getattr(post, 'score_cache', None)
-        base  = base.score if base else 0
-        boost = sum(
-            afinidade.get(cat_id, 0)
-            for cat_id in post.categorias.values_list('id', flat=True)
-        )
-        return base + (boost * 5)
-
-    posts_ordenados = sorted(posts_campo, key=_score_final, reverse=True)
-
-    # Reconstrói a mesma distribuição round-robin
-    colunas_posts = [[] for _ in range(num_colunas)]
-    for i, post in enumerate(posts_ordenados):
-        colunas_posts[i % num_colunas].append(post)
-
-    if col_index >= len(colunas_posts):
+    if row_index >= len(linhas_posts):
         return {'cards': [], 'tem_mais': False}
 
-    posts_col   = colunas_posts[col_index]
-    fatia       = posts_col[offset: offset + linhas]
-    cards       = [_serializar_card(p) for p in fatia]
-    tem_mais    = (offset + linhas) < len(posts_col)
+    posts_linha = linhas_posts[row_index]
+    fatia       = posts_linha[offset: offset + cards]
 
     return {
-        'cards':    cards,
-        'tem_mais': tem_mais,
-        'offset':   offset + linhas,
+        'cards':    [_serializar_card(p) for p in fatia],
+        'tem_mais': (offset + cards) < len(posts_linha),
+        'offset':   offset + cards,
     }
 
 
 @login_required
 def campo_grid_json(request):
-    """
-    Endpoint principal do Campo das Ideias — Rolamento Cubo Mágico.
-
-    GET /api/campo/grid/?cols=5&rows=2
-
-    Retorna todas as colunas com os primeiros `rows` cards cada.
-    O frontend usa essa resposta para montar a face inicial do cubo.
-    """
     autor    = request.user.autor
     colunas  = int(request.GET.get('cols', 5))
     linhas   = int(request.GET.get('rows', 2))
+    colunas  = max(2, min(colunas, 8))
+    linhas   = max(1, min(linhas, 4))
 
-    colunas = max(2, min(colunas, 8))
-    linhas  = max(1, min(linhas, 4))
-
-    resultado = _montar_colunas(autor, num_colunas=colunas, linhas_visiveis=linhas)
+    resultado = _montar_linhas(autor, num_linhas=linhas, cards_por_linha=colunas)
 
     return JsonResponse({
-        'colunas':     resultado,
+        'linhas':     resultado,
+        'num_linhas': linhas,
         'num_colunas': colunas,
-        'linhas':      linhas,
     })
 
 
 @login_required
-def campo_coluna_mais(request, col_index):
-    """
-    Endpoint de paginação por coluna — Rolamento Cubo Mágico.
+def campo_linha_mais(request, row_index):
+    autor    = request.user.autor
+    offset   = int(request.GET.get('offset', 0))
+    num_linhas = int(request.GET.get('rows', 2))
+    cards    = int(request.GET.get('cols', 5))
 
-    GET /api/campo/coluna/<col_index>/mais/?offset=2&cols=5&rows=2
-
-    Chamado quando o usuário rola uma coluna específica até o fim.
-    Retorna os próximos `rows` cards daquela coluna a partir de `offset`.
-    """
-    autor      = request.user.autor
-    offset     = int(request.GET.get('offset', 0))
-    num_colunas = int(request.GET.get('cols', 5))
-    linhas     = int(request.GET.get('rows', 2))
-
-    resultado = _paginar_coluna(
+    resultado = _paginar_linha(
         autor,
-        col_index=col_index,
-        num_colunas=num_colunas,
+        row_index=row_index,
+        num_linhas=num_linhas,
         offset=offset,
-        linhas=linhas,
+        cards=cards,
     )
 
     return JsonResponse(resultado)
@@ -1527,10 +1447,8 @@ def campo_coluna_mais(request, col_index):
 
 @login_required
 def registrar_interacao_campo(request):
-    """Registra navegação do usuário no grid para alimentar o algoritmo."""
     if request.method != 'POST':
         return JsonResponse({'erro': 'Método não permitido.'}, status=405)
-
     try:
         dados = json.loads(request.body)
     except json.JSONDecodeError:
@@ -1540,28 +1458,23 @@ def registrar_interacao_campo(request):
     direcao  = dados.get('direcao', 'open')
     tempo_ms = dados.get('tempo_ms', 0)
 
-    DIRECOES_VALIDAS = {'up', 'down', 'left', 'right', 'open'}
-    if direcao not in DIRECOES_VALIDAS:
+    if direcao not in {'up', 'down', 'left', 'right', 'open'}:
         return JsonResponse({'erro': 'Direção inválida.'}, status=400)
 
     post = get_object_or_404(Post, id=post_id, publicado=True, visibilidade='campo')
-
     CampoInteracao.objects.create(
         autor=request.user.autor,
         post=post,
         direcao=direcao,
         tempo_ms=int(tempo_ms),
     )
-
     return JsonResponse({'ok': True})
 
 
 @login_required
 def criar_post_campo(request):
-    """Composer exclusivo do Campo das Ideias — sem capa obrigatória."""
     if request.method != 'POST':
         return JsonResponse({'erro': 'Método não permitido.'}, status=405)
-
     try:
         dados = json.loads(request.body)
     except json.JSONDecodeError:
@@ -1580,34 +1493,20 @@ def criar_post_campo(request):
 
     autor = request.user.autor
     post  = Post.objects.create(
-        titulo=titulo,
-        conteudo=conteudo,
-        autor=autor,
-        visibilidade='campo',
-        publicado=True,
+        titulo=titulo, conteudo=conteudo, autor=autor,
+        visibilidade='campo', publicado=True,
     )
+    post.categorias.set(Categoria.objects.filter(id__in=cat_ids, aprovada=True))
+    ScorePost.objects.create(post=post, score=_calcular_score(post))
 
-    categorias = Categoria.objects.filter(id__in=cat_ids, aprovada=True)
-    post.categorias.set(categorias)
-
-    score = _calcular_score(post)
-    ScorePost.objects.create(post=post, score=score)
-
-    return JsonResponse({
-        'ok':  True,
-        'id':  post.id,
-        'msg': 'Ideia publicada no Campo das Ideias!',
-    }, status=201)
+    return JsonResponse({'ok': True, 'id': post.id}, status=201)
 
 
 @login_required
 def meus_notes_campo(request):
-    """Sub-aba: notes do usuário logado publicados no campo."""
     autor = request.user.autor
     posts = Post.objects.filter(
-        autor=autor,
-        visibilidade='campo',
-        publicado=True,
+        autor=autor, visibilidade='campo', publicado=True
     ).order_by('-data_criacao')
 
     return JsonResponse({
@@ -1624,3 +1523,63 @@ def meus_notes_campo(request):
             for p in posts
         ]
     })
+
+
+@login_required
+def campo_pool_json(request):
+    """
+    Entrega o pool global de posts do Campo das Ideias em lista plana,
+    ordenada por score final (com afinidade e penalidades aplicadas).
+    O frontend controla a matriz e fatia o pool conforme cresce.
+    
+    Query params:
+        offset (int) — índice de início no pool (default 0)
+        limit  (int) — quantos posts retornar   (default 20)
+    """
+    autor  = request.user.autor
+    offset = max(0, int(request.GET.get('offset', 0)))
+    limit  = max(1, min(int(request.GET.get('limit', 20)), 50))
+
+    posts_ordenados = _posts_ordenados(autor)
+    fatia           = posts_ordenados[offset: offset + limit]
+
+    return JsonResponse({
+        'cards':    [_serializar_card(p) for p in fatia],
+        'offset':   offset,
+        'limit':    limit,
+        'total':    len(posts_ordenados),
+        'tem_mais': (offset + limit) < len(posts_ordenados),
+    })
+
+
+@login_required
+def penalizar_card_campo(request):
+    """
+    Marca um card como repetitivo para o usuário.
+    O post vai para o fim da fila de exibição — não é removido do pool.
+    Idempotente: chamar duas vezes não gera erro.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON inválido.'}, status=400)
+
+    post_id = dados.get('post_id')
+    if not post_id:
+        return JsonResponse({'erro': 'post_id obrigatório.'}, status=400)
+
+    post = get_object_or_404(Post, id=post_id, publicado=True, visibilidade='campo')
+
+    # Não permite penalizar o próprio post
+    if post.autor.usuario == request.user:
+        return JsonResponse({'erro': 'Não é possível penalizar seu próprio post.'}, status=403)
+
+    CampoCardPenalidade.objects.get_or_create(
+        autor=request.user.autor,
+        post=post,
+    )
+
+    return JsonResponse({'ok': True, 'post_id': post_id})

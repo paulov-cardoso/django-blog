@@ -351,3 +351,21 @@ class CampoCluster(models.Model):
     def __str__(self):
         cats = ', '.join(c.nome for c in self.categorias.all()[:3])
         return f"Cluster [{cats}] score={self.score_cluster:.2f}"
+    
+
+class CampoCardPenalidade(models.Model):
+    """
+    Registra quando um usuário sinaliza um card como repetitivo.
+    O card não é removido do pool — recebe score -9999 para aquele usuário,
+    indo para o final da fila de exibição.
+    """
+    autor     = models.ForeignKey(Autor, on_delete=models.CASCADE, related_name='penalidades_campo')
+    post      = models.ForeignKey(Post,  on_delete=models.CASCADE, related_name='penalidades_campo')
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('autor', 'post')
+        ordering        = ['-criado_em']
+
+    def __str__(self):
+        return f"{self.autor} penalizou '{self.post}'"
