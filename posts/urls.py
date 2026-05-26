@@ -13,7 +13,8 @@ from .views import (
     votar_comentario_json, excluir_comentario_json,
     lista_seguidores, lista_seguindo,
     campo_grid_json, registrar_interacao_campo,
-    criar_post_campo, meus_notes_campo, campo_coluna_mais,
+    criar_post_campo, meus_notes_campo, campo_linha_mais,
+    penalizar_card_campo, campo_pool_json,
 )
 
 urlpatterns = [
@@ -40,11 +41,13 @@ urlpatterns = [
     path('api/post/<int:post_id>/reagir/<str:tipo>/', reagir_post, name='reagir_post'),
 
     # Campo das Ideias — API
-    path('api/campo/grid/',        campo_grid_json,           name='campo_grid_json'),
-    path('api/campo/interacao/',   registrar_interacao_campo, name='registrar_interacao_campo'),
-    path('api/campo/postar/',      criar_post_campo,          name='criar_post_campo'),
-    path('api/campo/meus-notes/',  meus_notes_campo,          name='meus_notes_campo'),
-    path('api/campo/coluna/<int:col_index>/mais/', campo_coluna_mais, name='campo_coluna_mais'),
+    path('api/campo/grid/',                        campo_grid_json,           name='campo_grid_json'),
+    path('api/campo/interacao/',                   registrar_interacao_campo, name='registrar_interacao_campo'),
+    path('api/campo/postar/',                      criar_post_campo,          name='criar_post_campo'),
+    path('api/campo/meus-notes/',                  meus_notes_campo,          name='meus_notes_campo'),
+    path('api/campo/linha/<int:row_index>/mais/',  campo_linha_mais,          name='campo_linha_mais'),
+    path('api/campo/penalizar-card/',              penalizar_card_campo,      name='penalizar_card_campo'),
+    path('api/campo/pool/',                        campo_pool_json,           name='campo_pool_json'),
 
     # Rotas legadas (para detail.html em tela cheia)
     path('post/<int:post_id>/comentar/',                         comentar,             name='comentar'),
@@ -76,3 +79,4 @@ urlpatterns = [
     # Search de usuários
     path('usuarios/buscar/', buscar_usuarios, name='buscar_usuarios'),
 ]
+

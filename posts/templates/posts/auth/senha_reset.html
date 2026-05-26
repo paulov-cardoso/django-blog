@@ -1,286 +1,47 @@
-{% extends 'posts/base.html' %}
-{% load static %}
+{% extends 'posts/auth/base_auth.html' %}
 
-{% block body_class %}{% endblock %}
-{% block footer_class %}bg-transparent fixed bottom-0 w-full{% endblock %}
-{% block nav %}{% endblock %}
 {% block titulo %}Recuperar Senha — Synapsoo{% endblock %}
 
-{% block conteudo %}
+{% block auth_content %}
 
-<style>
-    .login-root {
-        position: fixed;
-        inset: 0;
-        z-index: 50;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem 1rem 4rem;
-        background: linear-gradient(155deg, #d4b8d4 0%, #e2cde2 45%, #eddaed 100%);
-    }
+<h1 class="text-center text-white font-bold text-3xl tracking-wide mb-2"
+    style="font-family:'Poppins',sans-serif; text-shadow:0 2px 8px rgba(0,0,0,0.18);">
+    Esqueci a senha
+</h1>
 
-    .card-noise {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%);
-    }
+<p class="text-center text-sm font-light text-white/65 mb-6" style="font-family:'Poppins',sans-serif;">
+    Digite seu email e enviaremos um link para redefinir sua senha.
+</p>
 
-    #card-texture-reset {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        border-radius: inherit;
-        opacity: 0.18;
-        mix-blend-mode: soft-light;
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    .card-noise > *:not(#card-texture-reset) {
-        position: relative;
-        z-index: 1;
-    }
-</style>
-
-<div class="login-root" role="main">
-
-    <!-- Post-its caindo -->
-    <canvas id="postit-canvas-reset"
-            aria-hidden="true"
-            style="position:absolute; inset:0; width:100%; height:100%;
-                   z-index:1; pointer-events:none;"></canvas>
-
-    <!-- Âncora: coruja + card -->
-    <div class="relative flex flex-col items-center w-full max-w-[400px]"
-         style="z-index:2;">
-
-        <!-- Logo -->
-        <div class="flex justify-center w-full relative" style="z-index:20;">
-            <img src="{% static 'posts/images/Oficial_Soo.png' %}"
-                 alt="Synapsoo"
-                 width="260"
-                 style="height:auto;
-                        filter: drop-shadow(0 6px 18px rgba(60,10,100,0.22));
-                        margin-bottom: -10px;">
-        </div>
-
-        <!-- Card -->
-        <article class="card-noise w-full rounded-2xl px-8 pb-7 pt-8
-                        border border-white/20
-                        shadow-[0_28px_64px_rgba(50,15,100,0.30),0_4px_16px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.16)]">
-
-            <canvas id="card-texture-reset" aria-hidden="true"></canvas>
-
-            <h1 class="text-center text-white font-bold text-3xl tracking-wide mb-2"
-                style="font-family:'Poppins',sans-serif;
-                       text-shadow: 0 2px 8px rgba(0,0,0,0.18);">
-                Esqueci a senha
-            </h1>
-
-            <p class="text-center text-sm font-light text-white/65 mb-6"
+<form method="POST" novalidate>
+    {% csrf_token %}
+    <div class="relative mb-6">
+        <label for="id_email" class="sr-only">Email</label>
+        <input type="email" id="id_email" name="email" placeholder="Seu email"
+               required autocomplete="email"
+               class="w-full h-12 bg-white/[0.13] border border-white/25 rounded-xl
+                      text-white placeholder-white/55 text-sm font-light pl-4 pr-11
+                      outline-none transition duration-200 focus:bg-white/20 focus:border-white/55
+                      shadow-[inset_0_1px_3px_rgba(0,0,0,0.10)]"
                style="font-family:'Poppins',sans-serif;">
-                Digite seu email e enviaremos um link para redefinir sua senha.
-            </p>
-
-            <form method="POST" novalidate>
-                {% csrf_token %}
-
-                <!-- Email -->
-                <div class="relative mb-6">
-                    <label for="id_email" class="sr-only">Email</label>
-                    <input type="email"
-                           id="id_email"
-                           name="email"
-                           placeholder="Seu email"
-                           required
-                           autocomplete="email"
-                           class="w-full h-12 bg-white/[0.13] border border-white/25
-                                  rounded-xl text-white placeholder-white/55 text-sm
-                                  font-light pl-4 pr-11 outline-none transition duration-200
-                                  focus:bg-white/20 focus:border-white/55
-                                  shadow-[inset_0_1px_3px_rgba(0,0,0,0.10)]"
-                           style="font-family:'Poppins',sans-serif;">
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2
-                                 text-white/50 pointer-events-none"
-                          aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                             stroke="currentColor" stroke-width="1.8"
-                             stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                            <polyline points="22,6 12,13 2,6"/>
-                        </svg>
-                    </span>
-                </div>
-
-                <!-- Submit -->
-                <button type="submit"
-                        class="w-full h-12 bg-white text-gray-700 font-medium text-base
-                               rounded-full cursor-pointer
-                               shadow-[0_4px_18px_rgba(0,0,0,0.18)]
-                               hover:bg-gray-100 active:scale-[0.98] transition duration-200"
-                        style="font-family:'Poppins',sans-serif;">
-                    Enviar link
-                </button>
-
-                <p class="text-center text-sm font-light text-white/80 mt-4"
-                   style="font-family:'Poppins',sans-serif;">
-                    Lembrou a senha?
-                    <a href="{% url 'login' %}"
-                       class="font-medium text-white/90 hover:text-white hover:underline transition">
-                        Entrar
-                    </a>
-                </p>
-            </form>
-
-        </article>
+        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+            </svg>
+        </span>
     </div>
-
-    <!-- Slogan animado -->
-    <p class="text-lg font-light mt-6 text-center tracking-tighter"
-       aria-live="polite"
-       style="font-family:'Poppins',sans-serif; color: rgba(90,50,120,0.70);">
-        <span id="slogan"></span><span id="cursor" aria-hidden="true" style="opacity:0.9">|</span>
-    </p>
-
-    <!-- Rodapé -->
-    <footer class="fixed bottom-0 w-full text-center py-3
-                   text-sm font-light text-purple-900/60"
+    <button type="submit"
+            class="w-full h-12 bg-white text-gray-700 font-medium text-base rounded-full
+                   cursor-pointer shadow-[0_4px_18px_rgba(0,0,0,0.18)]
+                   hover:bg-gray-100 active:scale-[0.98] transition duration-200"
             style="font-family:'Poppins',sans-serif;">
-        © Copyright 2026 Synapsoo &nbsp;·&nbsp;
-        <a href="#" class="hover:text-purple-900 transition mx-1">Termos de uso</a>
-        &nbsp;·&nbsp;
-        <a href="#" class="hover:text-purple-900 transition mx-1">Suporte</a>
-    </footer>
-
-</div>
-
-<script>
-(function () {
-    'use strict';
-
-    /* ── Textura metálica fosca no card ─────────────────────── */
-    const cardCanvas = document.getElementById('card-texture-reset');
-    const cardBox    = cardCanvas.parentElement.getBoundingClientRect();
-    const cw = Math.ceil(cardBox.width)  || 400;
-    const ch = Math.ceil(cardBox.height) || 400;
-
-    cardCanvas.width  = cw;
-    cardCanvas.height = ch;
-
-    const cctx = cardCanvas.getContext('2d');
-    const img  = cctx.createImageData(cw, ch);
-    const px   = img.data;
-
-    for (let y = 0; y < ch; y++) {
-        for (let x = 0; x < cw; x++) {
-            const idx    = (y * cw + x) * 4;
-            const grain  = Math.random();
-            const stripe = (Math.sin(y * 0.4 + Math.random() * 0.6) + 1) / 2;
-            const diag   = (Math.sin((x + y) * 0.08) + 1) / 2;
-            const val    = Math.floor((grain * 0.55 + stripe * 0.30 + diag * 0.15) * 255);
-            px[idx] = px[idx + 1] = px[idx + 2] = val;
-            px[idx + 3] = 255;
-        }
-    }
-
-    cctx.putImageData(img, 0, 0);
-    cctx.filter = 'blur(0.4px)';
-    cctx.drawImage(cardCanvas, 0, 0);
-
-    /* ── Slogan typewriter ──────────────────────────────────── */
-    const SLOGAN   = 'Onde suas ideias jamais caem no esquecimento';
-    const sloganEl = document.getElementById('slogan');
-    const cursorEl = document.getElementById('cursor');
-    let pos = 0, typing = true;
-
-    function typeWriter() {
-        if (typing) {
-            if (pos < SLOGAN.length) {
-                sloganEl.textContent += SLOGAN.charAt(pos++);
-                setTimeout(typeWriter, 60);
-            } else {
-                setTimeout(() => { typing = false; typeWriter(); }, 2000);
-            }
-        } else {
-            if (pos > 0) {
-                sloganEl.textContent = SLOGAN.substring(0, --pos);
-                setTimeout(typeWriter, 30);
-            } else {
-                setTimeout(() => { typing = true; typeWriter(); }, 500);
-            }
-        }
-    }
-
-    setInterval(() => {
-        cursorEl.style.opacity = cursorEl.style.opacity === '0' ? '1' : '0';
-    }, 500);
-
-    typeWriter();
-
-    /* ── Post-its caindo ────────────────────────────────────── */
-    const COLORS = ['#FFFF99', '#FFFF99', '#FF65A3', '#FF9933', '#D2DE40', '#A6CCF5', '#FFB3C5'];
-    const bgCanvas = document.getElementById('postit-canvas-reset');
-    const bgCtx    = bgCanvas.getContext('2d');
-
-    function resizeBgCanvas() {
-        bgCanvas.width  = window.innerWidth;
-        bgCanvas.height = window.innerHeight;
-    }
-    resizeBgCanvas();
-    window.addEventListener('resize', resizeBgCanvas);
-
-    const postits = Array.from({ length: 32 }, () => ({
-        x:       Math.random() * window.innerWidth,
-        y:       Math.random() * -window.innerHeight,
-        size:    Math.random() * 14 + 10,
-        color:   COLORS[Math.floor(Math.random() * COLORS.length)],
-        speed:   Math.random() * 0.6 + 0.3,
-        drift:   (Math.random() - 0.5) * 0.4,
-        angle:   Math.random() * Math.PI * 2,
-        spin:    (Math.random() - 0.5) * 0.012,
-        opacity: Math.random() * 0.35 + 0.25,
-    }));
-
-    function drawPostit(p) {
-        bgCtx.save();
-        bgCtx.translate(p.x, p.y);
-        bgCtx.rotate(p.angle);
-        bgCtx.globalAlpha   = p.opacity;
-        bgCtx.shadowColor   = 'rgba(0,0,0,0.12)';
-        bgCtx.shadowBlur    = 3;
-        bgCtx.shadowOffsetX = 1;
-        bgCtx.shadowOffsetY = 2;
-        bgCtx.fillStyle     = p.color;
-        bgCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
-        const fold = p.size * 0.28;
-        bgCtx.fillStyle = 'rgba(0,0,0,0.08)';
-        bgCtx.beginPath();
-        bgCtx.moveTo( p.size / 2 - fold, -p.size / 2);
-        bgCtx.lineTo( p.size / 2,        -p.size / 2 + fold);
-        bgCtx.lineTo( p.size / 2 - fold, -p.size / 2 + fold);
-        bgCtx.closePath();
-        bgCtx.fill();
-        bgCtx.restore();
-    }
-
-    function animatePostits() {
-        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-        for (const p of postits) {
-            p.y += p.speed; p.x += p.drift; p.angle += p.spin;
-            if (p.y > bgCanvas.height + p.size) {
-                p.y = -p.size * 2;
-                p.x = Math.random() * bgCanvas.width;
-            }
-            drawPostit(p);
-        }
-        requestAnimationFrame(animatePostits);
-    }
-
-    animatePostits();
-}());
-</script>
+        Enviar link
+    </button>
+    <p class="text-center text-sm font-light text-white/80 mt-4" style="font-family:'Poppins',sans-serif;">
+        Lembrou a senha?
+        <a href="{% url 'login' %}" class="font-medium text-white/90 hover:text-white hover:underline transition">Entrar</a>
+    </p>
+</form>
 
 {% endblock %}

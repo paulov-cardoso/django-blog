@@ -1,95 +1,26 @@
-{% extends 'posts/base.html' %}
-{% load static %}
+{% extends 'posts/auth/base_auth.html' %}
 
-{% block body_class %}{% endblock %}
-{% block footer_class %}bg-transparent fixed bottom-0 w-full{% endblock %}
-{% block nav %}{% endblock %}
 {% block titulo %}Senha Redefinida — Synapsoo{% endblock %}
 
-{% block conteudo %}
+{% block auth_content %}
 
-<style>
-    .login-root {
-        position: fixed;
-        inset: 0;
-        z-index: 50;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem 1rem 4rem;
-        background: linear-gradient(155deg, #d4b8d4 0%, #e2cde2 45%, #eddaed 100%);
-    }
+<div class="text-center text-6xl mb-5" aria-hidden="true">✅</div>
 
-    .card-noise {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%);
-    }
+<h1 class="text-center text-white font-bold text-3xl tracking-wide mb-3"
+    style="font-family:'Poppins',sans-serif; text-shadow:0 2px 8px rgba(0,0,0,0.18);">
+    Senha redefinida
+</h1>
 
-    #card-texture-done {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        border-radius: inherit;
-        opacity: 0.18;
-        mix-blend-mode: soft-light;
-        pointer-events: none;
-        z-index: 0;
-    }
+<p class="text-center text-sm font-light text-white/70 mb-7 leading-relaxed" style="font-family:'Poppins',sans-serif;">
+    Sua senha foi alterada com sucesso. Agora você já pode acessar sua conta novamente.
+</p>
 
-    .card-noise > *:not(#card-texture-done) {
-        position: relative;
-        z-index: 1;
-    }
-</style>
-
-<div class="login-root" role="main">
-
-    <div class="relative flex flex-col items-center w-full max-w-[400px]"
-         style="z-index:2;">
-
-        <div class="flex justify-center w-full relative" style="z-index:20;">
-            <img src="{% static 'posts/images/Oficial_Soo.png' %}"
-                 alt="Synapsoo"
-                 width="260"
-                 style="height:auto;
-                        filter: drop-shadow(0 6px 18px rgba(60,10,100,0.22));
-                        margin-bottom: -10px;">
-        </div>
-
-        <article class="card-noise w-full rounded-2xl px-8 pb-7 pt-8
-                        border border-white/20
-                        shadow-[0_28px_64px_rgba(50,15,100,0.30),0_4px_16px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.16)]">
-
-            <canvas id="card-texture-done" aria-hidden="true"></canvas>
-
-            <div class="text-center text-6xl mb-5">✅</div>
-
-            <h1 class="text-center text-white font-bold text-3xl tracking-wide mb-3"
-                style="font-family:'Poppins',sans-serif;
-                       text-shadow: 0 2px 8px rgba(0,0,0,0.18);">
-                Senha redefinida
-            </h1>
-
-            <p class="text-center text-sm font-light text-white/70 mb-7 leading-relaxed"
-               style="font-family:'Poppins',sans-serif;">
-                Sua senha foi alterada com sucesso. Agora você já pode acessar sua conta novamente.
-            </p>
-
-            <a href="{% url 'login' %}"
-               class="w-full h-12 bg-white text-gray-700 font-medium text-base
-                      rounded-full flex items-center justify-center
-                      shadow-[0_4px_18px_rgba(0,0,0,0.18)]
-                      hover:bg-gray-100 active:scale-[0.98] transition duration-200"
-               style="font-family:'Poppins',sans-serif;">
-                Ir para o login
-            </a>
-
-        </article>
-    </div>
-
-</div>
+<a href="{% url 'login' %}"
+   class="w-full h-12 bg-white text-gray-700 font-medium text-base rounded-full
+          flex items-center justify-center shadow-[0_4px_18px_rgba(0,0,0,0.18)]
+          hover:bg-gray-100 active:scale-[0.98] transition duration-200"
+   style="font-family:'Poppins',sans-serif;">
+    Ir para o login
+</a>
 
 {% endblock %}
