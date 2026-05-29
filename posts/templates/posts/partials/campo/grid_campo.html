@@ -1,95 +1,96 @@
-<!-- Campo das Ideias — Rolamento Cubo Mágico -->
-<div class="campo-wrapper relative select-none" id="campo-grid-wrapper">
+{% load static %}
 
-    <!-- Composer trigger -->
-    <div class="mb-6 bg-white rounded-2xl shadow-sm border border-orange-100 p-4" id="campo-composer">
-        <div class="flex items-center gap-3">
-            <div class="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200 overflow-hidden">
-                {% if user.autor.foto_perfil %}
-                    <img src="{{ user.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
-                {% else %}
-                    <div class="w-full h-full flex items-center justify-center text-gray-600 font-bold text-sm
-                                bg-gradient-to-br from-orange-100 to-yellow-100">
-                        {{ user.autor.nome_exibicao|first|upper }}
-                    </div>
-                {% endif %}
-            </div>
-            <button onclick="abrirComposerCampo()"
-                    class="flex-1 text-left text-sm text-gray-400 bg-gray-50 hover:bg-orange-50
-                           border border-gray-200 hover:border-orange-300
-                           rounded-xl px-4 py-2.5 transition cursor-text">
-                🌍 Compartilhe uma ideia no Campo...
-            </button>
-        </div>
+
+<div class="campo-wrapper" id="campo-grid-wrapper">
+
+    <!-- ── Viewport da malha ── -->
+    <div id="campo-viewport" style="cursor:grab;position:absolute;inset:0;overflow:hidden;">
+        <div id="campo-grid"></div>
     </div>
 
-    <!-- Sub-abas -->
-    <div class="flex gap-2 mb-4" id="campo-subabas">
-        <button onclick="mostrarSubaba('grid')" id="subaba-grid"
-                class="px-4 py-1.5 rounded-full text-sm font-semibold transition bg-orange-500 text-white">
-            🌍 Explorar
+    <!-- ── Loading ── -->
+    <div id="campo-loading" class="hidden"
+         style="position:absolute;inset:0;display:flex;flex-direction:column;
+                align-items:center;justify-content:center;">
+        <p style="font-size:2.5rem;margin-bottom:12px;">🌍</p>
+        <p style="font-size:13px;color:rgba(255,255,255,0.6);">Montando o Campo das Ideias...</p>
+    </div>
+
+    <!-- ── Vazio ── -->
+    <div id="campo-vazio" class="hidden"
+         style="position:absolute;inset:0;display:flex;flex-direction:column;
+                align-items:center;justify-content:center;">
+        <p style="font-size:4rem;margin-bottom:16px;">🌍</p>
+        <p style="font-size:1.25rem;font-weight:600;color:white;">O Campo das Ideias está vazio</p>
+        <p style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:8px;">
+            Seja o primeiro a publicar uma ideia aqui!
+        </p>
+    </div>
+
+    <!-- ── HUD — canto superior esquerdo ── -->
+    <div style="position:absolute;top:12px;left:12px;z-index:40;">
+        <button onclick="abrirPainelCampo()"
+                style="display:flex;align-items:center;gap:5px;padding:6px 12px;
+                       background:rgba(255,255,255,0.12);backdrop-filter:blur(12px);
+                       border:1px solid rgba(255,255,255,0.18);border-radius:999px;
+                       color:white;font-size:12px;font-weight:600;cursor:pointer;
+                       transition:background 0.2s,transform 0.15s;
+                       font-family:'Poppins',sans-serif;"
+                onmouseover="this.style.background='rgba(255,255,255,0.22)';this.style.transform='translateY(-1px)'"
+                onmouseout="this.style.background='rgba(255,255,255,0.12)';this.style.transform='translateY(0)'"
+                title="Meus Notes no Campo">
+            <span style="font-size:1rem;">📌</span>
+            <span style="font-size:11px;">Meus Notes</span>
         </button>
-        <button onclick="mostrarSubaba('meus')" id="subaba-meus"
-                class="px-4 py-1.5 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200">
-            📌 Meus Notes no Campo
-        </button>
     </div>
 
-    <!-- Painel: Cubo Mágico -->
-    <div id="painel-grid">
-
-        <!-- Dica de navegação + botões por linha -->
-        <div class="hidden md:flex flex-col gap-2 mb-3">
-            <p class="text-xs text-gray-400">
-                🖱️ Arraste horizontalmente em cada linha para rolá-la independentemente
-            </p>
-            <div class="flex flex-col gap-1">
-                <div class="flex items-center gap-2 text-xs text-gray-400">
-                    <span class="w-16 text-right">Linha 1</span>
-                    <button onclick="moverLinha(0, 'esquerda')"
-                            class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition">◀</button>
-                    <button onclick="moverLinha(0, 'direita')"
-                            class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition">▶</button>
-                </div>
-                <div class="flex items-center gap-2 text-xs text-gray-400">
-                    <span class="w-16 text-right">Linha 2</span>
-                    <button onclick="moverLinha(1, 'esquerda')"
-                            class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition">◀</button>
-                    <button onclick="moverLinha(1, 'direita')"
-                            class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 transition">▶</button>
-                </div>
+    <!-- ── Painel Meus Notes ── -->
+    <div id="campo-painel-flutuante"
+         style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:30;">
+        <div style="background:rgba(15,8,35,0.92);backdrop-filter:blur(24px);
+                    border-top:1px solid rgba(255,255,255,0.10);
+                    border-radius:20px 20px 0 0;padding:16px;max-height:60vh;overflow:hidden;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <span style="color:rgba(255,255,255,0.75);font-size:13px;font-weight:600;">
+                    📌 Meus Notes no Campo
+                </span>
+                <button onclick="fecharPainelCampo()"
+                        style="background:none;border:none;color:rgba(255,255,255,0.5);
+                               font-size:1.25rem;font-weight:700;cursor:pointer;
+                               width:28px;height:28px;display:flex;align-items:center;
+                               justify-content:center;border-radius:50%;
+                               transition:background 0.2s,color 0.2s;"
+                        onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='white'"
+                        onmouseout="this.style.background='none';this.style.color='rgba(255,255,255,0.5)'">
+                    ✕
+                </button>
+            </div>
+            <div id="lista-meus-notes"
+                 style="display:flex;flex-direction:column;gap:8px;
+                        overflow-y:auto;max-height:calc(60vh - 60px);">
             </div>
         </div>
-
-        <!-- Viewport do cubo -->
-        <div id="campo-viewport"
-             class="overflow-hidden relative rounded-2xl"
-             style="cursor: grab;">
-            <div id="campo-grid"
-                 class="flex flex-col gap-2"
-                 style="will-change: transform;">
-            </div>
-        </div>
-
-        <!-- Loading -->
-        <div id="campo-loading" class="hidden text-center py-8 text-gray-400">
-            <p class="text-2xl mb-2">🌍</p>
-            <p class="text-sm">Montando o Campo das Ideias...</p>
-        </div>
-
-        <!-- Vazio -->
-        <div id="campo-vazio" class="hidden text-center text-gray-400 py-20">
-            <p class="text-6xl mb-4">🌍</p>
-            <p class="text-xl font-semibold">O Campo das Ideias está vazio</p>
-            <p class="text-sm mt-2">Seja o primeiro a publicar uma ideia aqui!</p>
-        </div>
     </div>
 
-    <!-- Painel: Meus Notes -->
-    <div id="painel-meus" class="hidden">
-        <div id="lista-meus-notes" class="space-y-3"></div>
-    </div>
+    <!-- ── FAB Nova Ideia ── -->
+    <button onclick="abrirComposerCampo()"
+            style="position:absolute;bottom:16px;right:16px;display:flex;align-items:center;
+                   gap:8px;padding:10px 18px;background:#f97316;border:none;
+                   border-radius:999px;color:white;font-family:'Poppins',sans-serif;
+                   cursor:pointer;z-index:20;box-shadow:0 4px 24px rgba(249,115,22,0.45);
+                   transition:background 0.2s,transform 0.15s;"
+            onmouseover="this.style.background='#ea6c0a';this.style.transform='translateY(-2px)'"
+            onmouseout="this.style.background='#f97316';this.style.transform='translateY(0)'"
+            title="Publicar nova ideia no Campo">
+        <span style="font-size:1.25rem;">🌍</span>
+        <span style="font-size:13px;font-weight:600;">Nova Ideia</span>
+    </button>
+
 </div>
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     MODAIS
+═══════════════════════════════════════════════════════════════════════════════ -->
 
 <!-- Modal Composer Campo -->
 <div id="modal-composer-campo"
@@ -98,7 +99,8 @@
 
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h3 class="font-bold text-gray-800">🌍 Nova ideia no Campo</h3>
-            <button onclick="fecharComposerCampo()" class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
+            <button onclick="fecharComposerCampo()"
+                    class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
         </div>
 
         <div class="p-5 space-y-4">
@@ -181,23 +183,25 @@
 
         <div class="px-5 pb-5 flex gap-3">
             <button onclick="fecharComposerCampo()"
-                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-xl transition">
-                Cancelar
-            </button>
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700
+                           text-sm py-2.5 rounded-xl transition">Cancelar</button>
             <button onclick="publicarNoCampo()" id="btn-publicar-campo"
-                    class="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold py-2.5 rounded-xl transition">
+                    class="flex-1 bg-orange-500 hover:bg-orange-600 text-white
+                           text-sm font-semibold py-2.5 rounded-xl transition">
                 🌍 Publicar no Campo
             </button>
         </div>
     </div>
 </div>
 
-<!-- Modal validator nova categoria (campo) -->
+<!-- Modal validator nova categoria -->
 <div id="modal-cat-campo"
      class="fixed inset-0 z-[999999] hidden items-center justify-center bg-black/50">
     <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
         <h3 class="text-lg font-bold text-gray-800 mb-1">💡 Nova Categoria</h3>
-        <p class="text-xs text-gray-400 mb-4">Apenas uma palavra, somente letras, entre 3 e 30 caracteres.</p>
+        <p class="text-xs text-gray-400 mb-4">
+            Apenas uma palavra, somente letras, entre 3 e 30 caracteres.
+        </p>
         <input type="text" id="campo-nova-cat-input" placeholder="Ex: Tecnologia" maxlength="30"
                class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm mb-4
                       focus:outline-none focus:ring-2 focus:ring-orange-400">
@@ -210,21 +214,20 @@
         <div id="campo-cat-feedback" class="text-sm mb-4 hidden"></div>
         <div class="flex gap-3">
             <button type="button" onclick="fecharValidatorCatCampo()"
-                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2 rounded-xl transition">
-                Cancelar
-            </button>
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700
+                           text-sm py-2 rounded-xl transition">Cancelar</button>
             <button type="button" id="campo-btn-salvar-cat" disabled
-                    class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
-                           py-2 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed">
-                Criar
-            </button>
+                    class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm
+                           font-semibold py-2 rounded-xl transition
+                           disabled:opacity-40 disabled:cursor-not-allowed">Criar</button>
         </div>
     </div>
 </div>
 
 <!-- Modal de detalhe do card -->
 <div id="modal-detalhe-campo"
-     class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+     class="fixed inset-0 z-[9999] hidden items-center justify-center
+            bg-black/60 backdrop-blur-sm p-4"
      onclick="fecharDetalhe()">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
          onclick="event.stopPropagation()">
@@ -245,8 +248,8 @@
         <div id="detalhe-capa-wrapper" class="hidden">
             <div class="relative w-full overflow-hidden">
                 <div id="detalhe-capa-imgs"></div>
-                <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent
-                            flex items-end px-6 pb-3">
+                <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t
+                            from-black/70 to-transparent flex items-end px-6 pb-3">
                     <p id="detalhe-titulo-capa" class="text-white font-bold text-lg leading-snug"></p>
                 </div>
             </div>
@@ -284,9 +287,11 @@
                 <div class="flex gap-3 mb-5">
                     <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
                         {% if user.autor.foto_perfil %}
-                            <img src="{{ user.autor.foto_perfil.url }}" class="w-full h-full object-cover" alt="">
+                            <img src="{{ user.autor.foto_perfil.url }}"
+                                 class="w-full h-full object-cover" alt="">
                         {% else %}
-                            <div class="w-full h-full flex items-center justify-center text-gray-600 font-bold text-xs
+                            <div class="w-full h-full flex items-center justify-center
+                                        text-gray-600 font-bold text-xs
                                         bg-gradient-to-br from-orange-100 to-yellow-100">
                                 {{ user.autor.nome_exibicao|first|upper }}
                             </div>
@@ -295,12 +300,13 @@
                     <div class="flex-1">
                         <textarea id="detalhe-composer" rows="2"
                                   placeholder="Adicione um comentário..."
-                                  class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm
-                                         focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"></textarea>
+                                  class="w-full border border-gray-300 rounded-xl px-3 py-2
+                                         text-sm focus:outline-none focus:ring-2
+                                         focus:ring-orange-400 resize-none"></textarea>
                         <div class="flex justify-end mt-1">
                             <button id="detalhe-btn-comentar"
-                                    class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold
-                                           px-4 py-1.5 rounded-full transition">
+                                    class="bg-orange-500 hover:bg-orange-600 text-white
+                                           text-xs font-semibold px-4 py-1.5 rounded-full transition">
                                 Comentar
                             </button>
                         </div>
@@ -312,12 +318,14 @@
 
                 <!-- Subthread modal -->
                 <div id="modal-subthread-campo"
-                     class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                     class="fixed inset-0 z-[200] hidden items-center justify-center
+                            bg-black/70 backdrop-blur-sm p-4"
                      onclick="fecharSubthreadCampo(event)">
-                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-y-auto"
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl
+                                max-h-[80vh] overflow-y-auto"
                          onclick="event.stopPropagation()">
-                        <div class="sticky top-0 bg-white/95 flex items-center justify-between px-5 py-3
-                                    border-b border-gray-100 rounded-t-2xl">
+                        <div class="sticky top-0 bg-white/95 flex items-center justify-between
+                                    px-5 py-3 border-b border-gray-100 rounded-t-2xl">
                             <span class="text-sm font-bold text-gray-700">🧵 Thread aprofundada</span>
                             <button onclick="fecharSubthreadCampo()"
                                     class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
@@ -328,7 +336,8 @@
 
                 <!-- Modal forumização -->
                 <div id="modal-forum-campo"
-                     class="fixed inset-0 z-[300] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                     class="fixed inset-0 z-[300] hidden items-center justify-center
+                            bg-black/70 backdrop-blur-sm p-4">
                     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
                         <p class="text-2xl text-center mb-2">🔥</p>
                         <h3 class="text-lg font-bold text-gray-800 text-center mb-2">Thread forumizada!</h3>
@@ -338,12 +347,14 @@
                         </p>
                         <div class="flex flex-col gap-2">
                             <a href="/?aba=forumizacao"
-                               class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold
-                                      py-2.5 rounded-xl transition text-center">
+                               class="w-full bg-indigo-600 hover:bg-indigo-700 text-white
+                                      text-sm font-semibold py-2.5 rounded-xl transition text-center">
                                 🏛️ Ir para Forumização
                             </a>
-                            <button onclick="document.getElementById('modal-forum-campo').classList.add('hidden'); document.getElementById('modal-forum-campo').classList.remove('flex');"
-                                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm py-2.5 rounded-xl transition">
+                            <button onclick="document.getElementById('modal-forum-campo').classList.add('hidden');
+                                            document.getElementById('modal-forum-campo').classList.remove('flex');"
+                                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600
+                                           text-sm py-2.5 rounded-xl transition">
                                 Agora não
                             </button>
                         </div>
@@ -353,3 +364,72 @@
         </div>
     </div>
 </div>
+
+<!-- ── Estilos do Campo ────────────────────────────────────────────────────── -->
+<style>
+.campo-wrapper {
+    position: relative;
+    width: 100%;
+    /* Fallback — sobrescrito pelo JS em ajustarLayout() */
+    height: calc(100vh - 120px);
+    overflow: hidden;
+    background: linear-gradient(155deg, #1a1040 0%, #2d1558 40%, #3d1a44 70%, #5a2015 100%);
+}
+
+body.campo-mode {
+    overflow: hidden !important;
+}
+body.campo-mode #synapsoo-nav {
+    padding-top:    6px !important;
+    padding-bottom: 6px !important;
+}
+body.campo-mode #synapsoo-main {
+    max-width: 100%  !important;
+    padding:   0     !important;
+    margin:    0     !important;
+    overflow:  hidden !important;
+}
+body.campo-mode #synapsoo-footer {
+    display: none !important;
+}
+body.campo-mode #barra-abas {
+    margin-top:          0                      !important;
+    margin-bottom:       0                      !important;
+    background:          rgba(20,10,50,0.82)    !important;
+    backdrop-filter:     blur(12px)             !important;
+    border-bottom-color: rgba(255,255,255,0.08) !important;
+}
+body.campo-mode .aba-label {
+    display: none !important;
+}
+body.campo-mode .aba-nav {
+    padding-top:    6px !important;
+    padding-bottom: 6px !important;
+    color: rgba(255,255,255,0.55) !important;
+}
+body.campo-mode .aba-nav:hover {
+    color: rgba(255,255,255,0.9) !important;
+}
+body.campo-mode a[href="/?aba=campo"] {
+    color: #fb923c !important;
+}
+body.campo-mode a[href="/?aba=campo"] span.absolute {
+    background-color: #fb923c !important;
+}
+
+body.campo-mode .nav-logo {
+    font-size: 1.25rem !important;
+}
+</style>
+
+<!-- ── JS do painel ───────────────────────────────────────────────────────── -->
+<script>
+function abrirPainelCampo() {
+    const painel = document.getElementById('campo-painel-flutuante');
+    painel.style.display = 'block';
+    window.carregarMeusNotes?.();
+}
+function fecharPainelCampo() {
+    document.getElementById('campo-painel-flutuante').style.display = 'none';
+}
+</script>

@@ -1,26 +1,19 @@
-// ── campo.js — Rolamento Cubo Mágico Infinito ────────────────────────────────
-// Malha 2D infinita de cards. O usuário enxerga um viewport fixo (numLinhas ×
-// numColunas). Cada linha tem offset horizontal independente. Cada coluna tem
-// offset vertical independente. Mover uma linha altera a composição das
-// colunas; mover uma coluna altera a composição das linhas. Novos cards
-// revelados vêm aleatoriamente do pool global.
-//
-// Dependências: utils.js → getCsrf
-
 import { getCsrf } from './utils.js';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
-const BATCH_SIZE     = 40;    // cards por requisição ao pool
-const PREFETCH_AHEAD = 8;     // prefetch quando pool disponível < N
-const GAP            = 8;     // px entre cards
-const SPRING_MS      = 420;   // duração do snap spring
-const SPRING_EASING  = 'cubic-bezier(0.22, 1.2, 0.36, 1)'; // overshoot leve
-const EVAPORATE_MS   = 1800;  // fade-out ao penalizar card
+const BATCH_SIZE     = 60;
+const PREFETCH_AHEAD = 10;
+const GAP            = 8;
+const BUF            = 5;
+const DRAG_THRESHOLD = 8;
+const SNAP_MS        = 300;
+const SNAP_EASING    = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+const EVAPORATE_MS   = 1600;
 
 // ── Breakpoints ───────────────────────────────────────────────────────────────
 
-function _getNumColunas() {
+function getNumColunas() {
     const w = window.innerWidth;
     if (w >= 1920) return 5;
     if (w >= 1440) return 4;
@@ -28,232 +21,327 @@ function _getNumColunas() {
     return 2;
 }
 
-function _getDimensoesCard(numColunas) {
-    const viewport = document.getElementById('campo-viewport');
-    if (!viewport) return { width: 280, height: 392 };
+function getDimensoesCard(numColunas) {
+    const vp = document.getElementById('campo-viewport');
+    if (!vp) return { width: 280, height: 392 };
     const totalGap = (numColunas - 1) * GAP;
-    const width    = Math.floor((viewport.clientWidth - totalGap) / numColunas);
+    const width    = Math.floor((vp.clientWidth - totalGap) / numColunas);
     const height   = Math.round(width * 1.4);
     return { width, height };
 }
 
-// ── Estado global ─────────────────────────────────────────────────────────────
+// ── Altura disponível ─────────────────────────────────────────────────────────
 
-const _m = {
-    // ── Malha infinita ─────────────────────────────────────────────────────
-    // malha[row][col] = card | null
-    // row e col são coordenadas absolutas na malha — podem crescer
-    // indefinidamente em qualquer direção.
-    malha: {},
+function calcularAlturaViewport() {
+    const nav  = document.getElementById('synapsoo-nav');
+    const abas = document.getElementById('barra-abas');
+    const navH  = nav  ? nav.getBoundingClientRect().height  : 44;
+    const abasH = abas ? abas.getBoundingClientRect().height : 36;
+    return window.innerHeight - navH - abasH;
+}
 
-    // ── Viewport ───────────────────────────────────────────────────────────
-    // Coordenada do canto superior esquerdo do viewport na malha.
-    // O usuário vê malha[vRow..vRow+numLinhas-1][vCol..vCol+numColunas-1]
-    vRow: 0,
-    vCol: 0,
+// ── Estado ────────────────────────────────────────────────────────────────────
 
-    // ── Offsets independentes por linha e coluna ────────────────────────────
-    // offsetLinha[row] = deslocamento em número de cards para a esquerda
-    // offsetColuna[col] = deslocamento em número de cards para cima
-    // Ambos são relativos ao viewport atual.
-    offsetLinha:  {},  // { [row]: number }
-    offsetColuna: {},  // { [col]: number }
-
-    // ── Dimensões ──────────────────────────────────────────────────────────
-    numLinhas:  2,
-    numColunas: 5,
-    cardWidth:  280,
-    cardHeight: 392,
-
-    // ── Pool ───────────────────────────────────────────────────────────────
-    pool:           [],
-    temMais:        true,
-    carregandoPool: false,
-
-    // ── Drag ───────────────────────────────────────────────────────────────
+const E = {
+    malha:        {},
+    pool:         [],
+    poolOffset:   0,
+    temMais:      true,
+    carregando:   false,
+    origemLinha:  0,
+    origemColuna: 0,
+    dragOffsetX:  {},
+    dragOffsetY:  {},
+    VP_LINHAS:    2,
+    VP_COLUNAS:   3,
+    cardWidth:    280,
+    cardHeight:   392,
     drag: {
-        ativo:       false,
-        eixo:        null,   // 'x' | 'y'
-        startX:      0,
-        startY:      0,
-        pixelAtual:  0,      // px deslocados do inicio do drag
-        alvoIndex:   null,   // índice da linha (eixo x) ou coluna (eixo y) no viewport
-        alvoMalha:   null,   // coordenada absoluta na malha
-        arrastou:    false,
-        tempoInicio: 0,
+        ativo: false, eixo: null, startX: 0, startY: 0,
+        startOff: 0, alvo: null, arrastou: false,
+        tempoInicio: 0, linhaAbsIdx: 0, colunaAbsIdx: 0,
     },
-
-    // ── Controle ───────────────────────────────────────────────────────────
-    penalizados: new Set(),
-    iniciado:    false,
+    penalizados:    new Set(),
+    iniciado:       false,
+    _navObserver:   null,
 };
 
-// ── Pool — carregamento e acesso aleatório ────────────────────────────────────
+const stepX = () => E.cardWidth  + GAP;
+const stepY = () => E.cardHeight + GAP;
 
-async function _carregarPool() {
-    if (_m.carregandoPool || !_m.temMais) return;
-    _m.carregandoPool = true;
+// ── Pool ──────────────────────────────────────────────────────────────────────
+
+async function carregarPool(forcar = false) {
+    if (E.carregando) return;
+    if (!forcar && !E.temMais) return;
+    E.carregando = true;
     try {
-        const offset = _m.pool.length;
-        const res    = await fetch(
-            `/api/campo/pool/?offset=${offset}&limit=${BATCH_SIZE}`
-        );
+        const offset = E.pool.length;
+        const res    = await fetch(`/api/campo/pool/?offset=${offset}&limit=${BATCH_SIZE}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data   = await res.json();
-        _m.pool      = _m.pool.concat(data.cards);
-        _m.temMais   = data.tem_mais;
+        E.pool    = E.pool.concat(data.cards);
+        E.temMais = data.tem_mais;
+        console.debug('[Campo] pool carregado:', E.pool.length, 'cards. tem_mais:', E.temMais);
     } catch (e) {
-        console.error('[CuboMagico] Erro ao carregar pool:', e);
+        console.error('[Campo] Erro ao carregar pool:', e);
     } finally {
-        _m.carregandoPool = false;
+        E.carregando = false;
     }
 }
 
-// Retorna um card aleatório do pool disponível (não consome — apenas sorteia)
-function _cardAleatorio() {
-    if (!_m.pool.length) return null;
-    if (_m.pool.length <= PREFETCH_AHEAD && _m.temMais) _carregarPool();
-    const idx = Math.floor(Math.random() * _m.pool.length);
-    return _m.pool[idx];
+function proximoCard() {
+    if (E.poolOffset >= E.pool.length) return null;
+    const card = E.pool[E.poolOffset++];
+    if (E.pool.length - E.poolOffset <= PREFETCH_AHEAD && E.temMais) carregarPool();
+    return card;
 }
 
-// ── Malha — acesso e preenchimento ───────────────────────────────────────────
+// ── Malha ─────────────────────────────────────────────────────────────────────
 
-function _getCell(row, col) {
-    return _m.malha[row]?.[col] ?? null;
+function getCard(r, c)       { return E.malha[r]?.[c] ?? null; }
+function setCard(r, c, card) { if (!E.malha[r]) E.malha[r] = {}; E.malha[r][c] = card; }
+
+function garantirCard(r, c) {
+    if (!getCard(r, c)) { const card = proximoCard(); if (card) setCard(r, c, card); }
+    return getCard(r, c);
 }
 
-function _setCell(row, col, card) {
-    if (!_m.malha[row]) _m.malha[row] = {};
-    _m.malha[row][col] = card;
+function preencherZona() {
+    const r0 = E.origemLinha  - BUF, r1 = E.origemLinha  + E.VP_LINHAS  + BUF;
+    const c0 = E.origemColuna - BUF, c1 = E.origemColuna + E.VP_COLUNAS + BUF;
+    for (let r = r0; r < r1; r++)
+        for (let c = c0; c < c1; c++)
+            garantirCard(r, c);
 }
 
-// Garante que malha[row][col] tem um card; se não tiver, sorteia do pool
-function _garantirCell(row, col) {
-    if (!_getCell(row, col)) {
-        const card = _cardAleatorio();
-        if (card) _setCell(row, col, card);
-    }
-    return _getCell(row, col);
+// ── Commit ────────────────────────────────────────────────────────────────────
+
+function commitLinhaOffset(rowAbs, deltaCards) {
+    if (deltaCards === 0) return;
+    const rowData = E.malha[rowAbs] ?? {};
+    const nova    = {};
+    for (const col in rowData) nova[parseInt(col) - deltaCards] = rowData[col];
+    E.malha[rowAbs] = nova;
+    const c0 = E.origemColuna - BUF, c1 = E.origemColuna + E.VP_COLUNAS + BUF;
+    for (let c = c0; c < c1; c++) garantirCard(rowAbs, c);
 }
 
-// Preenche o viewport visível + 1 card de margem em cada direção
-function _preencherViewport() {
-    for (let r = _m.vRow - 1; r <= _m.vRow + _m.numLinhas; r++) {
-        for (let c = _m.vCol - 1; c <= _m.vCol + _m.numColunas; c++) {
-            _garantirCell(r, c);
+function commitColunaOffset(colAbs, deltaCards) {
+    if (deltaCards === 0) return;
+    const colData = {};
+    for (const row in E.malha) {
+        const r = parseInt(row);
+        if (E.malha[row][colAbs] !== undefined) {
+            colData[r - deltaCards] = E.malha[row][colAbs];
+            delete E.malha[row][colAbs];
         }
     }
+    for (const row in colData) {
+        if (!E.malha[row]) E.malha[row] = {};
+        E.malha[row][colAbs] = colData[row];
+    }
+    const r0 = E.origemLinha - BUF, r1 = E.origemLinha + E.VP_LINHAS + BUF;
+    for (let r = r0; r < r1; r++) garantirCard(r, colAbs);
 }
 
 // ── Renderização ──────────────────────────────────────────────────────────────
 
-function _renderizarGrid() {
-    const viewport = document.getElementById('campo-viewport');
-    const grid     = document.getElementById('campo-grid');
-    if (!grid || !viewport) return;
+function renderGrid() {
+    const vp   = document.getElementById('campo-viewport');
+    const grid = document.getElementById('campo-grid');
+    if (!grid || !vp) return;
 
-    _mostrarVazio(false);
+    mostrarVazio(false);
 
-    const { width, height } = _getDimensoesCard(_m.numColunas);
-    _m.cardWidth  = width;
-    _m.cardHeight = height;
+    const { width, height } = getDimensoesCard(E.VP_COLUNAS);
+    E.cardWidth  = width;
+    E.cardHeight = height;
 
-    const alturaViewport = (height * _m.numLinhas) + GAP * (_m.numLinhas - 1);
-    viewport.style.height   = `${alturaViewport}px`;
-    viewport.style.overflow = 'hidden';
-    viewport.style.position = 'relative';
-    viewport.style.cursor   = 'grab';
+    // Viewport ocupa o wrapper inteiro — não sobrescrever height aqui.
+    // A altura visual é controlada pelo wrapper via ajustarLayout().
+    vp.style.overflow = 'hidden';
+    vp.style.position = 'absolute';
+    vp.style.inset    = '0';
 
     grid.innerHTML = '';
-    grid.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        gap: ${GAP}px;
-        will-change: transform;
-    `;
+    grid.style.cssText = [
+        'display:flex', 'flex-direction:column', `gap:${GAP}px`,
+        'will-change:transform', 'position:relative',
+        `transform:translateY(${-(BUF * stepY())}px)`
+    ].join(';');
 
-    for (let vi = 0; vi < _m.numLinhas; vi++) {
-        const row     = _m.vRow + vi;
-        const linhaEl = _criarLinhaEl(vi, row);
-        grid.appendChild(linhaEl);
+    const totalLinhas  = E.VP_LINHAS  + BUF * 2;
+    const totalColunas = E.VP_COLUNAS + BUF * 2;
+
+    for (let vi = 0; vi < totalLinhas; vi++) {
+        const rowAbs = E.origemLinha - BUF + vi;
+        grid.appendChild(criarLinhaEl(vi, rowAbs, totalColunas));
     }
 }
 
-function _criarLinhaEl(viewIndex, malhaRow) {
-    const linhaEl = document.createElement('div');
-    linhaEl.id    = `campo-linha-${viewIndex}`;
-    linhaEl.dataset.malhaRow = malhaRow;
-    linhaEl.style.cssText = `
-        display: flex;
-        flex-direction: row;
-        gap: ${GAP}px;
-        flex-shrink: 0;
-        height: ${_m.cardHeight}px;
-        transform: translateX(0px);
-        will-change: transform;
-    `;
+function criarLinhaEl(vi, rowAbs, totalColunas) {
+    const el = document.createElement('div');
+    el.id             = `campo-linha-${rowAbs}`;
+    el.className      = 'campo-linha';
+    el.dataset.rowAbs = rowAbs;
+    el.dataset.vi     = vi;
 
-    for (let vi = 0; vi < _m.numColunas; vi++) {
-        const col  = _m.vCol + vi;
-        const card = _getCell(malhaRow, col);
-        if (card) {
-            linhaEl.appendChild(_criarCardEl(card, viewIndex, vi, malhaRow, col));
-        }
+    const offsetX = E.dragOffsetX[rowAbs] ?? 0;
+    el.style.cssText = [
+        'display:flex', 'flex-direction:row', `gap:${GAP}px`,
+        'flex-shrink:0', `height:${E.cardHeight}px`,
+        `transform:translateX(${-(BUF * stepX()) + offsetX}px)`,
+        'will-change:transform'
+    ].join(';');
+
+    for (let vj = 0; vj < totalColunas; vj++) {
+        const colAbs  = E.origemColuna - BUF + vj;
+        const card    = getCard(rowAbs, colAbs);
+        if (!card) continue;
+        const cardEl  = criarCardEl(card, rowAbs, colAbs);
+        const offsetY = E.dragOffsetY[colAbs] ?? 0;
+        cardEl.style.opacity = calcOpacidadeCard(vi, vj, offsetX, offsetY) ? '1' : '0';
+        el.appendChild(cardEl);
     }
-
-    return linhaEl;
+    return el;
 }
 
-// Aplica translateX a uma linha (em pixels)
-function _setTranslateXLinha(viewIndex, px, transicao = false) {
-    const el = document.getElementById(`campo-linha-${viewIndex}`);
-    if (!el) return;
-    el.style.transition = transicao
-        ? `transform ${SPRING_MS}ms ${SPRING_EASING}`
-        : 'none';
-    el.style.transform = `translateX(${px}px)`;
+function calcOpacidadeCard(vi, vj, offsetLinhaX, offsetColunaY) {
+    // viewW/viewH usam dimensões reais: N cards + (N-1) gaps, sem o gap extra do fim
+    const viewW = E.VP_COLUNAS * E.cardWidth  + (E.VP_COLUNAS - 1) * GAP;
+    const viewH = E.VP_LINHAS  * E.cardHeight + (E.VP_LINHAS  - 1) * GAP;
+
+    const cardLeft  = (vj - BUF) * stepX() + offsetLinhaX;
+    const cardRight = cardLeft + E.cardWidth;
+
+    const cardTop    = (vi - BUF) * stepY() + offsetColunaY;
+    const cardBottom = cardTop + E.cardHeight;
+
+    return (cardRight > 0 && cardLeft < viewW) && (cardBottom > 0 && cardTop < viewH);
 }
 
-// Aplica translateY a um card específico (para movimento de coluna)
-function _setTranslateYCard(viewRow, viewCol, py, transicao = false) {
-    const el = document.querySelector(
-        `#campo-linha-${viewRow} .campo-card[data-vcol="${viewCol}"]`
-    );
+function aplicarOffsetLinha(rowAbs, px, animado = false) {
+    E.dragOffsetX[rowAbs] = px;
+    const el = document.getElementById(`campo-linha-${rowAbs}`);
     if (!el) return;
-    el.style.transition = transicao
-        ? `transform ${SPRING_MS}ms ${SPRING_EASING}`
-        : 'none';
-    el.style.transform = `translateY(${py}px)`;
+    el.style.transition = animado ? `transform ${SNAP_MS}ms ${SNAP_EASING}` : 'none';
+    el.style.transform  = `translateX(${-(BUF * stepX()) + px}px)`;
+
+    const vi = parseInt(el.dataset.vi);
+    el.querySelectorAll('.campo-card').forEach(cardEl => {
+        const colAbs  = parseInt(cardEl.dataset.colAbs);
+        const vj      = colAbs - (E.origemColuna - BUF);
+        const offsetY = E.dragOffsetY[colAbs] ?? 0;
+        cardEl.style.opacity = calcOpacidadeCard(vi, vj, px, offsetY) ? '1' : '0';
+    });
+}
+
+function aplicarOffsetColuna(colAbs, py, animado = false) {
+    E.dragOffsetY[colAbs] = py;
+    const totalLinhas = E.VP_LINHAS + BUF * 2;
+
+    for (let vi = 0; vi < totalLinhas; vi++) {
+        const rowAbs  = E.origemLinha - BUF + vi;
+        const linhaEl = document.getElementById(`campo-linha-${rowAbs}`);
+        if (!linhaEl) continue;
+        const cardEl  = linhaEl.querySelector(`.campo-card[data-col-abs="${colAbs}"]`);
+        if (!cardEl) continue;
+
+        cardEl.style.transition = animado
+            ? `transform ${SNAP_MS}ms ${SNAP_EASING}, opacity 0.12s`
+            : 'none';
+        cardEl.style.transform  = `translateY(${py}px)`;
+
+        const vj      = colAbs - (E.origemColuna - BUF);
+        const offsetX = E.dragOffsetX[rowAbs] ?? 0;
+        cardEl.style.opacity = calcOpacidadeCard(vi, vj, offsetX, py) ? '1' : '0';
+    }
+}
+
+// ── Snap + Commit ─────────────────────────────────────────────────────────────
+
+function snapLinha(rowAbs) {
+    const atual  = E.dragOffsetX[rowAbs] ?? 0;
+    const delta  = Math.round(atual / stepX());
+    aplicarOffsetLinha(rowAbs, delta * stepX(), true);
+    setTimeout(() => {
+        commitLinhaOffset(rowAbs, -delta);
+        E.dragOffsetX[rowAbs] = 0;
+        rerenderLinha(rowAbs);
+        preencherZona();
+    }, SNAP_MS + 30);
+}
+
+function snapColuna(colAbs) {
+    const atual  = E.dragOffsetY[colAbs] ?? 0;
+    const delta  = Math.round(atual / stepY());
+    aplicarOffsetColuna(colAbs, delta * stepY(), true);
+    setTimeout(() => {
+        commitColunaOffset(colAbs, -delta);
+        E.dragOffsetY[colAbs] = 0;
+        rerenderColuna(colAbs);
+        preencherZona();
+    }, SNAP_MS + 30);
+}
+
+// ── Re-render parcial ─────────────────────────────────────────────────────────
+
+function rerenderLinha(rowAbs) {
+    const linhaEl = document.getElementById(`campo-linha-${rowAbs}`);
+    if (!linhaEl) return;
+    const vi           = parseInt(linhaEl.dataset.vi);
+    const totalColunas = E.VP_COLUNAS + BUF * 2;
+    linhaEl.innerHTML  = '';
+    linhaEl.style.transition = 'none';
+    linhaEl.style.transform  = `translateX(${-(BUF * stepX())}px)`;
+    for (let vj = 0; vj < totalColunas; vj++) {
+        const colAbs  = E.origemColuna - BUF + vj;
+        const card    = getCard(rowAbs, colAbs);
+        if (!card) continue;
+        const cardEl  = criarCardEl(card, rowAbs, colAbs);
+        const offsetY = E.dragOffsetY[colAbs] ?? 0;
+        cardEl.style.opacity = calcOpacidadeCard(vi, vj, 0, offsetY) ? '1' : '0';
+        linhaEl.appendChild(cardEl);
+    }
+}
+
+function rerenderColuna(colAbs) {
+    const totalLinhas = E.VP_LINHAS + BUF * 2;
+    for (let vi = 0; vi < totalLinhas; vi++) {
+        const rowAbs  = E.origemLinha - BUF + vi;
+        const linhaEl = document.getElementById(`campo-linha-${rowAbs}`);
+        if (!linhaEl) continue;
+        const old  = linhaEl.querySelector(`.campo-card[data-col-abs="${colAbs}"]`);
+        const card = getCard(rowAbs, colAbs);
+        if (!card || !old) continue;
+        const vj   = colAbs - (E.origemColuna - BUF);
+        const novo = criarCardEl(card, rowAbs, colAbs);
+        novo.style.opacity = calcOpacidadeCard(vi, vj, E.dragOffsetX[rowAbs] ?? 0, 0) ? '1' : '0';
+        old.replaceWith(novo);
+    }
 }
 
 // ── Card element ──────────────────────────────────────────────────────────────
 
-function _criarCardEl(card, viewRow, viewCol, malhaRow, malhaCol) {
+function criarCardEl(card, rowAbs, colAbs) {
     const el = document.createElement('div');
-    el.className = 'campo-card';
-    el.dataset.malhaRow  = malhaRow;
-    el.dataset.malhaCol  = malhaCol;
-    el.dataset.vcol      = viewCol;
-    el.dataset.vrow      = viewRow;
-    el.dataset.cardId    = card.id;
-    el.dataset.username  = card.username || '';
-    el.dataset.arrastou  = 'false';
-    el.style.cssText = `
-        width: ${_m.cardWidth}px;
-        height: ${_m.cardHeight}px;
-        flex-shrink: 0;
-        border-radius: 16px;
-        overflow: hidden;
-        position: relative;
-        cursor: pointer;
-    `;
+    el.className        = 'campo-card';
+    el.dataset.id       = card.id;
+    el.dataset.rowAbs   = rowAbs;
+    el.dataset.colAbs   = colAbs;
+    el.dataset.username = card.username || '';
+    el.dataset.arrastou = 'false';
+    el.style.cssText = [
+        `width:${E.cardWidth}px`, `height:${E.cardHeight}px`,
+        'flex-shrink:0', 'border-radius:16px', 'overflow:hidden',
+        'position:relative', 'cursor:pointer', 'transition:opacity 0.12s'
+    ].join(';');
 
     const bg = card.imagem_capa
-        ? `<img src="${card.imagem_capa}"
-               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"
-               alt="" draggable="false">`
-        : `<div style="position:absolute;inset:0;
-               background:linear-gradient(135deg,${card.cor}cc,${card.cor}44);"></div>`;
+        ? `<img src="${card.imagem_capa}" draggable="false"
+               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" alt="">`
+        : `<div style="position:absolute;inset:0;background:linear-gradient(135deg,${card.cor}cc,${card.cor}44);"></div>`;
 
     const cats = (card.categorias || []).slice(0, 2).map(c =>
         `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;
@@ -262,115 +350,95 @@ function _criarCardEl(card, viewRow, viewCol, malhaRow, malhaCol) {
     ).join('');
 
     const avatar = card.foto_autor
-        ? `<img src="${card.foto_autor}"
-               style="width:22px;height:22px;border-radius:50%;object-fit:cover;"
-               alt="" draggable="false">`
-        : `<div style="width:22px;height:22px;border-radius:50%;
-               background:rgba(255,255,255,0.2);display:flex;align-items:center;
-               justify-content:center;color:white;font-weight:700;font-size:11px;">
+        ? `<img src="${card.foto_autor}" draggable="false"
+               style="width:22px;height:22px;border-radius:50%;object-fit:cover;" alt="">`
+        : `<div style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);
+               display:flex;align-items:center;justify-content:center;
+               color:white;font-weight:700;font-size:11px;">
                ${(card.autor || '?').charAt(0).toUpperCase()}</div>`;
 
-    const ehProprio  = _ehProprioAutor(card.username);
-    const dropdown   = ehProprio ? '' : _htmlDropdown(card);
+    const dropdown = ehProprioAutor(card.username) ? '' : htmlDropdown(card);
 
     el.innerHTML = `
         ${bg}
-        <div style="position:absolute;inset:0;
-            background:linear-gradient(to top,rgba(0,0,0,0.88) 0%,
-            rgba(0,0,0,0.28) 55%,transparent 100%);"></div>
+        <div style="position:absolute;inset:0;background:linear-gradient(to top,
+             rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.28) 55%,transparent 100%);"></div>
         ${card.procura_mod
             ? `<div style="position:absolute;top:8px;right:8px;background:#f97316;
-                   color:white;font-size:11px;padding:2px 8px;border-radius:999px;
-                   font-weight:600;">🤝 Procura Mod</div>` : ''}
+                    color:white;font-size:11px;padding:2px 8px;border-radius:999px;
+                    font-weight:600;">Procura Mod</div>` : ''}
         <div style="position:absolute;inset-inline:0;bottom:0;padding:12px;">
             <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${cats}</div>
-            <h3 style="color:white;font-weight:700;font-size:13px;line-height:1.35;
-                margin:0 0 6px;display:-webkit-box;-webkit-line-clamp:2;
-                -webkit-box-orient:vertical;overflow:hidden;">
-                ${card.titulo_capa || card.titulo}</h3>
-            <p style="color:rgba(255,255,255,0.65);font-size:11px;line-height:1.5;
-                margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:2;
-                -webkit-box-orient:vertical;overflow:hidden;">${card.conteudo}</p>
+            <h3 style="color:white;font-weight:700;font-size:13px;line-height:1.35;margin:0 0 6px;
+                       display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+                       overflow:hidden;">${card.titulo_capa || card.titulo}</h3>
+            <p style="color:rgba(255,255,255,0.65);font-size:11px;line-height:1.5;margin:0 0 8px;
+                      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+                      overflow:hidden;">${card.conteudo}</p>
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 <div style="display:flex;align-items:center;gap:6px;">
                     ${avatar}
-                    <span style="color:rgba(255,255,255,0.65);font-size:11px;">
-                        ${card.autor}</span>
+                    <span style="color:rgba(255,255,255,0.65);font-size:11px;">${card.autor}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;
-                    color:rgba(255,255,255,0.55);font-size:11px;">
+                            color:rgba(255,255,255,0.55);font-size:11px;">
                     <span>❤️ ${card.curtidas}</span>
                     <span>📌 ${card.clips}</span>
                 </div>
             </div>
         </div>
-        ${dropdown}
-    `;
+        ${dropdown}`;
 
-    _registrarEventosCard(el, card);
+    registrarEventosCard(el, card);
     return el;
 }
 
-function _ehProprioAutor(username) {
+function ehProprioAutor(username) {
     try {
-        const cfg = JSON.parse(
-            document.getElementById('bn-config')?.textContent || '{}'
-        );
+        const cfg = JSON.parse(document.getElementById('bn-config')?.textContent || '{}');
         return cfg.meUsername && cfg.meUsername === username;
     } catch { return false; }
 }
 
-// ── Dropdown ··· ──────────────────────────────────────────────────────────────
+// ── Dropdown ──────────────────────────────────────────────────────────────────
 
-function _htmlDropdown(card) {
+function htmlDropdown(card) {
+    const item = (bg = 'transparent', cor = 'rgba(255,255,255,0.80)') =>
+        `display:block;width:100%;text-align:left;background:${bg};color:${cor};
+         border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:500;
+         cursor:pointer;transition:background 0.15s;font-family:'Poppins',sans-serif;
+         white-space:nowrap;`;
     return `
-        <div class="card-menu-wrap" style="
-            position:absolute;bottom:12px;right:12px;z-index:10;">
-            <button class="card-menu-btn" data-card-id="${card.id}"
-                    aria-label="Opções do card"
-                    style="background:rgba(0,0,0,0.35);
-                        border:1px solid rgba(255,255,255,0.15);
-                        color:rgba(255,255,255,0.55);border-radius:999px;
-                        width:28px;height:28px;display:flex;align-items:center;
-                        justify-content:center;font-size:14px;font-weight:700;
-                        letter-spacing:1px;cursor:pointer;backdrop-filter:blur(6px);
-                        transition:color 0.2s,transform 0.2s,background 0.2s;
-                        padding:0;">···</button>
-            <div class="card-menu-dropdown" style="
-                display:none;position:absolute;bottom:34px;right:0;
-                background:rgba(15,10,30,0.92);
-                border:1px solid rgba(255,255,255,0.10);border-radius:12px;
-                padding:6px;min-width:190px;backdrop-filter:blur(16px);
-                box-shadow:0 8px 32px rgba(0,0,0,0.4);overflow:hidden;">
-                <button class="card-menu-item" data-action="repetitivo"
-                        data-post-id="${card.id}"
-                        style="${_estiloItem()}">🔁 Post repetitivo</button>
-                <button class="card-menu-item" data-action="ver"
-                        data-post-id="${card.id}"
-                        style="${_estiloItem()}">⛶ Ver post completo</button>
+        <div class="card-menu-wrap" style="position:absolute;bottom:12px;right:12px;z-index:10;">
+            <button class="card-menu-btn" data-card-id="${card.id}" aria-label="Opcoes"
+                    style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.15);
+                           color:rgba(255,255,255,0.55);border-radius:999px;width:28px;height:28px;
+                           display:flex;align-items:center;justify-content:center;font-size:14px;
+                           font-weight:700;letter-spacing:1px;cursor:pointer;
+                           backdrop-filter:blur(6px);padding:0;
+                           transition:color .2s,transform .2s,background .2s;">···</button>
+            <div class="card-menu-dropdown"
+                 style="display:none;position:absolute;bottom:34px;right:0;
+                        background:rgba(15,10,30,0.92);border:1px solid rgba(255,255,255,0.10);
+                        border-radius:12px;padding:6px;min-width:190px;
+                        backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+                <button class="card-menu-item" data-action="repetitivo" data-post-id="${card.id}"
+                        style="${item()}">🔁 Post repetitivo</button>
+                <button class="card-menu-item" data-action="ver" data-post-id="${card.id}"
+                        style="${item()}">⛶ Ver post completo</button>
                 <button class="card-menu-item" data-action="seguir"
-                        data-username="${card.username}"
-                        data-post-id="${card.id}"
-                        style="${_estiloItem()}">➕ Seguir autor</button>
+                        data-username="${card.username}" data-post-id="${card.id}"
+                        style="${item()}">➕ Seguir autor</button>
                 <div style="height:1px;background:rgba(255,255,255,0.08);margin:4px 0;"></div>
-                <button class="card-menu-item" data-action="reportar"
-                        data-post-id="${card.id}"
-                        style="${_estiloItem('rgba(239,68,68,0.15)', '#ef4444')}">
-                        🚩 Reportar</button>
+                <button class="card-menu-item" data-action="reportar" data-post-id="${card.id}"
+                        style="${item('rgba(239,68,68,0.15)', '#ef4444')}">🚩 Reportar</button>
             </div>
         </div>`;
 }
 
-function _estiloItem(bg = 'transparent', cor = 'rgba(255,255,255,0.80)') {
-    return `display:block;width:100%;text-align:left;background:${bg};color:${cor};
-        border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:500;
-        cursor:pointer;transition:background 0.15s;font-family:'Poppins',sans-serif;
-        white-space:nowrap;`;
-}
-
 // ── Eventos do card ───────────────────────────────────────────────────────────
 
-function _registrarEventosCard(el, card) {
+function registrarEventosCard(el, card) {
     const btn = el.querySelector('.card-menu-btn');
     const dd  = el.querySelector('.card-menu-dropdown');
 
@@ -388,94 +456,84 @@ function _registrarEventosCard(el, card) {
         btn.addEventListener('click', e => {
             e.stopPropagation();
             const aberto = dd.style.display === 'block';
-            _fecharDropdowns();
+            fecharTodosDropdowns();
             if (!aberto) dd.style.display = 'block';
         });
-        dd.querySelectorAll('.card-menu-item').forEach(item => {
-            item.addEventListener('mouseenter', () => {
-                item.style.background = item.dataset.action === 'reportar'
+        dd.querySelectorAll('.card-menu-item').forEach(it => {
+            it.addEventListener('mouseenter', () => {
+                it.style.background = it.dataset.action === 'reportar'
                     ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.08)';
             });
-            item.addEventListener('mouseleave', () => {
-                item.style.background = item.dataset.action === 'reportar'
+            it.addEventListener('mouseleave', () => {
+                it.style.background = it.dataset.action === 'reportar'
                     ? 'rgba(239,68,68,0.15)' : 'transparent';
             });
-            item.addEventListener('click', e => {
+            it.addEventListener('click', e => {
                 e.stopPropagation();
-                _fecharDropdowns();
-                _executarAcao(item.dataset.action, card, el);
+                fecharTodosDropdowns();
+                executarAcaoDropdown(it.dataset.action, card, el);
             });
         });
     }
 
-    let cliques = 0, timer = null;
+    let cliques = 0, timerClique = null;
     el.addEventListener('click', e => {
         if (e.target.closest('.card-menu-wrap')) return;
         if (el.dataset.arrastou === 'true') return;
         cliques++;
         if (cliques === 1) {
-            timer = setTimeout(() => {
+            timerClique = setTimeout(() => {
                 cliques = 0;
-                _registrarInteracao(card.id, 'open', 0);
+                registrarInteracao(card.id, 'open', 0);
                 abrirDetalhe(card);
             }, 220);
         } else {
-            clearTimeout(timer);
+            clearTimeout(timerClique);
             cliques = 0;
             window.location.href = card.url_detalhe;
         }
     });
 }
 
+function fecharTodosDropdowns() {
+    document.querySelectorAll('.card-menu-dropdown').forEach(d => { d.style.display = 'none'; });
+}
 document.addEventListener('click', e => {
-    if (!e.target.closest('.card-menu-wrap')) _fecharDropdowns();
+    if (!e.target.closest('.card-menu-wrap')) fecharTodosDropdowns();
 });
 
-function _fecharDropdowns() {
-    document.querySelectorAll('.card-menu-dropdown').forEach(d => {
-        d.style.display = 'none';
-    });
+// ── Ações dropdown ────────────────────────────────────────────────────────────
+
+async function executarAcaoDropdown(acao, card, cardEl) {
+    switch (acao) {
+        case 'repetitivo': await penalizarCard(card, cardEl); break;
+        case 'ver':        abrirDetalhe(card); break;
+        case 'seguir':     await seguirAutor(card, cardEl); break;
+        case 'reportar':   mostrarToast('Obrigado pelo feedback!'); break;
+    }
 }
 
-// ── Ações do dropdown ─────────────────────────────────────────────────────────
-
-async function _executarAcao(acao, card, cardEl) {
-    if (acao === 'repetitivo') await _penalizarCard(card, cardEl);
-    if (acao === 'ver')        abrirDetalhe(card);
-    if (acao === 'seguir')     await _seguirAutor(card, cardEl);
-    if (acao === 'reportar')   _toast('🚩 Obrigado pelo feedback!');
-}
-
-async function _penalizarCard(card, cardEl) {
+async function penalizarCard(card, cardEl) {
     try {
         await fetch('/api/campo/penalizar-card/', {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-            body:   JSON.stringify({ post_id: card.id }),
+            body:    JSON.stringify({ post_id: card.id }),
         });
-    } catch (e) { console.error(e); }
-
-    _m.penalizados.add(card.id);
+    } catch (e) { console.error('[Campo] penalizar:', e); }
+    E.penalizados.add(card.id);
     cardEl.style.transition = `opacity ${EVAPORATE_MS}ms ease`;
     cardEl.style.opacity    = '0';
-
     setTimeout(() => {
-        const vrow = parseInt(cardEl.dataset.vrow);
-        const vcol = parseInt(cardEl.dataset.vcol);
-        const row  = parseInt(cardEl.dataset.malhaRow);
-        const col  = parseInt(cardEl.dataset.malhaCol);
-        const novo = _cardAleatorio();
-        if (novo) {
-            _setCell(row, col, novo);
-            const novoEl = _criarCardEl(novo, vrow, vcol, row, col);
-            cardEl.replaceWith(novoEl);
-        } else {
-            cardEl.remove();
-        }
+        const r = parseInt(cardEl.dataset.rowAbs);
+        const c = parseInt(cardEl.dataset.colAbs);
+        const prox = proximoCard();
+        if (prox) { setCard(r, c, prox); cardEl.replaceWith(criarCardEl(prox, r, c)); }
+        else { cardEl.remove(); }
     }, EVAPORATE_MS);
 }
 
-async function _seguirAutor(card, cardEl) {
+async function seguirAutor(card, cardEl) {
     try {
         await fetch(`/perfil/${card.username}/seguir/`, {
             method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
@@ -487,264 +545,97 @@ async function _seguirAutor(card, cardEl) {
             btn.style.opacity = '0.5';
             btn.style.cursor  = 'default';
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('[Campo] seguir:', e); }
 }
 
 // ── Drag ──────────────────────────────────────────────────────────────────────
 
-function _configurarDrag() {
-    const viewport = document.getElementById('campo-viewport');
-    if (!viewport) return;
+function configurarDrag() {
+    const vp = document.getElementById('campo-viewport');
+    if (!vp) return;
+    const drag = E.drag;
 
-    const drag = _m.drag;
+    const viewIdxLinha  = y => { const r = vp.getBoundingClientRect();
+        return Math.max(0, Math.min(Math.floor((y - r.top)  / stepY()), E.VP_LINHAS  - 1)); };
+    const viewIdxColuna = x => { const r = vp.getBoundingClientRect();
+        return Math.max(0, Math.min(Math.floor((x - r.left) / stepX()), E.VP_COLUNAS - 1)); };
 
-    function _viewRowAt(clientY) {
-        const rect = viewport.getBoundingClientRect();
-        const relY = clientY - rect.top;
-        return Math.max(0, Math.min(
-            Math.floor(relY / (_m.cardHeight + GAP)),
-            _m.numLinhas - 1
-        ));
+    function iniciar(x, y) {
+        drag.ativo = true; drag.arrastou = false; drag.eixo = null;
+        drag.startX = x; drag.startY = y; drag.tempoInicio = Date.now();
+        drag.linhaAbsIdx  = E.origemLinha  + viewIdxLinha(y);
+        drag.colunaAbsIdx = E.origemColuna + viewIdxColuna(x);
+        vp.style.cursor = 'grabbing';
     }
 
-    function _viewColAt(clientX) {
-        const rect = viewport.getBoundingClientRect();
-        const relX = clientX - rect.left;
-        return Math.max(0, Math.min(
-            Math.floor(relX / (_m.cardWidth + GAP)),
-            _m.numColunas - 1
-        ));
-    }
-
-    function _iniciar(x, y) {
-        drag.ativo       = true;
-        drag.arrastou    = false;
-        drag.eixo        = null;
-        drag.startX      = x;
-        drag.startY      = y;
-        drag.pixelAtual  = 0;
-        drag.tempoInicio = Date.now();
-        drag.viewRow     = _viewRowAt(y);
-        drag.viewCol     = _viewColAt(x);
-        drag.alvoMalhaRow = _m.vRow + drag.viewRow;
-        drag.alvoMalhaCol = _m.vCol + drag.viewCol;
-        viewport.style.cursor = 'grabbing';
-    }
-
-    function _mover(x, y) {
+    function mover(x, y) {
         if (!drag.ativo) return;
-        const dx = x - drag.startX;
-        const dy = y - drag.startY;
-
-        if (!drag.eixo && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
-            drag.eixo = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        const dx = x - drag.startX, dy = y - drag.startY;
+        if (!drag.eixo && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+            drag.eixo     = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+            drag.alvo     = drag.eixo === 'x' ? drag.linhaAbsIdx : drag.colunaAbsIdx;
+            drag.startOff = drag.eixo === 'x'
+                ? (E.dragOffsetX[drag.alvo] ?? 0)
+                : (E.dragOffsetY[drag.alvo] ?? 0);
         }
         if (!drag.eixo) return;
         drag.arrastou = true;
-
-        if (drag.eixo === 'x') {
-            // Move a linha inteira no eixo X
-            drag.pixelAtual = dx;
-            _setTranslateXLinha(drag.viewRow, dx, false);
-        } else {
-            // Move todos os cards da coluna no eixo Y
-            drag.pixelAtual = dy;
-            for (let vi = 0; vi < _m.numLinhas; vi++) {
-                _setTranslateYCard(vi, drag.viewCol, dy, false);
-            }
-        }
+        const off = drag.startOff + (drag.eixo === 'x' ? dx : dy);
+        if (drag.eixo === 'x') aplicarOffsetLinha(drag.alvo, off, false);
+        else                   aplicarOffsetColuna(drag.alvo, off, false);
     }
 
-    function _finalizar(x, y) {
+    function finalizar(x, y) {
         if (!drag.ativo) return;
-        drag.ativo = false;
-        viewport.style.cursor = 'grab';
-
-        const dx    = x - drag.startX;
-        const dy    = y - drag.startY;
+        drag.ativo = false; vp.style.cursor = 'grab';
+        const dx   = x - drag.startX, dy = y - drag.startY;
         const tempo = Date.now() - drag.tempoInicio;
-
-        if (drag.arrastou) {
-            // Suprime click nos cards arrastados
-            const seletor = drag.eixo === 'x'
-                ? `#campo-linha-${drag.viewRow} .campo-card`
-                : `.campo-card[data-vcol="${drag.viewCol}"]`;
-            document.querySelectorAll(seletor).forEach(el => {
-                el.dataset.arrastou = 'true';
-                setTimeout(() => { el.dataset.arrastou = 'false'; }, 80);
-            });
-        }
-
-        if (drag.eixo === 'x') {
-            _snapLinha(drag.viewRow, drag.alvoMalhaRow, dx, tempo);
-        } else if (drag.eixo === 'y') {
-            _snapColuna(drag.viewCol, drag.alvoMalhaCol, dy, tempo);
+        if (drag.arrastou) marcarArrastados(drag.eixo, drag.alvo);
+        if (drag.eixo === 'x' && drag.alvo !== null) {
+            snapLinha(drag.alvo);
+            const card = getCard(drag.alvo, E.origemColuna + Math.floor(E.VP_COLUNAS / 2));
+            if (card) registrarInteracao(card.id, dx > 0 ? 'right' : 'left', tempo);
+        } else if (drag.eixo === 'y' && drag.alvo !== null) {
+            snapColuna(drag.alvo);
+            const card = getCard(E.origemLinha + Math.floor(E.VP_LINHAS / 2), drag.alvo);
+            if (card) registrarInteracao(card.id, dy > 0 ? 'down' : 'up', tempo);
         }
     }
 
-    // Mouse
-    viewport.addEventListener('mousedown', e => {
+    vp._mousedown && vp.removeEventListener('mousedown', vp._mousedown);
+    vp._mousedown = e => {
         if (e.target.closest('.card-menu-wrap')) return;
-        _iniciar(e.clientX, e.clientY);
-        e.preventDefault();
-    });
-    window.addEventListener('mousemove', e => _mover(e.clientX, e.clientY));
-    window.addEventListener('mouseup',   e => _finalizar(e.clientX, e.clientY));
+        iniciar(e.clientX, e.clientY); e.preventDefault();
+    };
+    vp.addEventListener('mousedown', vp._mousedown);
+    window.addEventListener('mousemove', e => mover(e.clientX, e.clientY));
+    window.addEventListener('mouseup',   e => finalizar(e.clientX, e.clientY));
 
-    // Touch
-    viewport.addEventListener('touchstart', e => {
+    vp.addEventListener('touchstart', e => {
         if (e.target.closest('.card-menu-wrap')) return;
-        const t = e.touches[0];
-        _iniciar(t.clientX, t.clientY);
+        const t = e.touches[0]; iniciar(t.clientX, t.clientY);
     }, { passive: true });
-    viewport.addEventListener('touchmove', e => {
-        const t = e.touches[0];
-        _mover(t.clientX, t.clientY);
+    vp.addEventListener('touchmove', e => {
+        const t = e.touches[0]; mover(t.clientX, t.clientY);
     }, { passive: true });
-    viewport.addEventListener('touchend', e => {
-        const t = e.changedTouches[0];
-        _finalizar(t.clientX, t.clientY);
+    vp.addEventListener('touchend', e => {
+        const t = e.changedTouches[0]; finalizar(t.clientX, t.clientY);
     });
 }
 
-// ── Snap com spring — linha (eixo X) ─────────────────────────────────────────
-
-function _snapLinha(viewRow, malhaRow, dx, tempoMs) {
-    const step   = _m.cardWidth + GAP;
-    // Quantos cards foram deslocados (arredonda para o snap mais próximo)
-    const cards  = Math.round(-dx / step);
-    // Atualiza offset da linha na malha
-    _m.offsetLinha[malhaRow] = (_m.offsetLinha[malhaRow] ?? 0) + cards;
-
-    const snapPx = 0; // após propagar, a linha volta ao ponto 0 do viewport
-
-    // Propaga o movimento: revela novos cards na malha para essa linha
-    if (cards !== 0) {
-        _propagarMovimentoLinha(viewRow, malhaRow, cards);
-    }
-
-    // Spring: anima a linha de volta ao ponto de encaixe (0px)
-    _setTranslateXLinha(viewRow, 0, true);
-
-    // Registra interação
-    const cardCentro = _getCell(malhaRow, _m.vCol + Math.floor(_m.numColunas / 2));
-    if (cardCentro) {
-        _registrarInteracao(cardCentro.id, dx > 0 ? 'right' : 'left', tempoMs);
-    }
-}
-
-// ── Snap com spring — coluna (eixo Y) ────────────────────────────────────────
-
-function _snapColuna(viewCol, malhaCol, dy, tempoMs) {
-    const step  = _m.cardHeight + GAP;
-    const cards = Math.round(-dy / step);
-    _m.offsetColuna[malhaCol] = (_m.offsetColuna[malhaCol] ?? 0) + cards;
-
-    if (cards !== 0) {
-        _propagarMovimentoColuna(viewCol, malhaCol, cards);
-    }
-
-    // Spring: anima todos os cards da coluna de volta ao Y=0
-    for (let vi = 0; vi < _m.numLinhas; vi++) {
-        _setTranslateYCard(vi, viewCol, 0, true);
-    }
-
-    const cardCentro = _getCell(
-        _m.vRow + Math.floor(_m.numLinhas / 2), malhaCol
-    );
-    if (cardCentro) {
-        _registrarInteracao(cardCentro.id, dy > 0 ? 'down' : 'up', tempoMs);
-    }
-}
-
-// ── Propagação — linha afeta colunas ─────────────────────────────────────────
-//
-// Quando a linha malhaRow desloca `cards` posições para a esquerda (cards > 0)
-// ou direita (cards < 0), os cards visíveis nessa linha mudam. Cada coluna
-// do viewport agora tem um card diferente na posição dessa linha.
-// Precisamos:
-// 1. Calcular quais células da malha estão agora visíveis nessa linha
-// 2. Garantir que essas células têm cards
-// 3. Atualizar o DOM da linha com os novos cards
-// 4. As colunas "percebem" automaticamente porque o card em malha[malhaRow][col]
-//    foi atualizado — na próxima movimentação de coluna, o card correto é usado.
-
-function _propagarMovimentoLinha(viewRow, malhaRow, deltaCards) {
-    // Nova posição inicial da coluna visível para essa linha
-    // offsetLinha[malhaRow] acumulou o delta, então recalculamos vCol efetivo
-    const vColEfetivo = _m.vCol + (_m.offsetLinha[malhaRow] ?? 0) - deltaCards;
-
-    // Garante células para as novas colunas visíveis
-    for (let vi = 0; vi < _m.numColunas; vi++) {
-        const col = vColEfetivo + deltaCards + vi;
-        _garantirCell(malhaRow, col);
-    }
-
-    // Reconstrói o DOM da linha com os cards corretos
-    _reconstruirLinha(viewRow, malhaRow);
-}
-
-// ── Propagação — coluna afeta linhas ─────────────────────────────────────────
-
-function _propagarMovimentoColuna(viewCol, malhaCol, deltaCards) {
-    const vRowEfetivo = _m.vRow + (_m.offsetColuna[malhaCol] ?? 0) - deltaCards;
-
-    // Garante células para as novas linhas visíveis nessa coluna
-    for (let vi = 0; vi < _m.numLinhas; vi++) {
-        const row = vRowEfetivo + deltaCards + vi;
-        _garantirCell(row, malhaCol);
-    }
-
-    // Atualiza o card de cada linha do viewport na posição dessa coluna
-    for (let vi = 0; vi < _m.numLinhas; vi++) {
-        const malhaRow = _m.vRow + vi + (_m.offsetColuna[malhaCol] ?? 0);
-        const card     = _getCell(malhaRow, malhaCol);
-        if (!card) continue;
-
-        const cardEl = document.querySelector(
-            `#campo-linha-${vi} .campo-card[data-vcol="${viewCol}"]`
-        );
-        if (cardEl) {
-            const novoEl = _criarCardEl(card, vi, viewCol, malhaRow, malhaCol);
-            cardEl.replaceWith(novoEl);
-        }
-    }
-}
-
-// ── Reconstrução de linha no DOM ──────────────────────────────────────────────
-
-function _reconstruirLinha(viewRow, malhaRow) {
-    const linhaEl = document.getElementById(`campo-linha-${viewRow}`);
-    if (!linhaEl) return;
-
-    // Limpa e reconstrói os cards da linha com base no offset atual
-    linhaEl.innerHTML = '';
-    linhaEl.style.transform  = 'translateX(0px)';
-    linhaEl.style.transition = 'none';
-
-    const offsetCards = _m.offsetLinha[malhaRow] ?? 0;
-    for (let vi = 0; vi < _m.numColunas; vi++) {
-        const col  = _m.vCol + offsetCards + vi;
-        const card = _garantirCell(malhaRow, col);
-        if (card) {
-            linhaEl.appendChild(_criarCardEl(card, viewRow, vi, malhaRow, col));
-        }
-    }
-}
-
-// ── Navegação por botões (acessibilidade) ─────────────────────────────────────
-
-function moverLinha(viewRow, direcao) {
-    const malhaRow = _m.vRow + viewRow;
-    const delta    = direcao === 'esquerda' ? 1 : -1;
-    _m.offsetLinha[malhaRow] = (_m.offsetLinha[malhaRow] ?? 0) + delta;
-    _propagarMovimentoLinha(viewRow, malhaRow, delta);
-    _setTranslateXLinha(viewRow, 0, true);
+function marcarArrastados(eixo, alvo) {
+    const sel = eixo === 'x'
+        ? `#campo-linha-${alvo} .campo-card`
+        : `.campo-card[data-col-abs="${alvo}"]`;
+    document.querySelectorAll(sel).forEach(el => {
+        el.dataset.arrastou = 'true';
+        setTimeout(() => { el.dataset.arrastou = 'false'; }, 80);
+    });
 }
 
 // ── Interação ─────────────────────────────────────────────────────────────────
 
-async function _registrarInteracao(postId, direcao, tempoMs) {
+async function registrarInteracao(postId, direcao, tempoMs) {
     try {
         await fetch('/api/campo/interacao/', {
             method:  'POST',
@@ -756,81 +647,65 @@ async function _registrarInteracao(postId, direcao, tempoMs) {
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
-function _toast(msg) {
-    const el = document.createElement('div');
-    el.textContent = msg;
-    el.style.cssText = `
-        position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-        background:rgba(15,10,30,0.92);color:white;padding:10px 20px;
-        border-radius:999px;font-size:13px;font-family:'Poppins',sans-serif;
-        backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.12);
-        z-index:999999;opacity:0;transition:opacity 0.3s;pointer-events:none;`;
-    document.body.appendChild(el);
-    requestAnimationFrame(() => { el.style.opacity = '1'; });
+function mostrarToast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = [
+        'position:fixed', 'bottom:80px', 'left:50%', 'transform:translateX(-50%)',
+        'background:rgba(15,10,30,0.92)', 'color:white', 'padding:10px 20px',
+        'border-radius:999px', 'font-size:13px', 'font-family:Poppins,sans-serif',
+        'backdrop-filter:blur(12px)', 'border:1px solid rgba(255,255,255,0.12)',
+        'z-index:999999', 'opacity:0', 'transition:opacity 0.3s', 'pointer-events:none'
+    ].join(';');
+    document.body.appendChild(t);
+    requestAnimationFrame(() => { t.style.opacity = '1'; });
     setTimeout(() => {
-        el.style.opacity = '0';
-        setTimeout(() => el.remove(), 300);
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 300);
     }, 2500);
 }
 
-// ── Modal de detalhe ──────────────────────────────────────────────────────────
+// ── Modal detalhe ─────────────────────────────────────────────────────────────
 
-const _modalCarregado = new Set();
+const modalCarregado = new Set();
 
 function abrirDetalhe(card) {
     const modal = document.getElementById('modal-detalhe-campo');
     if (!modal) return;
-
     document.getElementById('detalhe-campo-link').href = card.url_detalhe;
-
     const capaWrapper = document.getElementById('detalhe-capa-wrapper');
     if (card.imagem_capa) {
         document.getElementById('detalhe-capa-imgs').innerHTML =
-            `<img src="${card.imagem_capa}"
-                  style="width:100%;height:224px;object-fit:cover;" alt="">`;
-        document.getElementById('detalhe-titulo-capa').textContent =
-            card.titulo_capa || card.titulo;
+            `<img src="${card.imagem_capa}" style="width:100%;height:224px;object-fit:cover;" alt="">`;
+        document.getElementById('detalhe-titulo-capa').textContent = card.titulo_capa || card.titulo;
         capaWrapper.classList.remove('hidden');
     } else {
         capaWrapper.classList.add('hidden');
     }
-
     document.getElementById('detalhe-cats').innerHTML = (card.categorias || []).map(c =>
         `<span style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:999px;
                       background:${c.cor}25;color:${c.cor};">${c.nome}</span>`
     ).join('');
-
     document.getElementById('detalhe-titulo').textContent   = card.titulo;
     document.getElementById('detalhe-conteudo').textContent = card.conteudo;
-    document.getElementById('detalhe-data').textContent     = '📅 ' + card.data;
-
+    document.getElementById('detalhe-data').textContent     = card.data;
     const autorBtn = document.getElementById('detalhe-autor-btn');
-    autorBtn.textContent = '✍️ ' + card.autor;
+    autorBtn.textContent = card.autor;
     autorBtn.onclick     = () => window.abrirModalPerfil?.(card.username);
-
     document.getElementById('detalhe-total-curtida').textContent = card.curtidas;
     document.getElementById('detalhe-total-clip').textContent    = card.clips;
-    document.getElementById('detalhe-btn-curtida').onclick =
-        () => _reagirDetalhe(card.id, 'curtida');
-    document.getElementById('detalhe-btn-clip').onclick =
-        () => _reagirDetalhe(card.id, 'clip');
-
+    document.getElementById('detalhe-btn-curtida').onclick = () => reagirDetalhe(card.id, 'curtida');
+    document.getElementById('detalhe-btn-clip').onclick    = () => reagirDetalhe(card.id, 'clip');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     document.body.style.overflow = 'hidden';
-
     const thread = window._criarThreadCampo?.(card.id);
     if (thread) {
-        const btnComentar = document.getElementById('detalhe-btn-comentar');
-        if (btnComentar) btnComentar.onclick = () => thread.enviar(null);
-        window._abrirSubthreadCampo = (pid, cid) =>
-            _abrirSubthreadCampo(pid, cid, thread);
+        const btnC = document.getElementById('detalhe-btn-comentar');
+        if (btnC) btnC.onclick = () => thread.enviar(null);
+        window._abrirSubthreadCampo = (pid, cid) => abrirSubthreadCampo(pid, cid, thread);
     }
-
-    if (!_modalCarregado.has(card.id)) {
-        thread?.carregar();
-        _modalCarregado.add(card.id);
-    }
+    if (!modalCarregado.has(card.id)) { thread?.carregar(); modalCarregado.add(card.id); }
 }
 
 function fecharDetalhe() {
@@ -838,10 +713,10 @@ function fecharDetalhe() {
     if (!modal) return;
     modal.classList.add('hidden');
     modal.classList.remove('flex');
-    document.body.style.overflow = '';
+    document.body.style.overflow = 'hidden';
 }
 
-async function _reagirDetalhe(postId, tipo) {
+async function reagirDetalhe(postId, tipo) {
     try {
         const res  = await fetch(`/api/post/${postId}/reagir/${tipo}/`, {
             method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
@@ -853,24 +728,20 @@ async function _reagirDetalhe(postId, tipo) {
     } catch (e) { console.error(e); }
 }
 
-// ── Subthread ─────────────────────────────────────────────────────────────────
-
-function _abrirSubthreadCampo(postId, comentarioId, thread) {
+function abrirSubthreadCampo(postId, comentarioId, thread) {
     const modal    = document.getElementById('modal-subthread-campo');
     const conteudo = document.getElementById('conteudo-subthread-campo');
     if (!modal || !conteudo) return;
     conteudo.innerHTML = '';
     const pai = thread.buscar(comentarioId);
-    if (pai?.respostas) {
-        pai.respostas.forEach(r => {
-            if (r.respostas?.length) {
-                const m = document.getElementById('modal-forum-campo');
-                if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
-                return;
-            }
-            conteudo.appendChild(thread._renderComentario(r, 0));
-        });
-    }
+    pai?.respostas?.forEach(r => {
+        if (r.respostas?.length) {
+            const m = document.getElementById('modal-forum-campo');
+            if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+            return;
+        }
+        conteudo.appendChild(thread._renderComentario(r, 0));
+    });
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -881,120 +752,230 @@ function fecharSubthreadCampo(event) {
     if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
 }
 
-// ── Sub-abas ──────────────────────────────────────────────────────────────────
-
-function mostrarSubaba(qual) {
-    const ativo   = 'px-4 py-1.5 rounded-full text-sm font-semibold transition bg-orange-500 text-white';
-    const inativo = 'px-4 py-1.5 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200';
-    const grid = document.getElementById('painel-grid');
-    const meus = document.getElementById('painel-meus');
-    const btnG = document.getElementById('subaba-grid');
-    const btnM = document.getElementById('subaba-meus');
-    if (qual === 'grid') {
-        grid?.classList.remove('hidden'); meus?.classList.add('hidden');
-        if (btnG) btnG.className = ativo;
-        if (btnM) btnM.className = inativo;
-    } else {
-        grid?.classList.add('hidden'); meus?.classList.remove('hidden');
-        if (btnG) btnG.className = inativo;
-        if (btnM) btnM.className = ativo;
-        carregarMeusNotes();
-    }
-}
+// ── Meus Notes ────────────────────────────────────────────────────────────────
 
 async function carregarMeusNotes() {
     const lista = document.getElementById('lista-meus-notes');
     if (!lista) return;
-    lista.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">Carregando...</p>';
+    lista.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;padding:16px;font-size:13px;">Carregando...</p>';
     try {
         const res  = await fetch('/api/campo/meus-notes/');
         const data = await res.json();
         if (!data.posts.length) {
-            lista.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">Você ainda não publicou no Campo das Ideias.</p>';
+            lista.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;padding:24px;font-size:13px;">Você ainda não publicou no Campo das Ideias.</p>';
             return;
         }
         lista.innerHTML = data.posts.map(p => `
             <a href="/post/${p.id}/"
-               class="block bg-white rounded-xl border border-gray-100 shadow-sm
-                      px-5 py-4 hover:border-orange-200 transition">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="flex-1 min-w-0">
-                        <h4 class="text-sm font-semibold text-gray-800 truncate">${p.titulo}</h4>
-                        <p class="text-xs text-gray-400 mt-0.5">${p.conteudo}</p>
+               style="display:block;background:rgba(255,255,255,0.08);border-radius:12px;
+                      border:1px solid rgba(255,255,255,0.08);padding:12px 16px;
+                      text-decoration:none;transition:background 0.2s;"
+               onmouseover="this.style.background='rgba(255,255,255,0.15)'"
+               onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                    <div style="flex:1;min-width:0;">
+                        <h4 style="color:white;font-size:13px;font-weight:600;
+                                   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                                   margin:0 0 2px;">${p.titulo}</h4>
+                        <p style="color:rgba(255,255,255,0.45);font-size:11px;margin:0;">
+                            ${p.conteudo}</p>
                     </div>
-                    <div class="flex-shrink-0 text-right">
-                        <p class="text-xs text-gray-400">${p.data}</p>
-                        <p class="text-xs text-orange-500 font-semibold mt-1">
+                    <div style="text-align:right;flex-shrink:0;">
+                        <p style="color:rgba(255,255,255,0.35);font-size:11px;">${p.data}</p>
+                        <p style="color:#fb923c;font-size:11px;font-weight:600;margin-top:2px;">
                             ❤️ ${p.curtidas} · 📌 ${p.clips}</p>
                     </div>
                 </div>
             </a>`).join('');
     } catch {
-        lista.innerHTML = '<p class="text-sm text-gray-400 text-center">Erro ao carregar.</p>';
+        lista.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;font-size:13px;">Erro ao carregar.</p>';
     }
+}
+
+// ── Modo Imersivo ─────────────────────────────────────────────────────────────
+//
+// v5: separado em duas fases:
+//   ativarModoImersivo() — só CSS/classes, sem medir DOM
+//   ajustarLayout()      — mede alturas reais e posiciona o wrapper
+
+function ativarModoImersivo() {
+    document.body.classList.add('campo-mode');
+
+    const nav    = document.getElementById('synapsoo-nav');
+    const main   = document.getElementById('synapsoo-main');
+    const footer = document.getElementById('synapsoo-footer');
+
+    if (main) {
+        main.style.setProperty('max-width', '100%',   'important');
+        main.style.setProperty('padding',   '0',      'important');
+        main.style.setProperty('margin',    '0 auto', 'important');
+        main.style.setProperty('overflow',  'hidden', 'important');
+    }
+
+    // FIX #4: zera margin dos filhos diretos do main para eliminar faixa branca
+    if (main) {
+        Array.from(main.children).forEach(filho => {
+            filho.style.setProperty('margin-top',    '0', 'important');
+            filho.style.setProperty('margin-bottom', '0', 'important');
+        });
+    }
+
+    if (nav) {
+        nav.style.setProperty('padding-top',    '6px', 'important');
+        nav.style.setProperty('padding-bottom', '6px', 'important');
+    }
+
+    if (footer) {
+        footer.style.setProperty('display', 'none', 'important');
+    }
+
+    document.querySelectorAll('.nav-criar').forEach(el => {
+        el.style.setProperty('display', 'none', 'important');
+    });
+    const logo = document.querySelector('.nav-logo');
+    if (logo) logo.style.fontSize = '1.25rem';
+
+    document.querySelectorAll('.aba-label').forEach(el => {
+        el.style.setProperty('display', 'none', 'important');
+    });
+    document.querySelectorAll('.aba-nav').forEach(el => {
+        el.style.setProperty('padding-top',    '6px', 'important');
+        el.style.setProperty('padding-bottom', '6px', 'important');
+        el.style.color = 'rgba(255,255,255,0.55)';
+    });
+    const abaC = document.querySelector('a[href="/?aba=campo"]');
+    if (abaC) abaC.style.color = '#fb923c';
+
+    document.body.style.setProperty('overflow', 'hidden', 'important');
+}
+
+// FIX #2: ajustarLayout() mede as alturas reais após o browser relayoutar
+// e define height + posição do wrapper de forma explícita.
+function ajustarLayout() {
+    const nav     = document.getElementById('synapsoo-nav');
+    const abas    = document.getElementById('barra-abas');
+    const wrapper = document.getElementById('campo-grid-wrapper');
+    if (!wrapper) return;
+
+    const navH  = nav  ? nav.getBoundingClientRect().height  : 0;
+
+    if (abas) {
+        abas.style.setProperty('top', `${navH}px`, 'important');
+    }
+
+    const abasH   = abas ? abas.getBoundingClientRect().height : 0;
+    const topoWrapper = navH + abasH;
+    const altDisp     = window.innerHeight - topoWrapper;
+
+    // Wrapper fixo abaixo das abas — elimina faixa branca e sobreposição
+    wrapper.style.setProperty('position', 'fixed',           'important');
+    wrapper.style.setProperty('top',      `${topoWrapper}px`,'important');
+    wrapper.style.setProperty('left',     '0',               'important');
+    wrapper.style.setProperty('right',    '0',               'important');
+    wrapper.style.setProperty('height',   `${altDisp}px`,    'important');
+    wrapper.style.setProperty('overflow', 'hidden',          'important');
+
+    if (E._navObserver) E._navObserver.disconnect();
+    E._navObserver = new ResizeObserver(() => ajustarLayout());
+    if (nav)  E._navObserver.observe(nav);
+    if (abas) E._navObserver.observe(abas);
+}
+
+function desativarModoImersivo() {
+    document.body.classList.remove('campo-mode');
+
+    if (E._navObserver) { E._navObserver.disconnect(); E._navObserver = null; }
+
+    const nav     = document.getElementById('synapsoo-nav');
+    const main    = document.getElementById('synapsoo-main');
+    const abas    = document.getElementById('barra-abas');
+    const footer  = document.getElementById('synapsoo-footer');
+    const wrapper = document.getElementById('campo-grid-wrapper');  // adicionar
+
+    [nav, main, abas, footer, wrapper].forEach(el => { if (el) el.removeAttribute('style'); });  // wrapper no array
+
+    if (main) {
+        Array.from(main.children).forEach(filho => filho.removeAttribute('style'));
+    }
+
+    document.querySelectorAll('.aba-label').forEach(el => el.removeAttribute('style'));
+    document.querySelectorAll('.aba-nav').forEach(el => el.removeAttribute('style'));
+    document.querySelectorAll('.nav-username,.nav-criar,.nav-sair').forEach(el => {
+        el.removeAttribute('style');
+    });
+    const logo = document.querySelector('.nav-logo');
+    if (logo) logo.style.fontSize = '';
+
+    document.body.style.removeProperty('overflow');
+    E.iniciado = false;
 }
 
 // ── Utilitários ───────────────────────────────────────────────────────────────
 
-function _mostrarLoading(sim) {
+function mostrarLoading(sim) {
     document.getElementById('campo-loading')?.classList.toggle('hidden', !sim);
 }
-
-function _mostrarVazio(sim) {
+function mostrarVazio(sim) {
     document.getElementById('campo-vazio')?.classList.toggle('hidden', !sim);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-async function _init() {
+
+async function init() {
     if (!document.getElementById('campo-grid-wrapper')) return;
-    if (_m.iniciado) return;
-    _m.iniciado = true;
+    if (E.iniciado) return;
+    E.iniciado = true;
 
-    _mostrarLoading(true);
+    ativarModoImersivo();
+    mostrarLoading(true);
 
-    _m.numColunas = _getNumColunas();
-    _m.numLinhas  = 2;
-    _m.vRow       = 0;
-    _m.vCol       = 0;
+    E.VP_COLUNAS   = getNumColunas();
+    E.VP_LINHAS    = 2;
+    E.origemLinha  = 0;
+    E.origemColuna = 0;
+    E.dragOffsetX  = {};
+    E.dragOffsetY  = {};
 
-    await _carregarPool();
+    await carregarPool(true);
 
-    if (!_m.pool.length) {
-        _mostrarLoading(false);
-        _mostrarVazio(true);
+    if (!E.pool.length) {
+        mostrarLoading(false);
+        mostrarVazio(true);
         return;
     }
 
-    _preencherViewport();
-    _mostrarLoading(false);
-    _renderizarGrid();
-    _configurarDrag();
+    preencherZona();
+    mostrarLoading(false);
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        ajustarLayout();
+        renderGrid();
+        configurarDrag();
+    }));
 
     let resizeTimer;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
-            _m.numColunas = _getNumColunas();
-            const { width, height } = _getDimensoesCard(_m.numColunas);
-            _m.cardWidth  = width;
-            _m.cardHeight = height;
-            _preencherViewport();
-            _renderizarGrid();
-            _configurarDrag();
+            E.VP_COLUNAS  = getNumColunas();
+            E.dragOffsetX = {};
+            E.dragOffsetY = {};
+            ajustarLayout();
+            preencherZona();
+            renderGrid();
+            configurarDrag();
         }, 300);
     });
 }
 
-// ── Export e globais ──────────────────────────────────────────────────────────
+// ── Exports ───────────────────────────────────────────────────────────────────
 
 export function registrarCampoGlobal() {
     window.fecharDetalhe        = fecharDetalhe;
-    window.mostrarSubaba        = mostrarSubaba;
     window.fecharSubthreadCampo = fecharSubthreadCampo;
-    window.moverLinha           = moverLinha;
+    window.carregarMeusNotes    = carregarMeusNotes;
 }
 
-export function iniciarCampo() {
-    _init();
-}
+export function iniciarCampo()  { init(); }
+export function destruirCampo() { desativarModoImersivo(); }

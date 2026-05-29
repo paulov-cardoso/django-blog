@@ -1261,9 +1261,9 @@ def excluir_comentario_json(request, comentario_id):
 
 
 
-# ── Campo das Ideias — Rolamento Cubo Mágico ──────────────────────────────────
+# ── ALGORÍTIMO Cubo Mágico ──────────────────────────────────
 
-# ── Algoritimo do Rolamento Cubo Mágico ──────────────────────────────────
+# ── Campo das Ideias — Rolamento Cubo Mágico ──────────────────────────────────
 
 
 import math
@@ -1284,8 +1284,11 @@ def _calcular_score(post, agora=None):
 
 def _recalcular_scores_campo():
     agora = timezone.now()
+    # FIX C: select_related para evitar N+1 em autor e reações
     posts = Post.objects.filter(
         publicado=True, visibilidade='campo'
+    ).select_related(
+        'autor', 'autor__usuario'
     ).prefetch_related('reacoes', 'comentarios')
     for post in posts:
         ScorePost.objects.update_or_create(
@@ -1310,7 +1313,11 @@ def _afinidade_usuario(autor):
 
 
 def _serializar_card(post):
-    score_cache = getattr(post, 'score_cache', None)
+    # FIX A: score_cache agora chega via select_related — acesso direto sem getattr
+    try:
+        score = post.score_cache.score
+    except Exception:
+        score = 0
     return {
         'id':          post.id,
         'titulo':      post.titulo,
@@ -1322,7 +1329,7 @@ def _serializar_card(post):
         'foto_autor':  post.autor.foto_perfil.url if post.autor.foto_perfil else None,
         'imagem_capa': post.imagem_capa_1.url if post.imagem_capa_1 else None,
         'categorias':  [{'nome': c.nome, 'cor': c.cor} for c in post.categorias.all()],
-        'score':       score_cache.score if score_cache else 0,
+        'score':       score,
         'curtidas':    post.total_curtidas,
         'clips':       post.total_clips,
         'data':        post.data_criacao.strftime('%d/%m/%Y'),
@@ -1332,18 +1339,25 @@ def _serializar_card(post):
 
 
 def _posts_ordenados(autor):
+    # FIX A + C: select_related para score_cache (OneToOne reversa) e autor__usuario
     posts_campo = Post.objects.filter(
         publicado=True, visibilidade='campo'
-    ).prefetch_related('categorias', 'reacoes', 'comentarios', 'score_cache')
+    ).select_related(
+        'autor', 'autor__usuario', 'score_cache'
+    ).prefetch_related('categorias', 'reacoes', 'comentarios')
 
     ids_sem_score = posts_campo.exclude(
         id__in=ScorePost.objects.values_list('post_id', flat=True)
     ).values_list('id', flat=True)
+
     if ids_sem_score:
         _recalcular_scores_campo()
+        # FIX A + C: repete select_related após recalcular
         posts_campo = Post.objects.filter(
             publicado=True, visibilidade='campo'
-        ).prefetch_related('categorias', 'reacoes', 'comentarios', 'score_cache')
+        ).select_related(
+            'autor', 'autor__usuario', 'score_cache'
+        ).prefetch_related('categorias', 'reacoes', 'comentarios')
 
     afinidade = _afinidade_usuario(autor)
 
@@ -1355,8 +1369,10 @@ def _posts_ordenados(autor):
     def _score_final(post):
         if post.id in penalizados_ids:
             return -9999
-        base  = getattr(post, 'score_cache', None)
-        base  = base.score if base else 0
+        try:
+            base = post.score_cache.score
+        except Exception:
+            base = 0
         boost = sum(
             afinidade.get(cat_id, 0)
             for cat_id in post.categorias.values_list('id', flat=True)
@@ -1369,7 +1385,6 @@ def _posts_ordenados(autor):
 def _montar_linhas(autor, num_linhas=2, cards_por_linha=5):
     posts = _posts_ordenados(autor)
 
-    # Distribui em round-robin pelas linhas
     linhas_posts = [[] for _ in range(num_linhas)]
     for i, post in enumerate(posts):
         linhas_posts[i % num_linhas].append(post)
@@ -1409,27 +1424,27 @@ def _paginar_linha(autor, row_index, num_linhas=2, offset=0, cards=5):
 
 @login_required
 def campo_grid_json(request):
-    autor    = request.user.autor
-    colunas  = int(request.GET.get('cols', 5))
-    linhas   = int(request.GET.get('rows', 2))
-    colunas  = max(2, min(colunas, 8))
-    linhas   = max(1, min(linhas, 4))
+    autor   = request.user.autor
+    colunas = int(request.GET.get('cols', 5))
+    linhas  = int(request.GET.get('rows', 2))
+    colunas = max(2, min(colunas, 8))
+    linhas  = max(1, min(linhas, 4))
 
     resultado = _montar_linhas(autor, num_linhas=linhas, cards_por_linha=colunas)
 
     return JsonResponse({
-        'linhas':     resultado,
-        'num_linhas': linhas,
+        'linhas':      resultado,
+        'num_linhas':  linhas,
         'num_colunas': colunas,
     })
 
 
 @login_required
 def campo_linha_mais(request, row_index):
-    autor    = request.user.autor
-    offset   = int(request.GET.get('offset', 0))
+    autor      = request.user.autor
+    offset     = int(request.GET.get('offset', 0))
     num_linhas = int(request.GET.get('rows', 2))
-    cards    = int(request.GET.get('cols', 5))
+    cards      = int(request.GET.get('cols', 5))
 
     resultado = _paginar_linha(
         autor,
@@ -1504,6 +1519,8 @@ def meus_notes_campo(request):
     autor = request.user.autor
     posts = Post.objects.filter(
         autor=autor, visibilidade='campo', publicado=True
+    ).select_related(
+        'score_cache'
     ).order_by('-data_criacao')
 
     return JsonResponse({
@@ -1526,7 +1543,8 @@ def meus_notes_campo(request):
 def campo_pool_json(request):
     autor  = request.user.autor
     offset = max(0, int(request.GET.get('offset', 0)))
-    limit  = max(1, min(int(request.GET.get('limit', 20)), 50))
+    # FIX B: limite aumentado de 50 para 100 — frontend solicita 60 por batch
+    limit  = max(1, min(int(request.GET.get('limit', 20)), 100))
 
     posts_ordenados = _posts_ordenados(autor)
     fatia           = posts_ordenados[offset: offset + limit]

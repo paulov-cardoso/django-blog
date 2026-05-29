@@ -1,7 +1,7 @@
 <div id="barra-abas"
      class="sticky top-[72px] z-30 bg-white/90 border-b border-gray-200
-            -mx-4 px-4 mb-8"
-     style="will-change: transform; transform: translateZ(0);">
+            -mx-4 px-4 mb-8 transition-all duration-300"
+     style="will-change:transform; transform:translateZ(0);">
 
     <div class="max-w-5xl mx-auto flex justify-center">
         {% with aba_atual=aba|default:'perfil' %}
@@ -66,7 +66,46 @@
 </div>
 
 <style>
-.aba-label {
-    transition: none;
+/* No modo campo as abas viram fixed, coladas imediatamente abaixo da navbar */
+body.campo-mode #barra-abas {
+    position:        fixed !important;
+    top:             0     !important; /* JS sobrescreve com navH real via setProperty */
+    left:            0     !important;
+    right:           0     !important;
+    margin:          0     !important;
+    z-index:         35    !important;
+    background:      rgba(30, 15, 60, 0.82) !important;
+    backdrop-filter: blur(12px)             !important;
+    border-bottom-color: rgba(255,255,255,0.08) !important;
 }
+body.campo-mode .aba-label {
+    display: none !important;
+}
+body.campo-mode .aba-nav {
+    padding-top:    6px !important;
+    padding-bottom: 6px !important;
+    color: rgba(255,255,255,0.55) !important;
+}
+body.campo-mode .aba-nav:hover {
+    color: rgba(255,255,255,0.9) !important;
+}
+body.campo-mode a[href="/?aba=campo"] {
+    color: #fb923c !important;
+}
+body.campo-mode a[href="/?aba=campo"] span.absolute {
+    background-color: #fb923c !important;
+}
+
+body.campo-mode #synapsoo-footer {
+    display: none !important;
+}
+body.campo-mode #synapsoo-main {
+    padding-bottom: 0 !important;
+    height: 100%   !important;
+}
+
+body.campo-mode .nav-criar {
+    display: none !important;
+}
+
 </style>

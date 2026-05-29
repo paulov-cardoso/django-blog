@@ -1,4 +1,5 @@
 {% load tailwind_tags %}
+{% load static %}
 <!doctype html>
 <html lang="pt-br">
   <head>
@@ -8,8 +9,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-
     {% tailwind_css %}
+
+    {% if aba == 'campo' %}
+      <style>
+          #synapsoo-nav { padding-top: 6px !important; padding-bottom: 6px !important; }
+          #synapsoo-footer { display: none !important; }
+          #synapsoo-main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; }
+          #barra-abas { position: fixed !important; left: 0 !important; right: 0 !important; margin: 0 !important; background: rgba(30,15,60,0.82) !important; backdrop-filter: blur(12px) !important; border-bottom-color: rgba(255,255,255,0.08) !important; }
+          .aba-label { display: none !important; }
+          body { overflow: hidden !important; background: #1a1040 !important; }
+      </style>
+    {% endif %}
   </head>
 
   <body class="{% block body_class %}bg-gray-100{% endblock %} min-h-screen flex flex-col">
@@ -23,33 +34,34 @@
     </script>
 
     {% block nav %}
-    <nav class="sticky top-0 z-40 text-white px-6 py-4 shadow-md overflow-hidden"
-         style="background: linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%);">
+    <nav id="synapsoo-nav"
+     class="sticky top-0 z-40 text-white px-6 shadow-md transition-all duration-300"
+     style="background: linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%);
+            overflow:visible; height:56px;">
 
-        <!-- Textura metálica fosca — mesma do card auth -->
         <canvas id="nav-texture"
                 aria-hidden="true"
-                style="position:absolute; inset:0; width:100%; height:100%;
-                       opacity:0.18; mix-blend-mode:soft-light;
-                       pointer-events:none; z-index:0;"></canvas>
+                style="position:absolute;inset:0;width:100%;height:100%;
+                       opacity:0.18;mix-blend-mode:soft-light;
+                       pointer-events:none;z-index:0;"></canvas>
 
       {% block navbar %}
-      <div class="max-w-5xl mx-auto flex justify-between items-center relative"
-           style="z-index:1;">
+      <div class="max-w-5xl mx-auto flex justify-between items-center relative h-full w-full"
+        style="z-index:1;">
 
+        <!-- LOGO SYNAPSOO -->
         <a href="/?aba=notes_privados"
-           class="text-3xl font-semibold tracking-tight"
-           style="font-family: 'Poppins', sans-serif;">
-            Synapsoo
+            class="nav-logo transition-all duration-300">
+              <img src="{% static 'posts/images/nav_logo.png' %}"
+                  alt="Synapsoo"
+                  style="height:92px;width:auto;object-fit:contain;display:block;">
         </a>
 
-        <div class="flex gap-4 text-sm items-center">
+        <div class="flex gap-4 text-sm items-center nav-actions">
           {% if user.is_authenticated %}
 
-          <!-- Notificações: sino -->
           <a href="{% url 'notificacoes' 'sino' %}"
-             class="relative hover:opacity-80 transition"
-             title="Curtidas, clips e comentários">
+             class="relative hover:opacity-80 transition" title="Curtidas, clips e comentários">
             <span class="text-xl">🔔</span>
             {% if notif_sino > 0 %}
             <span class="absolute -top-1.5 -right-1.5 bg-red-500 text-white
@@ -60,10 +72,8 @@
             {% endif %}
           </a>
 
-          <!-- Notificações: carta -->
           <a href="{% url 'notificacoes' 'carta' %}"
-             class="relative hover:opacity-80 transition"
-             title="Colaborações e Moderação">
+             class="relative hover:opacity-80 transition" title="Colaborações e Moderação">
             <span class="text-xl">✉️</span>
             {% if notif_carta > 0 %}
             <span class="absolute -top-1.5 -right-1.5 bg-yellow-400 text-gray-900
@@ -74,10 +84,8 @@
             {% endif %}
           </a>
 
-          <!-- Notificações: pessoa -->
           <a href="{% url 'notificacoes' 'pessoa' %}"
-             class="relative hover:opacity-80 transition"
-             title="Novos seguidores">
+             class="relative hover:opacity-80 transition" title="Novos seguidores">
             <span class="text-xl">👤</span>
             {% if notif_pessoa > 0 %}
             <span class="absolute -top-1.5 -right-1.5 bg-green-400 text-white
@@ -88,40 +96,41 @@
             {% endif %}
           </a>
 
-          <!-- Lupa — abre modal de busca -->
           <button onclick="abrirModalBusca()"
-                  class="hover:opacity-80 transition relative"
-                  title="Buscar usuários">
+                  class="hover:opacity-80 transition relative" title="Buscar usuários">
             <span class="text-xl">🔍</span>
           </button>
 
-          <!-- Modal de busca de usuários -->
+          <!-- Modal de busca -->
           <div id="modal-busca-usuarios"
-               class="fixed inset-0 z-[99999] hidden items-center justify-start bg-black/40 backdrop-blur-sm pt-24 px-4"
+               class="fixed inset-0 z-[99999] hidden items-center justify-start
+                      bg-black/40 backdrop-blur-sm pt-24 px-4"
                onclick="fecharModalBuscaFora(event)">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto p-5">
               <div class="flex items-center gap-3 mb-4">
                 <span class="text-xl">🔍</span>
-                <input type="text"
-                       id="input-modal-busca"
+                <input type="text" id="input-modal-busca"
                        placeholder="Buscar pessoas por nome ou @username..."
                        autocomplete="off"
                        class="flex-1 text-sm text-gray-800 placeholder-gray-400 focus:outline-none">
-                <button onclick="fecharModalBusca()" class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
+                <button onclick="fecharModalBusca()"
+                        class="text-gray-400 hover:text-gray-700 text-xl font-bold">✕</button>
               </div>
               <div id="resultado-modal-busca" class="space-y-2 max-h-80 overflow-y-auto"></div>
             </div>
           </div>
 
-          <span class="text-sm opacity-80">Olá, {{ user.username }}</span>
+          <span class="text-sm opacity-80 nav-username">Olá, {{ user.username }}</span>
 
           <a href="{% url 'criar_post' %}"
-             class="bg-white text-blue-700 px-4 py-1 rounded-full font-semibold hover:bg-blue-50 transition transform hover:scale-105 active:scale-95">
+             class="bg-white text-blue-700 px-4 py-1 rounded-full font-semibold
+                    hover:bg-blue-50 transition transform hover:scale-105 active:scale-95
+                    nav-criar">
             ✏️ Criar
           </a>
 
           <button onclick="document.getElementById('modal-logout').classList.remove('hidden')"
-                  class="hover:opacity-80 transition">
+                  class="hover:opacity-80 transition nav-sair">
             Sair
           </button>
 
@@ -135,22 +144,25 @@
     </nav>
     {% endblock %}
 
-    <!-- Modal de confirmação de logout -->
+    <!-- Modal logout -->
     <div id="modal-logout"
-         class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center justify-center z-50 hidden">
+         class="fixed inset-0 backdrop-blur-sm bg-white/10 flex items-center
+                justify-center z-50 hidden">
       <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
         <p class="text-xl font-bold text-gray-800 mb-2">Tem certeza?</p>
         <p class="text-gray-500 text-sm mb-6">Você será redirecionado para a tela de login.</p>
         <div class="flex gap-4 justify-center">
           <button onclick="document.getElementById('modal-logout').classList.add('hidden')"
-                  class="px-6 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition">
+                  class="px-6 py-2 rounded-lg border border-gray-300 text-gray-600
+                         hover:bg-gray-100 transition">
             Cancelar
           </button>
           <form method="POST" action="{% url 'logout' %}">
             {% csrf_token %}
             <input type="hidden" name="next" value="{% url 'login' %}">
             <button type="submit"
-                    class="px-6 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 transition">
+                    class="px-6 py-2 rounded-lg bg-red-500 text-white font-semibold
+                           hover:bg-red-600 transition">
               Sim, sair
             </button>
           </form>
@@ -158,25 +170,33 @@
       </div>
     </div>
 
-    <main class="max-w-5xl mx-auto w-full px-4 py-8 flex-grow">
+    <main id="synapsoo-main" class="max-w-5xl mx-auto w-full px-4 py-8 flex-grow">
       {% block conteudo %}{% endblock %}
     </main>
 
-    <footer class="{% block footer_class %}{% endblock %} text-white text-center py-4 text-sm"
-            style="{% block footer_style %}background: linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%);{% endblock %}">
-      <p>© Copyright 2026 Synapsoo — Feito com Django + Tailwind</p>
+    <!--
+      Footer minimalista — mesmo padrão das páginas de autenticação.
+      body.campo-mode o oculta via JS (display:none !important).
+      Fora do modo campo fica discreto: sem altura significativa,
+      sem empurrar o layout do campo durante a transição.
+    -->
+    <footer id="synapsoo-footer"
+            class="{% block footer_class %}{% endblock %} text-white/60 text-center
+                   py-2 text-xs transition-all duration-300"
+            style="{% block footer_style %}background:linear-gradient(155deg,#3a2d9e 0%,#6832b5 40%,#9a3aaa 65%,#c85838 100%);{% endblock %}">
+      <p>© 2026 Synapsoo</p>
     </footer>
 
     <!-- Toast de publicação -->
     <div id="toast-overlay"
          class="fixed inset-0 z-[999999] flex items-center justify-center
                 pointer-events-none opacity-0 transition-opacity duration-300"
-         style="background: rgba(0,0,0,0);">
+         style="background:rgba(0,0,0,0);">
       <div id="toast-prg"
            class="flex flex-col items-center gap-3 px-10 py-8 rounded-3xl shadow-2xl
-                  bg-white border border-gray-100
-                  translate-y-6 transition-all duration-500 opacity-0"
-           style="min-width: 280px;">
+                  bg-white border border-gray-100 translate-y-6
+                  transition-all duration-500 opacity-0"
+           style="min-width:280px;">
         <div id="toast-lampada" class="text-6xl select-none" aria-hidden="true">💡</div>
         <span id="toast-texto" class="text-base font-semibold text-gray-800 text-center"></span>
       </div>
@@ -184,12 +204,12 @@
 
     <style>
     @keyframes lampada-liga {
-        0%   { filter: drop-shadow(0 0 0px transparent);  transform: scale(1);    }
-        20%  { filter: drop-shadow(0 0 2px #fbbf24);      transform: scale(1.05); }
-        40%  { filter: drop-shadow(0 0 0px transparent);  transform: scale(1);    }
-        60%  { filter: drop-shadow(0 0 8px #fde68a);      transform: scale(1.08); }
-        75%  { filter: drop-shadow(0 0 18px #fcd34d);     transform: scale(1.12); }
-        100% { filter: drop-shadow(0 0 24px #fbbf24);     transform: scale(1.1);  }
+        0%   { filter:drop-shadow(0 0 0px transparent);  transform:scale(1);    }
+        20%  { filter:drop-shadow(0 0 2px #fbbf24);      transform:scale(1.05); }
+        40%  { filter:drop-shadow(0 0 0px transparent);  transform:scale(1);    }
+        60%  { filter:drop-shadow(0 0 8px #fde68a);      transform:scale(1.08); }
+        75%  { filter:drop-shadow(0 0 18px #fcd34d);     transform:scale(1.12); }
+        100% { filter:drop-shadow(0 0 24px #fbbf24);     transform:scale(1.1);  }
     }
     #toast-lampada.ligando {
         animation: lampada-liga 0.7s ease-out forwards;
@@ -204,18 +224,13 @@
     (function () {
         const canvas = document.getElementById('nav-texture');
         if (!canvas) return;
-
         const nav = canvas.parentElement;
         const w   = Math.ceil(nav.offsetWidth)  || 1920;
         const h   = Math.ceil(nav.offsetHeight) || 64;
-
-        canvas.width  = w;
-        canvas.height = h;
-
+        canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
         const img = ctx.createImageData(w, h);
         const px  = img.data;
-
         for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
                 const idx    = (y * w + x) * 4;
@@ -223,11 +238,9 @@
                 const stripe = (Math.sin(y * 0.4 + Math.random() * 0.6) + 1) / 2;
                 const diag   = (Math.sin((x + y) * 0.08) + 1) / 2;
                 const val    = Math.floor((grain * 0.55 + stripe * 0.30 + diag * 0.15) * 255);
-                px[idx] = px[idx + 1] = px[idx + 2] = val;
-                px[idx + 3] = 255;
+                px[idx] = px[idx+1] = px[idx+2] = val; px[idx+3] = 255;
             }
         }
-
         ctx.putImageData(img, 0, 0);
         ctx.filter = 'blur(0.4px)';
         ctx.drawImage(canvas, 0, 0);
@@ -246,40 +259,29 @@
             bem_vindo:        { icon: '🌟', texto: 'Bem-vindo ao Synapsoo!', especial: true },
             perfil_editado:   { icon: '👤', texto: 'Perfil atualizado com sucesso!' },
         };
-
         const params = new URLSearchParams(window.location.search);
         const chave  = params.get('msg');
         const config = MENSAGENS[chave];
         if (!config) return;
-
         params.delete('msg');
         const novaUrl = [window.location.pathname, params.toString()].filter(Boolean).join('?');
         history.replaceState(null, '', novaUrl);
-
         const overlay = document.getElementById('toast-overlay');
         const toast   = document.getElementById('toast-prg');
         const lampada = document.getElementById('toast-lampada');
         const textoEl = document.getElementById('toast-texto');
-
         textoEl.textContent = config.texto;
-
         const duracao = config.especial ? 3000 : 2500;
-        if (config.especial) {
-            toast.style.padding    = '3rem 4rem';
-            textoEl.style.fontSize = '1.25rem';
-        }
-
+        if (config.especial) { toast.style.padding = '3rem 4rem'; textoEl.style.fontSize = '1.25rem'; }
         overlay.style.background    = 'rgba(0,0,0,0)';
         overlay.style.pointerEvents = 'all';
         overlay.classList.remove('opacity-0');
-
         requestAnimationFrame(() => {
             overlay.style.transition = 'background 0.4s ease';
             overlay.style.background = config.especial ? 'rgba(30,0,60,0.85)' : 'rgba(0,0,0,0.45)';
             toast.classList.remove('opacity-0', 'translate-y-6');
             setTimeout(() => lampada.classList.add('ligando'), 200);
         });
-
         setTimeout(() => {
             toast.classList.add('opacity-0', 'translate-y-6');
             overlay.style.background = 'rgba(0,0,0,0)';
@@ -290,72 +292,55 @@
         }, duracao);
     }());
 
-    // ── Modal de busca de usuários ────────────────────────────────────────────
+    // ── Modal busca usuários ──────────────────────────────────────────────────
     function abrirModalBusca() {
         const modal = document.getElementById('modal-busca-usuarios');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
         document.getElementById('input-modal-busca').focus();
     }
-
     function fecharModalBusca() {
         const modal = document.getElementById('modal-busca-usuarios');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        modal.classList.add('hidden'); modal.classList.remove('flex');
         document.getElementById('input-modal-busca').value = '';
         document.getElementById('resultado-modal-busca').innerHTML = '';
     }
-
-    function fecharModalBuscaFora(e) {
-        if (e.target === e.currentTarget) fecharModalBusca();
-    }
+    function fecharModalBuscaFora(e) { if (e.target === e.currentTarget) fecharModalBusca(); }
 
     document.addEventListener('DOMContentLoaded', function () {
         const input     = document.getElementById('input-modal-busca');
         const resultado = document.getElementById('resultado-modal-busca');
         if (!input) return;
-
         let debounce;
         input.addEventListener('input', function () {
             clearTimeout(debounce);
             const termo = this.value.trim();
             if (termo.length < 2) { resultado.innerHTML = ''; return; }
-
             debounce = setTimeout(async () => {
                 try {
                     const res  = await fetch(`/api/usuarios/buscar/?q=${encodeURIComponent(termo)}`);
                     const data = await res.json();
-
                     if (!data.usuarios.length) {
                         resultado.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Nenhum usuário encontrado.</p>';
                         return;
                     }
-
                     resultado.innerHTML = data.usuarios.map(u => `
                         <a href="/perfil/${u.username}/"
                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition">
                             <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0
                                         flex items-center justify-center text-gray-600 font-bold text-sm">
-                                ${u.foto
-                                    ? `<img src="${u.foto}" class="w-full h-full object-cover" alt="">`
-                                    : u.nome_exibicao.charAt(0).toUpperCase()
-                                }
+                                ${u.foto ? `<img src="${u.foto}" class="w-full h-full object-cover" alt="">` : u.nome_exibicao.charAt(0).toUpperCase()}
                             </div>
                             <div>
                                 <p class="text-sm font-semibold text-gray-800">${u.nome_exibicao}</p>
                                 <p class="text-xs text-gray-400">@${u.username}</p>
                             </div>
-                        </a>
-                    `).join('');
+                        </a>`).join('');
                 } catch {
                     resultado.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Erro ao buscar.</p>';
                 }
             }, 300);
         });
-
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') fecharModalBusca();
-        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharModalBusca(); });
     });
     </script>
 
