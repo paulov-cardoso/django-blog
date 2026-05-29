@@ -16,17 +16,25 @@ const EVAPORATE_MS   = 1600;
 function getNumColunas() {
     const w = window.innerWidth;
     if (w >= 1920) return 5;
-    if (w >= 1440) return 4;
+    if (w >= 1366) return 4;
     if (w >= 1024) return 3;
     return 2;
+}
+
+function getNumLinhas(cardHeight) {
+    const wrapper = document.getElementById('campo-grid-wrapper');
+    const altDisp = wrapper ? wrapper.clientHeight : window.innerHeight - 120;
+    return Math.max(1, Math.floor(altDisp / (cardHeight + GAP)));
 }
 
 function getDimensoesCard(numColunas) {
     const vp = document.getElementById('campo-viewport');
     if (!vp) return { width: 280, height: 392 };
-    const totalGap = (numColunas - 1) * GAP;
-    const width    = Math.floor((vp.clientWidth - totalGap) / numColunas);
-    const height   = Math.round(width * 1.4);
+    const totalGapX = (numColunas - 1) * GAP;
+    const width     = Math.floor((vp.clientWidth - totalGapX) / numColunas);
+    // Altura: cabe exatamente 2 linhas no viewport com um pequeno respiro
+    const altDisp   = vp.clientHeight;
+    const height    = Math.floor((altDisp - GAP) / 2);
     return { width, height };
 }
 
@@ -108,8 +116,16 @@ function garantirCard(r, c) {
 }
 
 function preencherZona() {
+    // Preenche primeiro as posições visíveis, depois o buffer
     const r0 = E.origemLinha  - BUF, r1 = E.origemLinha  + E.VP_LINHAS  + BUF;
     const c0 = E.origemColuna - BUF, c1 = E.origemColuna + E.VP_COLUNAS + BUF;
+
+    // 1ª passagem: posições visíveis
+    for (let r = E.origemLinha; r < E.origemLinha + E.VP_LINHAS; r++)
+        for (let c = E.origemColuna; c < E.origemColuna + E.VP_COLUNAS; c++)
+            garantirCard(r, c);
+
+    // 2ª passagem: buffer completo
     for (let r = r0; r < r1; r++)
         for (let c = c0; c < c1; c++)
             garantirCard(r, c);
@@ -154,12 +170,8 @@ function renderGrid() {
 
     mostrarVazio(false);
 
-    const { width, height } = getDimensoesCard(E.VP_COLUNAS);
-    E.cardWidth  = width;
-    E.cardHeight = height;
-
-    // Viewport ocupa o wrapper inteiro — não sobrescrever height aqui.
-    // A altura visual é controlada pelo wrapper via ajustarLayout().
+    // Usa E.cardWidth e E.cardHeight já calculados no init()
+    // NÃO recalcula aqui para evitar sobrescrever com valores errados
     vp.style.overflow = 'hidden';
     vp.style.position = 'absolute';
     vp.style.inset    = '0';
@@ -208,9 +220,9 @@ function criarLinhaEl(vi, rowAbs, totalColunas) {
 }
 
 function calcOpacidadeCard(vi, vj, offsetLinhaX, offsetColunaY) {
-    // viewW/viewH usam dimensões reais: N cards + (N-1) gaps, sem o gap extra do fim
-    const viewW = E.VP_COLUNAS * E.cardWidth  + (E.VP_COLUNAS - 1) * GAP;
-    const viewH = E.VP_LINHAS  * E.cardHeight + (E.VP_LINHAS  - 1) * GAP;
+    const vp    = document.getElementById('campo-viewport');
+    const viewW = vp ? vp.clientWidth  : E.VP_COLUNAS * E.cardWidth  + (E.VP_COLUNAS - 1) * GAP;
+    const viewH = vp ? vp.clientHeight : E.VP_LINHAS  * E.cardHeight + (E.VP_LINHAS  - 1) * GAP;
 
     const cardLeft  = (vj - BUF) * stepX() + offsetLinhaX;
     const cardRight = cardLeft + E.cardWidth;
@@ -258,6 +270,7 @@ function aplicarOffsetColuna(colAbs, py, animado = false) {
         cardEl.style.opacity = calcOpacidadeCard(vi, vj, offsetX, py) ? '1' : '0';
     }
 }
+
 
 // ── Snap + Commit ─────────────────────────────────────────────────────────────
 
@@ -913,14 +926,18 @@ function desativarModoImersivo() {
 // ── Utilitários ───────────────────────────────────────────────────────────────
 
 function mostrarLoading(sim) {
-    document.getElementById('campo-loading')?.classList.toggle('hidden', !sim);
+    const el = document.getElementById('campo-loading');
+    if (!el) return;
+    el.style.display = sim ? 'flex' : 'none';
 }
+
 function mostrarVazio(sim) {
-    document.getElementById('campo-vazio')?.classList.toggle('hidden', !sim);
+    const el = document.getElementById('campo-vazio');
+    if (!el) return;
+    el.style.display = sim ? 'flex' : 'none';
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-
 
 async function init() {
     if (!document.getElementById('campo-grid-wrapper')) return;
@@ -928,7 +945,6 @@ async function init() {
     E.iniciado = true;
 
     ativarModoImersivo();
-    mostrarLoading(true);
 
     E.VP_COLUNAS   = getNumColunas();
     E.VP_LINHAS    = 2;
@@ -937,22 +953,33 @@ async function init() {
     E.dragOffsetX  = {};
     E.dragOffsetY  = {};
 
-    await carregarPool(true);
-
-    if (!E.pool.length) {
-        mostrarLoading(false);
-        mostrarVazio(true);
-        return;
-    }
-
-    preencherZona();
-    mostrarLoading(false);
-
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
         ajustarLayout();
-        renderGrid();
-        configurarDrag();
-    }));
+
+        requestAnimationFrame(async () => {
+            mostrarLoading(true);
+            await carregarPool(true);
+
+            if (!E.pool.length) {
+                mostrarLoading(false);
+                mostrarVazio(true);
+                return;
+            }
+
+            const { width, height } = getDimensoesCard(E.VP_COLUNAS);
+            E.cardWidth  = width;
+            E.cardHeight = height;
+            E.VP_LINHAS  = getNumLinhas(height);
+
+            E.malha      = {};
+            E.poolOffset = 0;
+            preencherZona();
+
+            mostrarLoading(false);
+            renderGrid();
+            configurarDrag();
+        });
+    });
 
     let resizeTimer;
     window.addEventListener('resize', () => {
@@ -962,12 +989,19 @@ async function init() {
             E.dragOffsetX = {};
             E.dragOffsetY = {};
             ajustarLayout();
+            const { width, height } = getDimensoesCard(E.VP_COLUNAS);
+            E.cardWidth  = width;
+            E.cardHeight = height;
+            E.VP_LINHAS  = getNumLinhas(height);
+            E.malha      = {};
+            E.poolOffset = 0;
             preencherZona();
             renderGrid();
             configurarDrag();
         }, 300);
     });
 }
+
 
 // ── Exports ───────────────────────────────────────────────────────────────────
 
