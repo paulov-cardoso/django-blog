@@ -1,17 +1,18 @@
+import { AppLayout } from './components/layout/AppLayout'
+
 function App() {
   return (
-    <div className="min-h-screen bg-[#1a1040] flex items-center justify-center">
-      <div className="text-center">
-        <h1 style={{ fontFamily: "'Poppins', sans-serif" }}
-            className="text-white text-4xl font-bold mb-2">
-          Synapsoo
-        </h1>
-        <p style={{ fontFamily: "'Poppins', sans-serif" }}
-           className="text-[rgba(255,255,255,0.55)] text-sm">
-          Design system carregado ✓
-        </p>
-      </div>
-    </div>
+    <AppLayout
+      abaAtual="notes_privados"
+      username="paulo"
+      notifSino={3}
+      notifCarta={1}
+      notifPessoa={0}
+    >
+      <p style={{ color: 'white', fontFamily: "'Poppins', sans-serif" }}>
+        Conteudo da pagina aqui
+      </p>
+    </AppLayout>
   )
 }
 

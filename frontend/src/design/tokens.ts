@@ -1,6 +1,5 @@
 // ── Design System — Synapsoo ──────────────────────────────────────────────────
 // Fonte única de verdade para todas as decisões visuais do projeto.
-// Extraído da identidade visual do Campo das Ideias (Fases 13-14).
 
 export const colors = {
   // Fundos
