@@ -1558,6 +1558,37 @@ def campo_pool_json(request):
     })
 
 
+
+@login_required
+def api_notes_privados(request):
+    autor = request.user.autor
+    posts = Post.objects.filter(
+        autor=autor,
+        visibilidade='privado',
+    ).prefetch_related('categorias').order_by('-data_criacao')
+
+    return JsonResponse({
+        'posts': [
+            {
+                'id':          p.id,
+                'titulo':      p.titulo,
+                'titulo_capa': p.titulo_capa,
+                'conteudo':    p.conteudo,
+                'cor':         p.cor,
+                'data':        p.data_criacao.strftime('%d/%m/%Y %H:%M'),
+                'imagem_capa': p.imagem_capa_1.url if p.imagem_capa_1 else None,
+                'categorias':  [{'nome': c.nome, 'cor': c.cor} for c in p.categorias.all()],
+                'curtidas':    p.total_curtidas,
+                'clips':       p.total_clips,
+                'url_editar':  f'/post/{p.id}/editar/',
+                'url_detalhe': f'/post/{p.id}/',
+            }
+            for p in posts
+        ]
+    })
+
+
+
 @login_required
 def penalizar_card_campo(request):
     if request.method != 'POST':
