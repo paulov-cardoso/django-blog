@@ -1614,3 +1614,87 @@ def penalizar_card_campo(request):
     )
 
     return JsonResponse({'ok': True, 'post_id': post_id})
+
+@login_required
+def api_criar_note(request):
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Metodo nao permitido.'}, status=405)
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON invalido.'}, status=400)
+
+    titulo   = dados.get('titulo', '').strip()
+    conteudo = dados.get('conteudo', '').strip()
+    cor      = dados.get('cor', '#3B82F6').strip()
+
+    if not titulo:
+        return JsonResponse({'erro': 'Titulo obrigatorio.'}, status=400)
+    if not conteudo:
+        return JsonResponse({'erro': 'Conteudo obrigatorio.'}, status=400)
+
+    post = Post.objects.create(
+        titulo=titulo,
+        conteudo=conteudo,
+        cor=cor,
+        autor=request.user.autor,
+        visibilidade='privado',
+        publicado=False,
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'post': {
+            'id':          post.id,
+            'titulo':      post.titulo,
+            'titulo_capa': post.titulo_capa,
+            'conteudo':    post.conteudo,
+            'cor':         post.cor,
+            'data':        post.data_criacao.strftime('%d/%m/%Y %H:%M'),
+            'imagem_capa': None,
+            'categorias':  [],
+            'curtidas':    0,
+            'clips':       0,
+            'url_editar':  f'/post/{post.id}/editar/',
+            'url_detalhe': f'/post/{post.id}/',
+        }
+    }, status=201)
+
+
+@login_required
+def api_excluir_note(request, post_id):
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Metodo nao permitido.'}, status=405)
+
+    post = get_object_or_404(Post, id=post_id, autor=request.user.autor, visibilidade='privado')
+    post.delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def api_publicar_note(request, post_id):
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Metodo nao permitido.'}, status=405)
+
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON invalido.'}, status=400)
+
+    destino = dados.get('destino', '')
+    if destino not in ('feed', 'campo'):
+        return JsonResponse({'erro': 'Destino invalido.'}, status=400)
+
+    post = get_object_or_404(Post, id=post_id, autor=request.user.autor)
+
+    if not post.categorias.exists():
+        return JsonResponse({'erro': 'sem_categoria'}, status=422)
+
+    if destino == 'feed' and not post.tem_capa:
+        return JsonResponse({'erro': 'sem_capa'}, status=422)
+
+    post.visibilidade = destino
+    post.publicado    = True
+    post.save(update_fields=['visibilidade', 'publicado'])
+
+    return JsonResponse({'ok': True, 'destino': destino})

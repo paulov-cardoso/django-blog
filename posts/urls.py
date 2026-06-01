@@ -1,21 +1,12 @@
 from django.urls import path
 from .views import (
-    home, perfil, seguir_autor,
-    criar_post, editar_post, detalhe_post,
-    alterar_visibilidade, desistir_ideia,
-    candidatar_moderador, eleger_moderador,
-    pagina_eleger_moderador, recusar_candidatura,
-    registrar, reagir_post, notificacoes,
-    editar_perfil, buscar_categorias, criar_categoria,
-    buscar_categoria_por_ids, buscar_usuarios, buscar_usuarios_json,
-    comentar, responder_comentario, votar_comentario, excluir_comentario,
-    comentarios_post, comentar_json,
-    votar_comentario_json, excluir_comentario_json,
-    lista_seguidores, lista_seguindo,
-    campo_grid_json, registrar_interacao_campo,
-    criar_post_campo, meus_notes_campo, campo_linha_mais, penalizar_card_campo,
-    campo_pool_json,
-    api_notes_privados,
+    home, perfil, seguir_autor, criar_post, editar_post, detalhe_post, alterar_visibilidade, desistir_ideia,
+    candidatar_moderador, eleger_moderador, pagina_eleger_moderador, recusar_candidatura, registrar, reagir_post, 
+    notificacoes, editar_perfil, buscar_categorias, criar_categoria, buscar_categoria_por_ids, buscar_usuarios, 
+    buscar_usuarios_json, comentar, responder_comentario, votar_comentario, excluir_comentario, comentarios_post, 
+    comentar_json, votar_comentario_json, excluir_comentario_json, lista_seguidores, lista_seguindo, campo_grid_json, 
+    registrar_interacao_campo, criar_post_campo, meus_notes_campo, campo_linha_mais, penalizar_card_campo, campo_pool_json,
+    api_notes_privados, api_notes_privados, api_criar_note, api_excluir_note, api_publicar_note,
 )
 
 urlpatterns = [
@@ -49,7 +40,12 @@ urlpatterns = [
     path('api/campo/linha/<int:row_index>/mais/',  campo_linha_mais,          name='campo_linha_mais'),
     path('api/campo/penalizar-card/',              penalizar_card_campo,      name='penalizar_card_campo'),
     path('api/campo/pool/',                        campo_pool_json,           name='campo_pool_json'),
-    path('api/notes/privados/',                    api_notes_privados,        name='api_notes_privados'),
+
+    # Notes privados — API
+    path('api/notes/privados/',                    api_notes_privados,        name='api_notes_privados'),path('api/notes/privados/',              api_notes_privados, name='api_notes_privados'),
+    path('api/notes/criar/',                       api_criar_note,            name='api_criar_note'),
+    path('api/notes/<int:post_id>/excluir/',       api_excluir_note,          name='api_excluir_note'),
+    path('api/notes/<int:post_id>/publicar/',      api_publicar_note,         name='api_publicar_note'),
 
     # Rotas legadas (para detail.html em tela cheia)
     path('post/<int:post_id>/comentar/',                         comentar,             name='comentar'),
