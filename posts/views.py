@@ -1615,18 +1615,26 @@ def penalizar_card_campo(request):
 
     return JsonResponse({'ok': True, 'post_id': post_id})
 
+
 @login_required
 def api_criar_note(request):
     if request.method != 'POST':
         return JsonResponse({'erro': 'Metodo nao permitido.'}, status=405)
-    try:
-        dados = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'erro': 'JSON invalido.'}, status=400)
 
-    titulo   = dados.get('titulo', '').strip()
-    conteudo = dados.get('conteudo', '').strip()
-    cor      = dados.get('cor', '#3B82F6').strip()
+    # FormData (com imagem) ou JSON puro
+    content_type = request.content_type or ''
+    if 'multipart' in content_type:
+        titulo   = request.POST.get('titulo', '').strip()
+        conteudo = request.POST.get('conteudo', '').strip()
+        cor      = request.POST.get('cor', '#3B82F6').strip()
+    else:
+        try:
+            dados = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'erro': 'JSON invalido.'}, status=400)
+        titulo   = dados.get('titulo', '').strip()
+        conteudo = dados.get('conteudo', '').strip()
+        cor      = dados.get('cor', '#3B82F6').strip()
 
     if not titulo:
         return JsonResponse({'erro': 'Titulo obrigatorio.'}, status=400)
@@ -1642,6 +1650,11 @@ def api_criar_note(request):
         publicado=False,
     )
 
+    # Salva imagem se enviada
+    if request.FILES.get('imagem_capa'):
+        post.imagem_capa_1 = request.FILES['imagem_capa']
+        post.save(update_fields=['imagem_capa_1'])
+
     return JsonResponse({
         'ok': True,
         'post': {
@@ -1651,7 +1664,7 @@ def api_criar_note(request):
             'conteudo':    post.conteudo,
             'cor':         post.cor,
             'data':        post.data_criacao.strftime('%d/%m/%Y %H:%M'),
-            'imagem_capa': None,
+            'imagem_capa': post.imagem_capa_1.url if post.imagem_capa_1 else None,
             'categorias':  [],
             'curtidas':    0,
             'clips':       0,

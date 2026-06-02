@@ -21,10 +21,8 @@ function getNumColunas() {
     return 2;
 }
 
-function getNumLinhas(cardHeight) {
-    const wrapper = document.getElementById('campo-grid-wrapper');
-    const altDisp = wrapper ? wrapper.clientHeight : window.innerHeight - 120;
-    return Math.max(1, Math.floor(altDisp / (cardHeight + GAP)));
+function getNumLinhas() {
+    return 2;
 }
 
 function getDimensoesCard(numColunas) {
@@ -32,11 +30,11 @@ function getDimensoesCard(numColunas) {
     if (!vp) return { width: 280, height: 392 };
     const totalGapX = (numColunas - 1) * GAP;
     const width     = Math.floor((vp.clientWidth - totalGapX) / numColunas);
-    // Altura: cabe exatamente 2 linhas no viewport com um pequeno respiro
     const altDisp   = vp.clientHeight;
     const height    = Math.floor((altDisp - GAP) / 2);
     return { width, height };
 }
+
 
 // ── Altura disponível ─────────────────────────────────────────────────────────
 
@@ -170,8 +168,6 @@ function renderGrid() {
 
     mostrarVazio(false);
 
-    // Usa E.cardWidth e E.cardHeight já calculados no init()
-    // NÃO recalcula aqui para evitar sobrescrever com valores errados
     vp.style.overflow = 'hidden';
     vp.style.position = 'absolute';
     vp.style.inset    = '0';
@@ -190,6 +186,21 @@ function renderGrid() {
         const rowAbs = E.origemLinha - BUF + vi;
         grid.appendChild(criarLinhaEl(vi, rowAbs, totalColunas));
     }
+
+    // Força opacidade correta após render
+    requestAnimationFrame(() => {
+        for (let vi = 0; vi < totalLinhas; vi++) {
+            const linhaEl = grid.children[vi];
+            if (!linhaEl) continue;
+            const offsetX = E.dragOffsetX[E.origemLinha - BUF + vi] ?? 0;
+            linhaEl.querySelectorAll('.campo-card').forEach(cardEl => {
+                const colAbs  = parseInt(cardEl.dataset.colAbs);
+                const vj      = colAbs - (E.origemColuna - BUF);
+                const offsetY = E.dragOffsetY[colAbs] ?? 0;
+                cardEl.style.opacity = calcOpacidadeCard(vi, vj, offsetX, offsetY) ? '1' : '0';
+            });
+        }
+    });
 }
 
 function criarLinhaEl(vi, rowAbs, totalColunas) {
@@ -220,17 +231,16 @@ function criarLinhaEl(vi, rowAbs, totalColunas) {
 }
 
 function calcOpacidadeCard(vi, vj, offsetLinhaX, offsetColunaY) {
-    const vp    = document.getElementById('campo-viewport');
-    const viewW = vp ? vp.clientWidth  : E.VP_COLUNAS * E.cardWidth  + (E.VP_COLUNAS - 1) * GAP;
-    const viewH = vp ? vp.clientHeight : E.VP_LINHAS  * E.cardHeight + (E.VP_LINHAS  - 1) * GAP;
+    const viewW = E.cardWidth  * E.VP_COLUNAS + GAP * (E.VP_COLUNAS - 1);
+    const viewH = E.cardHeight * E.VP_LINHAS  + GAP * (E.VP_LINHAS  - 1);
 
-    const cardLeft  = (vj - BUF) * stepX() + offsetLinhaX;
-    const cardRight = cardLeft + E.cardWidth;
-
+    const cardLeft   = (vj - BUF) * stepX() + offsetLinhaX;
+    const cardRight  = cardLeft + E.cardWidth;
     const cardTop    = (vi - BUF) * stepY() + offsetColunaY;
     const cardBottom = cardTop + E.cardHeight;
 
-    return (cardRight > 0 && cardLeft < viewW) && (cardBottom > 0 && cardTop < viewH);
+    return (cardRight > 0 && cardLeft < viewW) &&
+           (cardBottom > 0 && cardTop < viewH);
 }
 
 function aplicarOffsetLinha(rowAbs, px, animado = false) {
@@ -870,23 +880,19 @@ function ajustarLayout() {
     const wrapper = document.getElementById('campo-grid-wrapper');
     if (!wrapper) return;
 
-    const navH  = nav  ? nav.getBoundingClientRect().height  : 0;
+    const navH = nav ? nav.getBoundingClientRect().height : 0;
+    if (abas) abas.style.setProperty('top', `${navH}px`, 'important');
 
-    if (abas) {
-        abas.style.setProperty('top', `${navH}px`, 'important');
-    }
-
-    const abasH   = abas ? abas.getBoundingClientRect().height : 0;
+    const abasH       = abas ? abas.getBoundingClientRect().height : 0;
     const topoWrapper = navH + abasH;
     const altDisp     = window.innerHeight - topoWrapper;
 
-    // Wrapper fixo abaixo das abas — elimina faixa branca e sobreposição
-    wrapper.style.setProperty('position', 'fixed',           'important');
-    wrapper.style.setProperty('top',      `${topoWrapper}px`,'important');
-    wrapper.style.setProperty('left',     '0',               'important');
-    wrapper.style.setProperty('right',    '0',               'important');
-    wrapper.style.setProperty('height',   `${altDisp}px`,    'important');
-    wrapper.style.setProperty('overflow', 'hidden',          'important');
+    wrapper.style.setProperty('position', 'fixed',            'important');
+    wrapper.style.setProperty('top',      `${topoWrapper}px`, 'important');
+    wrapper.style.setProperty('left',     '0',                'important');
+    wrapper.style.setProperty('right',    '0',                'important');
+    wrapper.style.setProperty('height',   `${altDisp}px`,     'important');
+    wrapper.style.setProperty('overflow', 'visible',          'important');
 
     if (E._navObserver) E._navObserver.disconnect();
     E._navObserver = new ResizeObserver(() => ajustarLayout());

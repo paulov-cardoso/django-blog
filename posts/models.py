@@ -365,5 +365,3 @@ class CampoCardPenalidade(models.Model):
     def __str__(self):
         return f"{self.autor} penalizou '{self.post}'"
     
-    
-    
