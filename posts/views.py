@@ -1582,6 +1582,9 @@ def api_notes_privados(request):
                 'clips':       p.total_clips,
                 'url_editar':  f'/post/{p.id}/editar/',
                 'url_detalhe': f'/post/{p.id}/',
+                'canvas_x':     p.canvas_x,
+                'canvas_y':     p.canvas_y,
+                'canvas_ordem': p.canvas_ordem,
             }
             for p in posts
         ]
@@ -1627,6 +1630,9 @@ def api_criar_note(request):
         titulo   = request.POST.get('titulo', '').strip()
         conteudo = request.POST.get('conteudo', '').strip()
         cor      = request.POST.get('cor', '#3B82F6').strip()
+        canvas_x     = float(request.POST.get('canvas_x', 0))
+        canvas_y     = float(request.POST.get('canvas_y', 0))
+        canvas_ordem = int(request.POST.get('canvas_ordem', 0))
     else:
         try:
             dados = json.loads(request.body)
@@ -1635,6 +1641,9 @@ def api_criar_note(request):
         titulo   = dados.get('titulo', '').strip()
         conteudo = dados.get('conteudo', '').strip()
         cor      = dados.get('cor', '#3B82F6').strip()
+        canvas_x     = float(dados.get('canvas_x', 0))
+        canvas_y     = float(dados.get('canvas_y', 0))
+        canvas_ordem = int(dados.get('canvas_ordem', 0))
 
     if not titulo:
         return JsonResponse({'erro': 'Titulo obrigatorio.'}, status=400)
@@ -1648,6 +1657,9 @@ def api_criar_note(request):
         autor=request.user.autor,
         visibilidade='privado',
         publicado=False,
+        canvas_x=canvas_x,
+        canvas_y=canvas_y,
+        canvas_ordem=canvas_ordem,
     )
 
     # Salva imagem se enviada
@@ -1711,3 +1723,25 @@ def api_publicar_note(request, post_id):
     post.save(update_fields=['visibilidade', 'publicado'])
 
     return JsonResponse({'ok': True, 'destino': destino})
+
+
+
+@login_required
+def api_salvar_posicao_note(request, note_id):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'erro': 'metodo_invalido'}, status=405)
+    try:
+        autor = request.user.autor
+        post  = autor.posts.get(id=note_id, visibilidade='privado')
+    except Exception:
+        return JsonResponse({'ok': False, 'erro': 'not_found'}, status=404)
+    try:
+        dados = json.loads(request.body)
+        post.canvas_x    = float(dados['x'])
+        post.canvas_y    = float(dados['y'])
+        if 'ordem' in dados:
+            post.canvas_ordem = int(dados['ordem'])
+        post.save(update_fields=['canvas_x', 'canvas_y', 'canvas_ordem'])
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'ok': False, 'erro': 'dados_invalidos'}, status=400)
+    return JsonResponse({'ok': True})

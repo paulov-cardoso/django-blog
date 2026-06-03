@@ -72,6 +72,10 @@ class Post(models.Model):
     imagem_capa_1 = models.ImageField(upload_to='posts/capas/', null=True, blank=True)
     imagem_capa_2 = models.ImageField(upload_to='posts/capas/', null=True, blank=True)
     titulo_capa   = models.CharField(max_length=120, blank=True, default='')
+    # ── Canvas ──────────────────────────────────
+    canvas_x     = models.FloatField(default=0.0)
+    canvas_y     = models.FloatField(default=0.0)
+    canvas_ordem = models.IntegerField(default=0)
 
     # ── Properties ────────────────────────────────────────────────────────────
 

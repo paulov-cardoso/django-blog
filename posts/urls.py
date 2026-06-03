@@ -7,6 +7,7 @@ from .views import (
     comentar_json, votar_comentario_json, excluir_comentario_json, lista_seguidores, lista_seguindo, campo_grid_json, 
     registrar_interacao_campo, criar_post_campo, meus_notes_campo, campo_linha_mais, penalizar_card_campo, campo_pool_json,
     api_notes_privados, api_notes_privados, api_criar_note, api_excluir_note, api_publicar_note,
+    api_notes_privados, api_criar_note, api_excluir_note, api_publicar_note, api_salvar_posicao_note,
 )
 
 urlpatterns = [
@@ -42,10 +43,11 @@ urlpatterns = [
     path('api/campo/pool/',                        campo_pool_json,           name='campo_pool_json'),
 
     # Notes privados — API
-    path('api/notes/privados/',                    api_notes_privados,        name='api_notes_privados'),path('api/notes/privados/',              api_notes_privados, name='api_notes_privados'),
+    path('api/notes/privados/',                    api_notes_privados,        name='api_notes_privados'),
     path('api/notes/criar/',                       api_criar_note,            name='api_criar_note'),
     path('api/notes/<int:post_id>/excluir/',       api_excluir_note,          name='api_excluir_note'),
     path('api/notes/<int:post_id>/publicar/',      api_publicar_note,         name='api_publicar_note'),
+    path('api/notes/<int:note_id>/posicao/',       api_salvar_posicao_note,   name='api_salvar_posicao_note'),
 
     # Rotas legadas (para detail.html em tela cheia)
     path('post/<int:post_id>/comentar/',                         comentar,             name='comentar'),
