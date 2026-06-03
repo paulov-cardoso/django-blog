@@ -1,4 +1,4 @@
-import { colors } from '../../design/tokens'
+import { useEffect, useRef } from 'react'
 
 export type AbaId = 'perfil' | 'notes_privados' | 'feed' | 'campo' | 'forumizacao'
 
@@ -7,29 +7,124 @@ interface TabBarProps {
 }
 
 const abas = [
-  { id: 'perfil' as AbaId, emoji: '👤', label: 'Perfil', href: '/?aba=perfil', cor: '#6366f1' },
-  { id: 'notes_privados' as AbaId, emoji: '📓', label: 'Notes', href: '/?aba=notes_privados', cor: '#3b82f6' },
-  { id: 'feed' as AbaId, emoji: '👥', label: 'Feed', href: '/?aba=feed', cor: '#a855f7' },
-  { id: 'campo' as AbaId, emoji: '🌍', label: 'Campo', href: '/?aba=campo', cor: '#fb923c' },
-  { id: 'forumizacao' as AbaId, emoji: '🏛', label: 'Forum', href: '/?aba=forumizacao', cor: '#ca8a04' },
+  { id: 'perfil'         as AbaId, emoji: '👤', label: 'Perfil',           href: '/?aba=perfil' },
+  { id: 'notes_privados' as AbaId, emoji: '📓', label: 'Notes Privados',   href: '/?aba=notes_privados' },
+  { id: 'feed'           as AbaId, emoji: '👥', label: 'Feed de Ideias',   href: '/?aba=feed' },
+  { id: 'campo'          as AbaId, emoji: '🌍', label: 'Campo das Ideias', href: '/?aba=campo' },
+  { id: 'forumizacao'    as AbaId, emoji: '🏛',  label: 'Forumização',      href: '/?aba=forumizacao' },
 ]
 
-export function TabBar(props: TabBarProps) {
+const BG = 'linear-gradient(155deg, #1a1240 0%, #2a1460 40%, #3a1248 65%, #4a1810 100%)'
+
+// ALTURA_COMPACTA deve ser mantida em sincronia com o paddingTop do <main> no AppLayout
+export const TABBAR_HEIGHT = 36
+
+const STYLE = `
+  .synapsoo-tabbar {
+    background: ${BG};
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+    height: ${TABBAR_HEIGHT}px;
+    transition: height 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Flutuante — não empurra o conteúdo ao expandir */
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    z-index: 35;
+  }
+  .synapsoo-tabbar:hover {
+    height: 58px;
+  }
+  .synapsoo-tab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Ícone sempre centralizado verticalmente na altura compacta (36px) */
+    justify-content: flex-start;
+    padding-top: 9px;
+    gap: 3px;
+    padding-left: 32px;
+    padding-right: 32px;
+    text-decoration: none;
+    color: rgba(255,255,255,0.40);
+    white-space: nowrap;
+    transition: color 0.2s;
+    cursor: pointer;
+    min-height: ${TABBAR_HEIGHT}px;
+  }
+  .synapsoo-tab.ativa {
+    color: rgba(255,255,255,0.95);
+  }
+  .synapsoo-tab:hover {
+    color: rgba(255,255,255,0.85);
+  }
+  .synapsoo-tab-icon {
+    font-size: 17px;
+    line-height: 1;
+    flex-shrink: 0;
+    /* padding-top: 9px acima + 17px ícone = centro em 36px */
+  }
+  .synapsoo-tab-label {
+    font-size: 9.5px;
+    font-weight: 300;
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(3px);
+    transition: opacity 0.22s 0.06s, transform 0.22s 0.06s;
+  }
+  .synapsoo-tabbar:hover .synapsoo-tab-label {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .synapsoo-tab-underline {
+    position: absolute;
+    bottom: 0;
+    left: 16px;
+    right: 16px;
+    height: 2px;
+    background: transparent;
+    border-radius: 2px 2px 0 0;
+    transition: background 0.2s;
+  }
+  .synapsoo-tab.ativa .synapsoo-tab-underline {
+    background: rgba(255,255,255,0.75);
+  }
+`
+
+export function TabBar({ abaAtual }: TabBarProps) {
+  const styleInjected = useRef(false)
+
+  useEffect(() => {
+    if (styleInjected.current) return
+    const el = document.createElement('style')
+    el.textContent = STYLE
+    document.head.appendChild(el)
+    styleInjected.current = true
+  }, [])
+
   return (
-    <div style={{ position: 'sticky', top: '56px', zIndex: 30, background: 'rgba(255,255,255,0.90)', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-      <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', justifyContent: 'center' }}>
-        {abas.map((aba) => {
-          const ativa = aba.id === props.abaAtual
-          const abaKey = aba.id
-          return (
-            <a key={abaKey} href={aba.href} style={{ position: 'relative', padding: '10px 20px', fontSize: '12px', fontWeight: 600, textDecoration: 'none', color: ativa ? aba.cor : 'rgba(107,114,128,1)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-              <span>{aba.emoji}</span>
-              <span>{aba.label}</span>
-              <span style={{ position: 'absolute', bottom: '0', left: '0', right: '0', height: '2px', background: ativa ? aba.cor : 'transparent' }} />
-            </a>
-          )
-        })}
-      </div>
-    </div>
+    <nav className="synapsoo-tabbar" aria-label="Navegação principal">
+      {abas.map((aba) => {
+        const ativa = aba.id === abaAtual
+        return (
+          <a
+            key={aba.id}
+            href={aba.href}
+            className={`synapsoo-tab${ativa ? ' ativa' : ''}`}
+            aria-current={ativa ? 'page' : undefined}
+          >
+            <span className="synapsoo-tab-icon" aria-hidden="true">{aba.emoji}</span>
+            <span className="synapsoo-tab-label">{aba.label}</span>
+            <span className="synapsoo-tab-underline" aria-hidden="true" />
+          </a>
+        )
+      })}
+    </nav>
   )
 }

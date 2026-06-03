@@ -657,3 +657,4 @@ function ComposerModal(props: { onFechar: () => void; onCriado: (note: Note) => 
     </div>
   )
 }
+
