@@ -369,3 +369,33 @@ class CampoCardPenalidade(models.Model):
     def __str__(self):
         return f"{self.autor} penalizou '{self.post}'"
     
+
+class Bloco(models.Model):
+    """
+    Agrupa cards privados do usuário em uma torre visual no canvas.
+    A ordem dos cards é mantida pelo campo `card_ids_ordenados` (JSON),
+    onde o índice 0 é sempre o card mais recente (frente da pilha).
+    """
+    nome               = models.CharField(max_length=120)
+    autor              = models.ForeignKey(
+        Autor,
+        on_delete=models.CASCADE,
+        related_name='blocos',
+    )
+    cards              = models.ManyToManyField(
+        Post,
+        blank=True,
+        related_name='blocos_contendo',
+    )
+    # Ordem serializada: lista de IDs, índice 0 = frente (mais recente)
+    card_ids_ordenados = models.JSONField(default=list)
+    canvas_x           = models.FloatField(default=0.0)
+    canvas_y           = models.FloatField(default=0.0)
+    canvas_ordem       = models.IntegerField(default=0)
+    criado_em          = models.DateTimeField(auto_now_add=True)
+ 
+    class Meta:
+        ordering = ['canvas_ordem']
+ 
+    def __str__(self):
+        return f'{self.nome} ({self.autor}) — {self.cards.count()} card(s)'

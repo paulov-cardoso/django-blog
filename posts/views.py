@@ -10,7 +10,7 @@ from .models import (
     Seguidor, PostReacao, Notificacao, Categoria,
     Comentario, VotoComentario,
     ScorePost, CampoInteracao, CampoCluster,
-    CampoCardPenalidade,                   
+    CampoCardPenalidade, Bloco                 
 )
 from .forms import PostForm, RegistroForm, AutorForm
 
@@ -1744,4 +1744,230 @@ def api_salvar_posicao_note(request, note_id):
         post.save(update_fields=['canvas_x', 'canvas_y', 'canvas_ordem'])
     except (KeyError, ValueError, TypeError):
         return JsonResponse({'ok': False, 'erro': 'dados_invalidos'}, status=400)
+    return JsonResponse({'ok': True})
+
+
+
+def _serializar_bloco(bloco):
+    """Serializa um Bloco para JSON, incluindo os cards na ordem correta."""
+    cards_map = {c.id: c for c in bloco.cards.prefetch_related('categorias').all()}
+    cards_ordenados = []
+    for cid in bloco.card_ids_ordenados:
+        card = cards_map.get(cid)
+        if card:
+            cards_ordenados.append({
+                'id':          card.id,
+                'titulo':      card.titulo,
+                'titulo_capa': card.titulo_capa,
+                'conteudo':    card.conteudo,
+                'cor':         card.cor,
+                'data':        card.data_criacao.strftime('%d/%m/%Y %H:%M'),
+                'imagem_capa': card.imagem_capa_1.url if card.imagem_capa_1 else None,
+                'categorias':  [{'nome': c.nome, 'cor': c.cor} for c in card.categorias.all()],
+                'curtidas':    card.total_curtidas,
+                'clips':       card.total_clips,
+                'url_editar':  f'/post/{card.id}/editar/',
+                'url_detalhe': f'/post/{card.id}/',
+                'canvas_x':    card.canvas_x,
+                'canvas_y':    card.canvas_y,
+                'canvas_ordem': card.canvas_ordem,
+            })
+    return {
+        'id':           bloco.id,
+        'nome':         bloco.nome,
+        'card_ids':     bloco.card_ids_ordenados,
+        'cards':        cards_ordenados,
+        'canvas_x':     bloco.canvas_x,
+        'canvas_y':     bloco.canvas_y,
+        'canvas_ordem': bloco.canvas_ordem,
+    }
+ 
+ 
+@login_required
+def api_listar_blocos(request):
+    """GET /api/blocos/ — retorna todos os blocos do usuário logado."""
+    autor  = request.user.autor
+    blocos = Bloco.objects.filter(autor=autor).prefetch_related('cards', 'cards__categorias')
+    return JsonResponse({'blocos': [_serializar_bloco(b) for b in blocos]})
+ 
+ 
+@login_required
+def api_criar_bloco(request):
+    """
+    POST /api/blocos/criar/
+    Body: { nome, card_id, canvas_x, canvas_y, canvas_ordem }
+    Cria o bloco com o primeiro card. Retorna o bloco serializado.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON inválido.'}, status=400)
+ 
+    nome         = dados.get('nome', '').strip()
+    card_id      = dados.get('card_id')
+    canvas_x     = float(dados.get('canvas_x', 0))
+    canvas_y     = float(dados.get('canvas_y', 0))
+    canvas_ordem = int(dados.get('canvas_ordem', 0))
+ 
+    if not nome:
+        return JsonResponse({'erro': 'Nome obrigatório.'}, status=400)
+    if not card_id:
+        return JsonResponse({'erro': 'card_id obrigatório.'}, status=400)
+ 
+    autor = request.user.autor
+    card  = get_object_or_404(Post, id=card_id, autor=autor, visibilidade='privado')
+ 
+    bloco = Bloco.objects.create(
+        nome=nome,
+        autor=autor,
+        card_ids_ordenados=[card.id],
+        canvas_x=canvas_x,
+        canvas_y=canvas_y,
+        canvas_ordem=canvas_ordem,
+    )
+    bloco.cards.add(card)
+ 
+    return JsonResponse({'ok': True, 'bloco': _serializar_bloco(bloco)}, status=201)
+ 
+ 
+@login_required
+def api_clipar_em_bloco(request, bloco_id):
+    """
+    POST /api/blocos/<bloco_id>/clipar/
+    Body: { card_id }
+    Adiciona card ao bloco. Novo card vai para o índice 0 (frente da pilha).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON inválido.'}, status=400)
+ 
+    card_id = dados.get('card_id')
+    if not card_id:
+        return JsonResponse({'erro': 'card_id obrigatório.'}, status=400)
+ 
+    autor = request.user.autor
+    bloco = get_object_or_404(Bloco, id=bloco_id, autor=autor)
+    card  = get_object_or_404(Post, id=card_id, autor=autor, visibilidade='privado')
+ 
+    if card.id not in bloco.card_ids_ordenados:
+        bloco.card_ids_ordenados = [card.id] + bloco.card_ids_ordenados
+        bloco.cards.add(card)
+        bloco.save(update_fields=['card_ids_ordenados'])
+ 
+    return JsonResponse({'ok': True, 'bloco': _serializar_bloco(bloco)})
+ 
+ 
+@login_required
+def api_remover_card_bloco(request, bloco_id):
+    """
+    POST /api/blocos/<bloco_id>/remover-card/
+    Body: { card_id }
+    Remove card do bloco. Se ficar vazio, o bloco é destruído.
+    Retorna o card para o canvas com posição restaurada.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+    try:
+        dados = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'erro': 'JSON inválido.'}, status=400)
+ 
+    card_id = dados.get('card_id')
+    if not card_id:
+        return JsonResponse({'erro': 'card_id obrigatório.'}, status=400)
+ 
+    autor = request.user.autor
+    bloco = get_object_or_404(Bloco, id=bloco_id, autor=autor)
+    card  = get_object_or_404(Post, id=card_id)
+ 
+    bloco.card_ids_ordenados = [cid for cid in bloco.card_ids_ordenados if cid != card_id]
+    bloco.cards.remove(card)
+ 
+    if not bloco.card_ids_ordenados:
+        bloco.delete()
+        return JsonResponse({'ok': True, 'bloco_destruido': True})
+ 
+    bloco.save(update_fields=['card_ids_ordenados'])
+    return JsonResponse({'ok': True, 'bloco_destruido': False, 'bloco': _serializar_bloco(bloco)})
+ 
+ 
+@login_required
+def api_desfazer_bloco(request, bloco_id):
+    """
+    POST /api/blocos/<bloco_id>/desfazer/
+    Dissolve o bloco e devolve todos os cards ao canvas principal.
+    Retorna lista de cards restaurados.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+ 
+    autor = request.user.autor
+    bloco = get_object_or_404(Bloco, id=bloco_id, autor=autor)
+ 
+    cards_restaurados = []
+    for card in bloco.cards.prefetch_related('categorias').all():
+        cards_restaurados.append({
+            'id':          card.id,
+            'titulo':      card.titulo,
+            'titulo_capa': card.titulo_capa,
+            'conteudo':    card.conteudo,
+            'cor':         card.cor,
+            'data':        card.data_criacao.strftime('%d/%m/%Y %H:%M'),
+            'imagem_capa': card.imagem_capa_1.url if card.imagem_capa_1 else None,
+            'categorias':  [{'nome': c.nome, 'cor': c.cor} for c in card.categorias.all()],
+            'curtidas':    card.total_curtidas,
+            'clips':       card.total_clips,
+            'url_editar':  f'/post/{card.id}/editar/',
+            'url_detalhe': f'/post/{card.id}/',
+            'canvas_x':    card.canvas_x,
+            'canvas_y':    card.canvas_y,
+            'canvas_ordem': card.canvas_ordem,
+        })
+ 
+    bloco.delete()
+    return JsonResponse({'ok': True, 'cards_restaurados': cards_restaurados})
+ 
+ 
+@login_required
+def api_destruir_bloco(request, bloco_id):
+    """
+    POST /api/blocos/<bloco_id>/destruir/
+    Destrói o bloco E todos os seus cards permanentemente.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+ 
+    autor = request.user.autor
+    bloco = get_object_or_404(Bloco, id=bloco_id, autor=autor)
+ 
+    card_ids = list(bloco.card_ids_ordenados)
+    bloco.delete()
+    Post.objects.filter(id__in=card_ids, autor=autor, visibilidade='privado').delete()
+ 
+    return JsonResponse({'ok': True, 'cards_destruidos': card_ids})
+ 
+ 
+@login_required
+def api_salvar_posicao_bloco(request, bloco_id):
+    """
+    POST /api/blocos/<bloco_id>/posicao/
+    Body: { x, y, ordem }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido.'}, status=405)
+    try:
+        dados        = json.loads(request.body)
+        autor        = request.user.autor
+        bloco        = get_object_or_404(Bloco, id=bloco_id, autor=autor)
+        bloco.canvas_x    = float(dados['x'])
+        bloco.canvas_y    = float(dados['y'])
+        bloco.canvas_ordem = int(dados.get('ordem', bloco.canvas_ordem))
+        bloco.save(update_fields=['canvas_x', 'canvas_y', 'canvas_ordem'])
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'erro': 'Dados inválidos.'}, status=400)
     return JsonResponse({'ok': True})

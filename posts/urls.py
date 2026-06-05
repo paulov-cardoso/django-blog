@@ -8,6 +8,8 @@ from .views import (
     registrar_interacao_campo, criar_post_campo, meus_notes_campo, campo_linha_mais, penalizar_card_campo, campo_pool_json,
     api_notes_privados, api_notes_privados, api_criar_note, api_excluir_note, api_publicar_note,
     api_notes_privados, api_criar_note, api_excluir_note, api_publicar_note, api_salvar_posicao_note,
+    api_listar_blocos, api_criar_bloco, api_clipar_em_bloco, api_remover_card_bloco, api_desfazer_bloco, api_destruir_bloco,
+    api_salvar_posicao_bloco,
 )
 
 urlpatterns = [
@@ -48,6 +50,15 @@ urlpatterns = [
     path('api/notes/<int:post_id>/excluir/',       api_excluir_note,          name='api_excluir_note'),
     path('api/notes/<int:post_id>/publicar/',      api_publicar_note,         name='api_publicar_note'),
     path('api/notes/<int:note_id>/posicao/',       api_salvar_posicao_note,   name='api_salvar_posicao_note'),
+
+    # Notes privados — BLOCOS
+    path('api/blocos/',                               api_listar_blocos,      name='api_listar_blocos'),
+    path('api/blocos/criar/',                         api_criar_bloco,        name='api_criar_bloco'),
+    path('api/blocos/<int:bloco_id>/clipar/',          api_clipar_em_bloco,    name='api_clipar_em_bloco'),
+    path('api/blocos/<int:bloco_id>/remover-card/',   api_remover_card_bloco, name='api_remover_card_bloco'),
+    path('api/blocos/<int:bloco_id>/desfazer/',       api_desfazer_bloco,     name='api_desfazer_bloco'),
+    path('api/blocos/<int:bloco_id>/destruir/',       api_destruir_bloco,     name='api_destruir_bloco'),
+    path('api/blocos/<int:bloco_id>/posicao/',        api_salvar_posicao_bloco, name='api_salvar_posicao_bloco'),
 
     # Rotas legadas (para detail.html em tela cheia)
     path('post/<int:post_id>/comentar/',                         comentar,             name='comentar'),
