@@ -615,7 +615,7 @@ function BlocoTorre({
   bloco, posX, posY, isDragging, dragPos,
   dropdownAberto, zoom,
   onAbrir, onDragStart, onDropdownToggle, onDesfazer, onDestruir,
-}: BlocoTorreProps) {
+  }: BlocoTorreProps) {
   const dropdownBtnRef = useRef<HTMLButtonElement>(null)
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
 
@@ -634,10 +634,8 @@ function BlocoTorre({
   const cardFrontal = cardsParaRender[0]
 
   // deslocamento de cada card: o fundo (índice visivelCount-1) tem maior deslocamento,
-  // o frontal (índice 0) tem deslocamento zero
   function deslocamento(indexNaFila: number) {
-    const depth = visivelCount - 1 - indexNaFila
-    return { dx: depth * TOWER_OFFSET_X, dy: depth * TOWER_OFFSET_Y }
+  return { dx: indexNaFila * TOWER_OFFSET_X, dy: indexNaFila * TOWER_OFFSET_Y }
   }
 
   useEffect(() => {
@@ -761,7 +759,7 @@ function BlocoTorre({
                   ? '0 4px 16px rgba(0,0,0,0.38)'
                   : '0 2px 6px rgba(0,0,0,0.22)',
                 overflow: 'hidden',
-                zIndex: indexNaFila + 1,
+                zIndex: visivelCount - indexNaFila,
               }}
             >
               {temFoto && (
@@ -770,37 +768,60 @@ function BlocoTorre({
 
               {/* Conteúdo visível apenas no card frontal */}
               {ehFrontal && (
-                <div style={{ position: 'relative', zIndex: 1, padding: '14px 14px 10px' }}>
-                  <h3 style={{
-                    fontFamily: typography.fontFamily.primary,
-                    fontSize: 12, fontWeight: 700,
-                    color: temFoto ? '#fff' : isEscuro(card.cor) ? '#fff' : 'rgba(0,0,0,0.82)',
-                    margin: '0 0 5px',
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
+                <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '14px 14px 0', flex: 1, overflow: 'hidden' }}>
+                    <h3 style={{
+                      fontFamily: typography.fontFamily.primary,
+                      fontSize: 12, fontWeight: 700,
+                      color: temFoto ? '#fff' : isEscuro(card.cor) ? '#fff' : 'rgba(0,0,0,0.82)',
+                      margin: '0 0 5px',
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                    }}>
+                      {card.titulo_capa || card.titulo}
+                    </h3>
+                    <p style={{
+                      fontFamily: typography.fontFamily.primary,
+                      fontSize: 10, lineHeight: 1.55,
+                      color: temFoto ? 'rgba(255,255,255,0.7)' : isEscuro(card.cor) ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.52)',
+                      margin: 0,
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                    }}>
+                      {card.conteudo}
+                    </p>
+                  </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '6px 10px 10px 14px',
                   }}>
-                    {card.titulo_capa || card.titulo}
-                  </h3>
-                  <p style={{
-                    fontFamily: typography.fontFamily.primary,
-                    fontSize: 10, lineHeight: 1.55,
-                    color: temFoto ? 'rgba(255,255,255,0.7)' : isEscuro(card.cor) ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.52)',
-                    margin: 0,
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                  }}>
-                    {card.conteudo}
-                  </p>
-                  <p style={{
-                    fontFamily: typography.fontFamily.primary,
-                    fontSize: 9,
-                    color: temFoto ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.35)',
-                    margin: '6px 0 0',
-                  }}>🕐 {card.data}</p>
+                    <span style={{
+                      fontFamily: typography.fontFamily.primary,
+                      fontSize: 9,
+                      color: temFoto ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.35)',
+                    }}>
+                      🕐 {card.data}
+                    </span>
+                    <button
+                      ref={dropdownBtnRef}
+                      onClick={e => { e.stopPropagation(); onDropdownToggle(e) }}
+                      onMouseDown={e => e.stopPropagation()}
+                      style={{
+                        width: 26, height: 26, borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.28)', border: 'none',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: '#fff', fontSize: 15,
+                        flexShrink: 0,
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.55)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.28)' }}
+                    >⋯</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -819,26 +840,6 @@ function BlocoTorre({
         >
           <PrendedorSVG width={32} />
         </div>
-
-        {/* Botão ⋯ no canto inferior direito do card frontal */}
-        <button
-          ref={dropdownBtnRef}
-          onClick={e => { e.stopPropagation(); onDropdownToggle(e) }}
-          onMouseDown={e => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            bottom: 10,
-            right: 10,
-            width: 26, height: 26, borderRadius: '50%',
-            background: 'rgba(0,0,0,0.28)', border: 'none',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 15,
-            zIndex: visivelCount + 10,
-            transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.55)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.28)' }}
-        >⋯</button>
       </div>
 
       {dropdownAberto && dropdownPos && (
@@ -1919,28 +1920,22 @@ export function NotesPage() {
   }
 
   function cliparEmBloco(cardId: number, blocoId: number) {
-    const cardOriginal = notes.find(n => n.id === cardId)
-    fetch(`/api/blocos/${blocoId}/clipar/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-      body: JSON.stringify({ card_id: cardId }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.ok) {
-          setBlocos(prev => prev.map(b => {
-            if (b.id !== blocoId) return b
-            const blocoAtualizado = data.bloco as Bloco
-            const cardsCompletos = blocoAtualizado.cards.length > 0
-              ? blocoAtualizado.cards
-              : [...b.cards.filter(c => c.id !== cardId), ...(cardOriginal ? [cardOriginal] : [])]
-            return { ...blocoAtualizado, cards: cardsCompletos }
-          }))
-          setNotes(prev => prev.filter(n => n.id !== cardId))
-        }
+      fetch(`/api/blocos/${blocoId}/clipar/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ card_id: cardId }),
       })
-    setDropdownCardId(null)
-  }
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            setNotes(prev => prev.filter(n => n.id !== cardId))
+            fetch('/api/blocos/')
+              .then(r => r.json())
+              .then(d => setBlocos(d.blocos ?? []))
+          }
+        })
+      setDropdownCardId(null)
+    }
 
   function removerCardDoBloco(blocoId: number, cardId: number) {
     fetch(`/api/blocos/${blocoId}/remover-card/`, {
