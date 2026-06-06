@@ -1543,7 +1543,7 @@ function ModalLeitura({ note, onFechar, onExcluido }: { note: Note; onFechar: ()
 // ─── ComposerModal ────────────────────────────────────────────────────────────
 
 function ComposerModal({ notes, blocos, onFechar, onCriado }: { notes: Note[]; blocos: Bloco[]; onFechar: () => void; onCriado: (note: Note) => void }) {
-  const [titulo, setTitulo]           = useState('')
+  const [titulo, setTitulo] = useState('')
   const [conteudo, setConteudo]       = useState('')
   const [corBase, setCorBase]         = useState<string | null>(null)
   const [luminosidade, setLuminosidade] = useState(0.45)
@@ -1859,10 +1859,17 @@ export function NotesPage() {
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
   }, [zoom, dragPos, notes, blocos])
 
-  const onWheel = useCallback((e: React.WheelEvent) => {
+  const onWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()
     setZoom(z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP))))
   }, [])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  })
 
   function zoomIn()    { setZoom(z => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2))) }
   function zoomOut()   { setZoom(z => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2))) }
@@ -2121,7 +2128,6 @@ export function NotesPage() {
       <div
         ref={containerRef}
         onMouseDown={onMouseDown}
-        onWheel={onWheel}
         style={{
           position: 'fixed', top: 92, left: 0, right: 0, bottom: 0,
           overflow: 'hidden',

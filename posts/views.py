@@ -13,6 +13,7 @@ from .models import (
     CampoCardPenalidade, Bloco                 
 )
 from .forms import PostForm, RegistroForm, AutorForm
+from .constants import GRID_COL, GRID_ROW, COLS_POR_LINHA
 
 
 # ── constantes ────────────────────────────────────────────────────────────────
@@ -1796,7 +1797,7 @@ def api_criar_bloco(request):
     """
     POST /api/blocos/criar/
     Body: { nome, card_id, canvas_x, canvas_y, canvas_ordem }
-    Cria o bloco com o primeiro card. Retorna o bloco serializado.
+    Cria o bloco com o primeiro card. Zera as coordenadas do card piloto.
     """
     if request.method != 'POST':
         return JsonResponse({'erro': 'Método não permitido.'}, status=405)
@@ -1804,21 +1805,26 @@ def api_criar_bloco(request):
         dados = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'erro': 'JSON inválido.'}, status=400)
- 
+
     nome         = dados.get('nome', '').strip()
     card_id      = dados.get('card_id')
     canvas_x     = float(dados.get('canvas_x', 0))
     canvas_y     = float(dados.get('canvas_y', 0))
     canvas_ordem = int(dados.get('canvas_ordem', 0))
- 
+
     if not nome:
         return JsonResponse({'erro': 'Nome obrigatório.'}, status=400)
     if not card_id:
         return JsonResponse({'erro': 'card_id obrigatório.'}, status=400)
- 
+
     autor = request.user.autor
     card  = get_object_or_404(Post, id=card_id, autor=autor, visibilidade='privado')
- 
+
+    card.canvas_x     = 0
+    card.canvas_y     = 0
+    card.canvas_ordem = 0
+    card.save(update_fields=['canvas_x', 'canvas_y', 'canvas_ordem'])
+
     bloco = Bloco.objects.create(
         nome=nome,
         autor=autor,
@@ -1828,7 +1834,7 @@ def api_criar_bloco(request):
         canvas_ordem=canvas_ordem,
     )
     bloco.cards.add(card)
- 
+
     return JsonResponse({'ok': True, 'bloco': _serializar_bloco(bloco)}, status=201)
  
  
@@ -1838,6 +1844,7 @@ def api_clipar_em_bloco(request, bloco_id):
     POST /api/blocos/<bloco_id>/clipar/
     Body: { card_id }
     Adiciona card ao bloco. Novo card vai para o índice 0 (frente da pilha).
+    Zera as coordenadas de canvas do card clipado para liberar a célula.
     """
     if request.method != 'POST':
         return JsonResponse({'erro': 'Método não permitido.'}, status=405)
@@ -1845,20 +1852,25 @@ def api_clipar_em_bloco(request, bloco_id):
         dados = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'erro': 'JSON inválido.'}, status=400)
- 
+
     card_id = dados.get('card_id')
     if not card_id:
         return JsonResponse({'erro': 'card_id obrigatório.'}, status=400)
- 
+
     autor = request.user.autor
     bloco = get_object_or_404(Bloco, id=bloco_id, autor=autor)
     card  = get_object_or_404(Post, id=card_id, autor=autor, visibilidade='privado')
- 
+
     if card.id not in bloco.card_ids_ordenados:
+        card.canvas_x     = 0
+        card.canvas_y     = 0
+        card.canvas_ordem = 0
+        card.save(update_fields=['canvas_x', 'canvas_y', 'canvas_ordem'])
+
         bloco.card_ids_ordenados = [card.id] + bloco.card_ids_ordenados
         bloco.cards.add(card)
         bloco.save(update_fields=['card_ids_ordenados'])
- 
+
     return JsonResponse({'ok': True, 'bloco': _serializar_bloco(bloco)})
  
  
@@ -1900,17 +1912,42 @@ def api_remover_card_bloco(request, bloco_id):
 def api_desfazer_bloco(request, bloco_id):
     """
     POST /api/blocos/<bloco_id>/desfazer/
-    Dissolve o bloco e devolve todos os cards ao canvas principal.
-    Retorna lista de cards restaurados.
+    Dissolve o bloco e devolve todos os cards ao canvas com posições livres.
+    Varre o grid de cima para baixo, esquerda para direita, 7 colunas por linha.
     """
     if request.method != 'POST':
         return JsonResponse({'erro': 'Método não permitido.'}, status=405)
- 
+
     autor = request.user.autor
     bloco = get_object_or_404(Bloco, id=bloco_id, autor=autor)
- 
+
+    ocupadas = set(
+        (round(x / GRID_COL), round(y / GRID_ROW))
+        for x, y in Post.objects.filter(autor=autor, visibilidade='privado')
+        .exclude(id__in=bloco.card_ids_ordenados)
+        .values_list('canvas_x', 'canvas_y')
+    )
+
+    blocos_outros = Bloco.objects.filter(autor=autor).exclude(id=bloco_id)
+    for b in blocos_outros.values_list('canvas_x', 'canvas_y'):
+        ocupadas.add((round(b[0] / GRID_COL), round(b[1] / GRID_ROW)))
+
+    def proxima_posicao_livre():
+        for lin in range(9999):
+            for col in range(COLS_POR_LINHA):
+                if (col, lin) not in ocupadas:
+                    ocupadas.add((col, lin))
+                    return (col * GRID_COL, lin * GRID_ROW)
+        return (0, 0)
+
     cards_restaurados = []
     for card in bloco.cards.prefetch_related('categorias').all():
+        x, y = proxima_posicao_livre()
+        card.canvas_x     = x
+        card.canvas_y     = y
+        card.canvas_ordem = 0
+        card.save(update_fields=['canvas_x', 'canvas_y', 'canvas_ordem'])
+
         cards_restaurados.append({
             'id':          card.id,
             'titulo':      card.titulo,
@@ -1924,11 +1961,11 @@ def api_desfazer_bloco(request, bloco_id):
             'clips':       card.total_clips,
             'url_editar':  f'/post/{card.id}/editar/',
             'url_detalhe': f'/post/{card.id}/',
-            'canvas_x':    card.canvas_x,
-            'canvas_y':    card.canvas_y,
-            'canvas_ordem': card.canvas_ordem,
+            'canvas_x':    x,
+            'canvas_y':    y,
+            'canvas_ordem': 0,
         })
- 
+
     bloco.delete()
     return JsonResponse({'ok': True, 'cards_restaurados': cards_restaurados})
  
