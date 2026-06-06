@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { colors, typography } from '../design/tokens'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,11 +56,10 @@ const ZOOM_DEFAULT      = 1.0
 const BUFFER_PX         = 300
 const CANVAS_GAP        = 48
 const TOWER_MAX_VISIBLE = 7
-const TOWER_OFFSET_X    = 6
-const TOWER_OFFSET_Y    = 5
+const TOWER_OFFSET_X    = 2
+const TOWER_OFFSET_Y    = 2.5
 // Prendedor: o corpo fica sobre a borda superior do card frontal
-// CLIP_OVERLAP = quanto do corpo do prendedor desce para dentro do card
-const CLIP_OVERLAP      = 14
+const CLIP_OVERLAP      = 17
 // Altura da parte que fica acima do card (arames + header)
 const HEADER_H          = 36
 
@@ -107,19 +107,28 @@ function celulaOcupada(
 }
 
 function proximaPosicaoLivre(notes: Note[], blocos: Bloco[]) {
-  const ordens = [
-    ...notes.map(n => ({ ordem: n.canvas_ordem, x: n.canvas_x, y: n.canvas_y })),
-    ...blocos.map(b => ({ ordem: b.canvas_ordem, x: b.canvas_x, y: b.canvas_y })),
-  ]
-  if (ordens.length === 0) return { x: 0, y: 0, ordem: 1 }
-  const maxOrdem = Math.max(...ordens.map(o => o.ordem))
-  const ul = ordens.find(o => o.ordem === maxOrdem) ?? ordens[0]
-  const s   = snapToGrid(ul.x, ul.y)
-  const col = Math.round(s.x / GRID_COL)
-  const lin = Math.round(s.y / GRID_ROW)
-  const nc  = col + 1 < 4 ? col + 1 : 0
-  const nl  = col + 1 < 4 ? lin : lin + 1
-  return { x: nc * GRID_COL, y: nl * GRID_ROW, ordem: maxOrdem + 1 }
+  const COLS_POR_LINHA = 6
+
+  const ocupadas = new Set<string>()
+  for (const n of notes) {
+    const col = Math.round(n.canvas_x / GRID_COL)
+    const lin = Math.round(n.canvas_y / GRID_ROW)
+    ocupadas.add(`${col},${lin}`)
+  }
+  for (const b of blocos) {
+    const col = Math.round(b.canvas_x / GRID_COL)
+    const lin = Math.round(b.canvas_y / GRID_ROW)
+    ocupadas.add(`${col},${lin}`)
+  }
+
+  for (let lin = 0; lin < 9999; lin++) {
+    for (let col = 0; col < COLS_POR_LINHA; col++) {
+      if (!ocupadas.has(`${col},${lin}`)) {
+        return { x: col * GRID_COL, y: lin * GRID_ROW }
+      }
+    }
+  }
+  return { x: 0, y: 0 }
 }
 
 function ajustarLuminosidade(hex: string, lum: number): string {
@@ -232,6 +241,7 @@ interface CardDropdownProps {
   cardId: number
   pos: DropdownPos | null
   blocos: Bloco[]
+  zoom: number
   onFormarBloco: () => void
   onCliparEmBloco: (blocoId: number) => void
   onEnviarFeed: () => void
@@ -242,7 +252,7 @@ interface CardDropdownProps {
 }
 
 function CardDropdown({
-  pos, blocos,
+  pos, blocos, zoom,
   onFormarBloco, onCliparEmBloco,
   onEnviarFeed, onEnviarCampo, onEditar, onExcluir, onFechar,
 }: CardDropdownProps) {
@@ -283,27 +293,28 @@ function CardDropdown({
     if (cliparPos) { setCliparPos(null); return }
     const r = cliparBtnRef.current?.getBoundingClientRect()
     if (!r) return
-    setCliparPos({ top: r.top, left: r.left - 180 })
+    const sairaDireita = r.right + 4 + 180 > window.innerWidth
+    setCliparPos({ top: r.top, left: sairaDireita ? r.left - 184 : r.right + 4 })
   }
 
-  const top  = pos.openUp ? undefined : pos.top
-  const bot  = pos.openUp ? window.innerHeight - pos.top : undefined
+  const top = pos.openUp ? undefined : pos.top
+  const bot = pos.openUp ? window.innerHeight - pos.top : undefined
 
-  return (
+  return createPortal(
     <>
-      {/* Overlay para fechar */}
       <div
         style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
         onMouseDown={e => { e.stopPropagation(); onFechar(); setCliparPos(null) }}
       />
 
-      {/* Menu principal */}
       <div
         style={{
           position: 'fixed',
           top,
           bottom: bot,
           left: pos.left,
+          transform: `scale(${zoom})`,
+          transformOrigin: 'top left',
           background: '#141420',
           borderRadius: 12,
           padding: '5px 4px',
@@ -369,13 +380,14 @@ function CardDropdown({
         </button>
       </div>
 
-      {/* Sub-painel "Clipar em bloco" — estilo context menu Windows */}
       {cliparPos && (
         <div
           style={{
             position: 'fixed',
             top: cliparPos.top,
             left: cliparPos.left,
+            transform: `scale(${zoom})`,
+            transformOrigin: 'top left',
             background: '#141420',
             borderRadius: 12,
             padding: '5px 4px',
@@ -404,7 +416,8 @@ function CardDropdown({
           ))}
         </div>
       )}
-    </>
+    </>,
+    document.body
   )
 }
 
@@ -412,13 +425,15 @@ function CardDropdown({
 
 interface BlocoDropdownProps {
   pos: DropdownPos | null
+  zoom: number
   onTrabalhar: () => void
   onDesfazer: () => void
   onDestruir: () => void
   onFechar: () => void
 }
 
-function BlocoDropdown({ pos, onTrabalhar, onDesfazer, onDestruir, onFechar }: BlocoDropdownProps) {
+
+function BlocoDropdown({ pos, zoom, onTrabalhar, onDesfazer, onDestruir, onFechar }: BlocoDropdownProps) {
   if (!pos) return null
 
   const itemStyle = (danger = false): React.CSSProperties => ({
@@ -451,7 +466,7 @@ function BlocoDropdown({ pos, onTrabalhar, onDesfazer, onDestruir, onFechar }: B
   const top = pos.openUp ? undefined : pos.top
   const bot = pos.openUp ? window.innerHeight - pos.top : undefined
 
-  return (
+  return createPortal(
     <>
       <div
         style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
@@ -462,6 +477,8 @@ function BlocoDropdown({ pos, onTrabalhar, onDesfazer, onDestruir, onFechar }: B
           position: 'fixed',
           top, bottom: bot,
           left: pos.left,
+          transform: `scale(${zoom})`,
+          transformOrigin: 'top left',
           background: '#141420',
           borderRadius: 12,
           padding: '5px 4px',
@@ -502,9 +519,11 @@ function BlocoDropdown({ pos, onTrabalhar, onDesfazer, onDestruir, onFechar }: B
           <span style={{ fontSize: 12 }}>💥</span> Destruir bloco
         </button>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
+
 
 // ─── Modal de confirmação genérico ────────────────────────────────────────────
 
@@ -561,6 +580,7 @@ interface BlocoTorreProps {
   isDragging: boolean
   dragPos: { x: number; y: number } | null
   dropdownAberto: boolean
+  zoom: number
   onAbrir: () => void
   onDragStart: (e: React.MouseEvent) => void
   onDropdownToggle: (e: React.MouseEvent) => void
@@ -568,9 +588,32 @@ interface BlocoTorreProps {
   onDestruir: () => void
 }
 
+function ClipsBadge({ count }: { count: number }) {
+  return (
+    <span
+      style={{
+        fontFamily: "'Work Sans', 'Helvetica Neue', Arial, sans-serif",
+        fontSize: 8,
+        fontWeight: 200,
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+        background: 'linear-gradient(90deg, #c4b5fd 0%, #93c5fd 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+        flexShrink: 0,
+        filter: 'brightness(1.3)',
+        paddingLeft: 4,
+      }}
+    >
+      {count} CLIPS
+    </span>
+  )
+}
+
 function BlocoTorre({
   bloco, posX, posY, isDragging, dragPos,
-  dropdownAberto,
+  dropdownAberto, zoom,
   onAbrir, onDragStart, onDropdownToggle, onDesfazer, onDestruir,
 }: BlocoTorreProps) {
   const dropdownBtnRef = useRef<HTMLButtonElement>(null)
@@ -598,12 +641,14 @@ function BlocoTorre({
   }
 
   useEffect(() => {
-    if (!dropdownAberto) { setDropdownPos(null); return }
+  if (!dropdownAberto) { setDropdownPos(null); return }
+  requestAnimationFrame(() => {
     const r = dropdownBtnRef.current?.getBoundingClientRect()
     if (!r) return
     const spaceBelow = window.innerHeight - r.bottom
     const openUp     = spaceBelow < 140
-    setDropdownPos({ top: openUp ? r.top : r.bottom + 4, left: r.left - 160, openUp })
+    setDropdownPos({ top: openUp ? r.top - 4 : r.bottom + 4, left: r.left - 160, openUp })
+    })
   }, [dropdownAberto])
 
   if (!cardFrontal) return null
@@ -630,42 +675,61 @@ function BlocoTorre({
       onMouseDown={onDragStart}
       onDoubleClick={e => { e.stopPropagation(); onAbrir() }}
     >
-      {/* Header flutuante acima do card frontal: arames + título | clips */}
-      {/* Posicionado absolutamente acima do card frontal */}
-      <div
-        style={{
-          position: 'absolute',
-          // card frontal está em deslocamento 0, então left = 0, top = CARD_H + tower_height_of_back_cards
-          // mas como renderizamos de trás pra frente, o frontal fica no topo da stack visual
-          // header fica acima do card frontal: top = -(HEADER_H)
-          top: -(HEADER_H),
-          left: 0,
-          width: CARD_W,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          pointerEvents: 'none',
-          zIndex: 10,
-        }}
-      >
-        {/* PrendedorSVG: os arames ficam acima, o corpo desce CLIP_OVERLAP px dentro do card */}
-        <div style={{ flexShrink: 0, marginBottom: -(CLIP_OVERLAP) }}>
-          <PrendedorSVG width={30} />
+      {/* Header flutuante acima do card frontal: título em coluna centralizada */}
+        <div
+          style={{
+            position: 'absolute',
+            top: -(HEADER_H) + 20,
+            left: 0,
+            width: CARD_W,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 0,
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'Work Sans', 'Helvetica Neue', Arial, sans-serif",
+              fontSize: 9.4,
+              fontWeight: 200,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              background: 'linear-gradient(90deg, #c4b5fd 0%, #93c5fd 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              filter: 'brightness(1.3)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: 200,
+              textShadow: 'none',
+              lineHeight: 0.8,
+            }}
+          >
+            {bloco.nome}
+          </span>
+          <span
+            style={{
+              fontFamily: "'Work Sans', 'Helvetica Neue', Arial, sans-serif",
+              fontSize: 8,
+              fontWeight: 200,
+              letterSpacing: '0.1em',
+              background: 'linear-gradient(90deg, #c4b5fd 0%, #93c5fd 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              filter: 'brightness(1.1)',
+              opacity: 0.6,
+              lineHeight: 0.8,
+            }}
+          >
+            {bloco.cards.length} notes clipados neste bloco
+          </span>
         </div>
-        <span style={{
-          fontFamily: typography.fontFamily.primary,
-          fontSize: 11,
-          fontWeight: 700,
-          color: 'rgba(255,255,255,0.88)',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          maxWidth: 190,
-          textShadow: '0 1px 4px rgba(0,0,0,0.8)',
-        }}>
-          {bloco.nome} | Clips: {bloco.cards.length}
-        </span>
-      </div>
 
       {/* Torre de cards — renderizados de trás para frente */}
       <div style={{ position: 'relative', height: CARD_H }}>
@@ -744,17 +808,16 @@ function BlocoTorre({
         })}
 
         {/* Prendedor — corpo sobrepõe a borda superior do card frontal */}
-        {/* Card frontal tem dy=0, dx=0. O corpo do prendedor desce CLIP_OVERLAP px */}
         <div
           style={{
             position: 'absolute',
             top: -(HEADER_H - CLIP_OVERLAP),
-            left: 8,
+            left: 12,
             zIndex: visivelCount + 5,
             pointerEvents: 'none',
           }}
         >
-          <PrendedorSVG width={30} />
+          <PrendedorSVG width={32} />
         </div>
 
         {/* Botão ⋯ no canto inferior direito do card frontal */}
@@ -765,7 +828,7 @@ function BlocoTorre({
           style={{
             position: 'absolute',
             bottom: 10,
-            left: 10 + 0, // alinhado com card frontal (dx=0)
+            right: 10,
             width: 26, height: 26, borderRadius: '50%',
             background: 'rgba(0,0,0,0.28)', border: 'none',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -779,14 +842,15 @@ function BlocoTorre({
       </div>
 
       {dropdownAberto && dropdownPos && (
-        <BlocoDropdown
-          pos={dropdownPos}
-          onTrabalhar={() => { /* placeholder Fase futura */ }}
-          onDesfazer={onDesfazer}
-          onDestruir={onDestruir}
-          onFechar={() => onDropdownToggle({} as React.MouseEvent)}
-        />
-      )}
+          <BlocoDropdown
+            pos={dropdownPos}
+            zoom={zoom}
+            onTrabalhar={() => { /* placeholder Fase futura */ }}
+            onDesfazer={onDesfazer}
+            onDestruir={onDestruir}
+            onFechar={() => setDropdownPos(null)}   // ← era onDropdownToggle({} as React.MouseEvent)
+          />
+        )}
     </div>
   )
 }
@@ -799,46 +863,12 @@ interface ModalBlocoProps {
   onRemoverCard: (cardId: number) => void
 }
 
+
 function ModalBloco({ bloco, onFechar, onRemoverCard }: ModalBlocoProps) {
-  const cards = bloco.cards
-  const [idx, setIdx]         = useState(0)
-  const [offset, setOffset]   = useState(0)       // px de translate atual (para drag)
-  const [animDir, setAnimDir] = useState<'left' | 'right' | null>(null)
-  const [sliding, setSliding] = useState(false)
-  const dragStart              = useRef<number | null>(null)
-  const trackRef               = useRef<HTMLDivElement>(null)
-
-  const SLIDE_W = 440
-
-  function irPara(novoIdx: number) {
-    if (novoIdx < 0 || novoIdx >= cards.length || sliding) return
-    const dir = novoIdx > idx ? 'left' : 'right'
-    setAnimDir(dir)
-    setSliding(true)
-    setTimeout(() => {
-      setIdx(novoIdx)
-      setAnimDir(null)
-      setSliding(false)
-      setOffset(0)
-    }, 260)
-  }
-
-  function onDragStart(e: React.MouseEvent) {
-    dragStart.current = e.clientX
-  }
-
-  function onDragMove(e: React.MouseEvent) {
-    if (dragStart.current === null) return
-    setOffset(e.clientX - dragStart.current)
-  }
-
-  function onDragEnd() {
-    if (dragStart.current === null) return
-    if (offset < -60 && idx < cards.length - 1) irPara(idx + 1)
-    else if (offset > 60 && idx > 0) irPara(idx - 1)
-    else setOffset(0)
-    dragStart.current = null
-  }
+  const cards                     = bloco.cards
+  const [idx, setIdx]             = useState(0)
+  const [animando, setAnimando]   = useState(false)
+  const [girando, setGirando]     = useState<'avancar' | 'voltar' | null>(null)
 
   useEffect(() => {
     if (idx >= cards.length && cards.length > 0) setIdx(cards.length - 1)
@@ -846,155 +876,235 @@ function ModalBloco({ bloco, onFechar, onRemoverCard }: ModalBlocoProps) {
 
   if (cards.length === 0) return null
 
-  const card   = cards[idx]
-  const temFoto = Boolean(card.imagem_capa)
-  const bg      = temFoto ? '#0f0a1e' : (card.cor || '#6366f1')
-  const tx      = temFoto || isEscuro(card.cor) ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.82)'
+  const podAvancar = idx < cards.length - 1
+  const podVoltar  = idx > 0
 
-  const translateX = (() => {
-    if (animDir === 'left')  return `-${SLIDE_W + 24}px`
-    if (animDir === 'right') return `${SLIDE_W + 24}px`
-    return `${offset}px`
-  })()
+  function avancar() {
+    if (animando || !podAvancar) return
+    setGirando('avancar')
+    setAnimando(true)
+    setTimeout(() => {
+      setIdx(prev => prev + 1)
+      setGirando(null)
+      setTimeout(() => setAnimando(false), 350)
+    }, 380)
+  }
+
+  function voltar() {
+    if (animando || !podVoltar) return
+    setGirando('voltar')
+    setAnimando(true)
+    setTimeout(() => {
+      setIdx(prev => prev - 1)
+      setGirando(null)
+      setTimeout(() => setAnimando(false), 350)
+    }, 380)
+  }
+
+  const card        = cards[idx]
+  const temFoto     = Boolean(card.imagem_capa)
+  const bg          = temFoto ? '#0f0a1e' : (card.cor || '#6366f1')
+  const tx          = temFoto || isEscuro(card.cor) ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.82)'
+  const sub         = temFoto || isEscuro(card.cor) ? 'rgba(255,255,255,0.5)'  : 'rgba(0,0,0,0.42)'
+
+  const pilhaEsquerda = cards.slice(0, idx)
+  const lequeDireito  = cards.slice(idx + 1)
 
   return (
     <>
+      <style>{`
+        @keyframes livroVirar {
+          0%   { transform: perspective(1200px) rotateY(0deg); }
+          100% { transform: perspective(1200px) rotateY(-180deg); }
+        }
+        @keyframes livroVoltarFrente {
+          0%   { transform: perspective(1200px) rotateY(-180deg); }
+          100% { transform: perspective(1200px) rotateY(0deg); }
+        }
+        @keyframes livroEntrarDireita {
+          0%   { transform: perspective(1200px) rotateY(25deg) translateX(30px); opacity: 0.4; }
+          100% { transform: perspective(1200px) rotateY(0deg)  translateX(0);    opacity: 1; }
+        }
+        @keyframes livroEntrarEsquerda {
+          0%   { transform: perspective(1200px) rotateY(-25deg) translateX(-30px); opacity: 0.4; }
+          100% { transform: perspective(1200px) rotateY(0deg)   translateX(0);     opacity: 1; }
+        }
+      `}</style>
+
       <div
         onClick={onFechar}
-        style={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.15)', backdropFilter: 'blur(10px)' }}
+        style={{ position: 'fixed', inset: 0, zIndex: 99998, background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(10px)' }}
       />
-      <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, pointerEvents: 'none' }}>
+
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 99999,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none', gap: 20,
+      }}>
+
         <div
           onClick={e => e.stopPropagation()}
-          style={{
-            width: SLIDE_W, overflow: 'hidden',
-            borderRadius: 20,
-            boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
-            animation: 'modalEntrar 0.22s ease-out forwards',
-            pointerEvents: 'auto',
-            background: bg,
-          }}
+          style={{ position: 'relative', width: 580, height: 520, pointerEvents: 'auto' }}
         >
-          {/* Header do modal */}
-          <div style={{ padding: '18px 22px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <PrendedorSVG width={22} />
-              <div>
-                <p style={{ fontFamily: typography.fontFamily.primary, fontSize: 9, color: tx, opacity: 0.4, margin: 0, letterSpacing: '0.07em', textTransform: 'uppercase' }}>BLOCO</p>
-                <h3 style={{ fontFamily: typography.fontFamily.primary, fontSize: 14, fontWeight: 700, color: tx, margin: 0 }}>{bloco.nome}</h3>
+          {/* ── Pilha esquerda — cards já lidos, de costas ── */}
+          {pilhaEsquerda.map((c, i) => {
+            const distancia = pilhaEsquerda.length - 1 - i
+            const lBg = c.imagem_capa
+              ? { backgroundImage: `url(${c.imagem_capa})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : { background: c.cor || '#6366f1' }
+            return (
+              <div
+                key={c.id}
+                style={{
+                  position: 'absolute', inset: 0,
+                  borderRadius: 20,
+                  ...lBg,
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                  transform: `perspective(1200px) rotateY(-180deg) translateX(${-distancia * 6}px) translateY(${distancia * 3}px)`,
+                  transformOrigin: 'left center',
+                  zIndex: i + 1,
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.72)', borderRadius: 20 }} />
               </div>
-            </div>
-            <button onClick={onFechar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: tx, opacity: 0.4, fontSize: 20 }}>✕</button>
-          </div>
+            )
+          })}
 
-          {/* Track deslizante */}
+          {/* ── Leque direito — cards ainda não lidos ── */}
+          {lequeDireito.map((c, i) => {
+            const lBg = c.imagem_capa
+              ? { backgroundImage: `url(${c.imagem_capa})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : { background: c.cor || '#6366f1' }
+            return (
+              <div
+                key={c.id}
+                style={{
+                  position: 'absolute', inset: 0,
+                  borderRadius: 20,
+                  ...lBg,
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+                  transform: `translateX(${(i + 1) * 21}px) translateY(${(i + 1) * 4}px) scale(${1 - (i + 1) * 0.025})`,
+                  transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+                  zIndex: 3 - Math.min(i, 2),
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ position: 'absolute', inset: 0, background: `rgba(0,0,0,${0.3 + i * 0.08})`, borderRadius: 20 }} />
+              </div>
+            )
+          })}
+
+          {/* ── Card ativo ── */}
           <div
-            ref={trackRef}
-            style={{ overflow: 'hidden', cursor: 'grab', userSelect: 'none' }}
-            onMouseDown={onDragStart}
-            onMouseMove={onDragMove}
-            onMouseUp={onDragEnd}
-            onMouseLeave={onDragEnd}
+            style={{
+              position: 'absolute', inset: 0,
+              borderRadius: 20,
+              background: bg,
+              boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+              overflow: 'hidden',
+              zIndex: 50,
+              transformOrigin: 'left center',
+              animation: girando === 'avancar'
+                ? 'livroVirar 0.38s cubic-bezier(0.4,0,0.6,1) forwards'
+                : girando === 'voltar'
+                  ? 'livroVoltarFrente 0.38s cubic-bezier(0.4,0,0.6,1) forwards'
+                  : idx === 0
+                    ? 'modalEntrar 0.22s ease-out forwards'
+                    : podVoltar && !animando
+                      ? 'livroEntrarDireita 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards'
+                      : 'livroEntrarEsquerda 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards',
+              display: 'flex', flexDirection: 'column',
+            }}
           >
-            <div
-              style={{
-                transform: `translateX(${translateX})`,
-                transition: animDir ? 'transform 0.26s cubic-bezier(0.4,0,0.2,1)' : offset !== 0 ? 'none' : 'transform 0.18s ease-out',
-              }}
-            >
-              {temFoto && (
-                <div style={{ height: 150, background: `url(${card.imagem_capa}) center/cover`, margin: '14px 22px 0', borderRadius: 10, position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.45) 100%)' }} />
-                </div>
-              )}
-
-              <div style={{ padding: '14px 22px 0' }}>
-                <h2 style={{ fontFamily: typography.fontFamily.primary, fontSize: 18, fontWeight: 800, color: tx, margin: '0 0 4px' }}>
-                  {card.titulo_capa || card.titulo}
-                </h2>
-                <p style={{ fontFamily: typography.fontFamily.primary, fontSize: 10, color: tx, opacity: 0.4, margin: 0 }}>🕐 {card.data}</p>
+            {temFoto && (
+              <div style={{ height: 200, flexShrink: 0, background: `url(${card.imagem_capa}) center/cover`, position: 'relative' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,rgba(0,0,0,0.1) 0%,rgba(15,10,30,0.95) 100%)' }} />
               </div>
+            )}
 
-              <div style={{ padding: '10px 22px', maxHeight: 140, overflowY: 'auto' }}>
-                <p style={{ fontFamily: typography.fontFamily.primary, fontSize: 13, lineHeight: 1.7, color: tx, opacity: 0.85, margin: 0, whiteSpace: 'pre-wrap' }}>
-                  {card.conteudo}
-                </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px 24px 0', flexShrink: 0 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+                {card.categorias.length > 0
+                  ? card.categorias.map(cat => (
+                    <span key={cat.nome} style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.12)', color: tx, fontFamily: typography.fontFamily.primary }}>{cat.nome}</span>
+                  ))
+                  : <span style={{ fontSize: 11, color: sub, fontFamily: typography.fontFamily.primary, fontStyle: 'italic' }}>sem categoria</span>
+                }
               </div>
-            </div>
-          </div>
-
-          {/* Navegação */}
-          <div style={{ padding: '0 22px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <button
-              onClick={() => irPara(idx - 1)}
-              disabled={idx === 0 || sliding}
-              style={{
-                width: 36, height: 36, borderRadius: '50%',
-                background: idx === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.12)',
-                border: 'none', cursor: idx === 0 ? 'default' : 'pointer',
-                color: tx, fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                opacity: idx === 0 ? 0.25 : 1, transition: 'opacity 0.15s',
-              }}
-            >‹</button>
-
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <div style={{ display: 'flex', gap: 5 }}>
-                {cards.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => irPara(i)}
-                    style={{
-                      width: i === idx ? 16 : 5, height: 5, borderRadius: 3,
-                      background: i === idx ? (isEscuro(card.cor) ? '#fff' : '#1e1e2e') : 'rgba(255,255,255,0.2)',
-                      border: 'none', cursor: 'pointer',
-                      transition: 'width 0.2s, background 0.2s', padding: 0,
-                    }}
-                  />
-                ))}
-              </div>
-              <span style={{ fontFamily: typography.fontFamily.primary, fontSize: 10, color: tx, opacity: 0.35 }}>
-                {idx + 1} / {cards.length}
-              </span>
+              <button
+                onClick={onFechar}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: tx, opacity: 0.4, fontSize: 18, flexShrink: 0, marginLeft: 12 }}
+              >✕</button>
             </div>
 
-            <button
-              onClick={() => irPara(idx + 1)}
-              disabled={idx === cards.length - 1 || sliding}
-              style={{
-                width: 36, height: 36, borderRadius: '50%',
-                background: idx === cards.length - 1 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.12)',
-                border: 'none', cursor: idx === cards.length - 1 ? 'default' : 'pointer',
-                color: tx, fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                opacity: idx === cards.length - 1 ? 0.25 : 1, transition: 'opacity 0.15s',
-              }}
-            >›</button>
-          </div>
+            <div style={{ padding: '14px 24px 0', flexShrink: 0 }}>
+              <h2 style={{ fontFamily: typography.fontFamily.primary, fontSize: 22, fontWeight: 800, color: tx, margin: 0, lineHeight: 1.3 }}>
+                {card.titulo_capa || card.titulo}
+              </h2>
+              <p style={{ fontFamily: typography.fontFamily.primary, fontSize: 11, color: sub, margin: '6px 0 0' }}>🕐 {card.data}</p>
+            </div>
 
-          <div style={{ padding: '0 22px 20px', display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => { onRemoverCard(card.id) }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10,
-                background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)',
-                cursor: 'pointer', fontFamily: typography.fontFamily.primary,
-                fontSize: 12, fontWeight: 600, color: '#f87171',
-              }}
-            >Remover do bloco</button>
-            <button
-              onClick={onFechar}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10,
-                background: 'rgba(255,255,255,0.07)', border: 'none',
-                cursor: 'pointer', fontFamily: typography.fontFamily.primary,
-                fontSize: 12, fontWeight: 600, color: tx, opacity: 0.7,
-              }}
-            >Fechar</button>
+            <div style={{ padding: '14px 24px', overflowY: 'auto', flex: 1 }}>
+              <p style={{ fontFamily: typography.fontFamily.primary, fontSize: 14, lineHeight: 1.8, color: tx, margin: 0, whiteSpace: 'pre-wrap' }}>
+                {card.conteudo}
+              </p>
+            </div>
+
+            <div style={{ padding: '0 24px 20px', paddingTop: 14, flexShrink: 0, display: 'flex', gap: 8, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              <button
+                onClick={() => { window.location.href = card.url_editar }}
+                style={{ flex: 1, padding: '9px', borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: 'none', cursor: 'pointer', fontFamily: typography.fontFamily.primary, fontSize: 12, fontWeight: 600, color: tx, opacity: 0.75 }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '0.75' }}
+              >✏️ Editar note</button>
+              <button
+                onClick={() => onRemoverCard(card.id)}
+                style={{ flex: 1, padding: '9px', borderRadius: 10, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)', cursor: 'pointer', fontFamily: typography.fontFamily.primary, fontSize: 12, fontWeight: 600, color: '#f87171' }}
+              >Remover do bloco</button>
+            </div>
           </div>
         </div>
+
+        {/* Navegação externa */}
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ display: 'flex', alignItems: 'center', gap: 20, pointerEvents: 'auto' }}
+        >
+          <button
+            onClick={voltar}
+            disabled={!podVoltar || animando}
+            style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.10)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)', cursor: !podVoltar ? 'default' : 'pointer', color: '#fff', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: !podVoltar ? 0.2 : 1, transition: 'background 0.15s' }}
+            onMouseEnter={e => { if (podVoltar) e.currentTarget.style.background = 'rgba(255,255,255,0.2)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
+          >‹</button>
+
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {cards.map((_, i) => (
+              <div
+                key={i}
+                style={{ width: i === idx ? 16 : 5, height: 5, borderRadius: 3, background: i === idx ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.25)', transition: 'width 0.2s, background 0.2s' }}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={avancar}
+            disabled={!podAvancar || animando}
+            style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.10)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)', cursor: !podAvancar ? 'default' : 'pointer', color: '#fff', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: !podAvancar ? 0.2 : 1, transition: 'background 0.15s' }}
+            onMouseEnter={e => { if (podAvancar) e.currentTarget.style.background = 'rgba(255,255,255,0.2)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
+          >›</button>
+        </div>
+
       </div>
     </>
   )
 }
+
 
 // ─── Modal formar bloco ───────────────────────────────────────────────────────
 
@@ -1004,9 +1114,19 @@ interface ModalFormarBlocoProps {
 }
 
 function ModalFormarBloco({ onConfirmar, onCancelar }: ModalFormarBlocoProps) {
-  const [nome, setNome] = useState('')
-  const inputRef        = useRef<HTMLInputElement>(null)
+  const [nome, setNome]           = useState('')
+  const [mostrarAviso, setMostrarAviso] = useState(false)
+  const inputRef                  = useRef<HTMLInputElement>(null)
   useEffect(() => { inputRef.current?.focus() }, [])
+
+  function onChangeNome(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.value.length > 30) {
+      setMostrarAviso(true)
+      setTimeout(() => setMostrarAviso(false), 6000)
+    } else {
+      setNome(e.target.value)
+    }
+  }
 
   return (
     <>
@@ -1029,19 +1149,58 @@ function ModalFormarBloco({ onConfirmar, onCancelar }: ModalFormarBlocoProps) {
               <p style={{ fontFamily: typography.fontFamily.primary, fontSize: 12, color: '#64748b', margin: 0 }}>Agrupe cards relacionados</p>
             </div>
           </div>
+          <div style={{ position: 'relative' }}>
           <input
             ref={inputRef}
             value={nome}
-            onChange={e => setNome(e.target.value)}
+            onChange={onChangeNome}
             onKeyDown={e => { if (e.key === 'Enter' && nome.trim()) onConfirmar(nome.trim()) }}
-            placeholder='Ex: "Ideias sobre o meu livro"'
+            placeholder='Monte sua sequência de idéias'
             style={{
               width: '100%', boxSizing: 'border-box',
-              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.06)', border: `1px solid ${mostrarAviso ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.12)'}`,
               borderRadius: 10, padding: '10px 14px', color: '#f1f5f9', fontSize: 13,
               fontFamily: typography.fontFamily.primary, outline: 'none',
+              transition: 'border 0.2s',
             }}
           />
+          {mostrarAviso && (
+            <div style={{
+              position: 'absolute',
+              bottom: 'calc(100% + 8px)',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: '#1e1030',
+              border: '1px solid rgba(248,113,113,0.35)',
+              borderRadius: 10,
+              padding: '8px 12px',
+              minWidth: 220,
+              maxWidth: 280,
+              boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+              zIndex: 10,
+              pointerEvents: 'none',
+              animation: 'modalEntrar 0.20s ease-out forwards',
+            }}>
+              <p style={{ fontFamily: typography.fontFamily.primary, fontSize: 12, fontWeight: 600, color: '#f87171', margin: '0 0 4px' }}>
+                Limite de 30 caracteres
+              </p>
+              <p style={{ fontFamily: typography.fontFamily.primary, fontSize: 11, color: 'rgba(255,255,255,0.45)', margin: 0, lineHeight: 1.5 }}>
+                Títulos curtos funcionam melhor — tente duas ou três palavras que capturem a essência do bloco.
+              </p>
+              {/* Seta do balão */}
+              <div style={{
+                position: 'absolute',
+                bottom: -5,
+                left: '50%',
+                transform: 'translateX(-50%) rotate(45deg)',
+                width: 8, height: 8,
+                background: '#1e1030',
+                borderRight: '1px solid rgba(248,113,113,0.35)',
+                borderBottom: '1px solid rgba(248,113,113,0.35)',
+              }} />
+            </div>
+            )}
+        </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 18, justifyContent: 'flex-end' }}>
             <button onClick={onCancelar} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: '#94a3b8', padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontFamily: typography.fontFamily.primary }}>Cancelar</button>
             <button
@@ -1068,6 +1227,7 @@ interface PostItProps {
   isNew: boolean
   dropdownAberto: boolean
   blocos: Bloco[]
+  zoom: number
   onAbrir: () => void
   onDragStart: (e: React.MouseEvent) => void
   onDropdownToggle: (e: React.MouseEvent) => void
@@ -1082,7 +1242,7 @@ interface PostItProps {
 
 function PostIt({
   note, posX, posY, isDragging, isSnapBack, destacado, isNew,
-  dropdownAberto, blocos,
+  dropdownAberto, blocos, zoom,
   onAbrir, onDragStart, onDropdownToggle,
   onFormarBloco, onCliparEmBloco,
   onEnviarFeed, onEnviarCampo, onEditar, onExcluir,
@@ -1095,12 +1255,14 @@ function PostIt({
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
 
   useEffect(() => {
-    if (!dropdownAberto) { setDropdownPos(null); return }
+  if (!dropdownAberto) { setDropdownPos(null); return }
+  requestAnimationFrame(() => {
     const r = dropBtnRef.current?.getBoundingClientRect()
     if (!r) return
     const spaceBelow = window.innerHeight - r.bottom
     const openUp     = spaceBelow < 260
-    setDropdownPos({ top: openUp ? r.top : r.bottom + 4, left: r.right - 196, openUp })
+    setDropdownPos({ top: openUp ? r.top - 4 : r.bottom + 4, left: r.right - 196, openUp })
+    })
   }, [dropdownAberto])
 
   function handleClick(e: React.MouseEvent) {
@@ -1157,7 +1319,7 @@ function PostIt({
             ? 'left 0.35s cubic-bezier(0.34,1.56,0.64,1), top 0.35s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s'
             : 'box-shadow 0.2s',
         animation,
-        zIndex: isDragging ? 100 : 1,
+        zIndex: isDragging || isSnapBack ? 100 : 1,
         userSelect: 'none',
       }}
       onMouseDown={onDragStart}
@@ -1209,6 +1371,7 @@ function PostIt({
           cardId={note.id}
           pos={dropdownPos}
           blocos={blocos}
+          zoom={zoom}
           onFormarBloco={onFormarBloco}
           onCliparEmBloco={onCliparEmBloco}
           onEnviarFeed={onEnviarFeed}
@@ -1436,7 +1599,6 @@ function ComposerModal({ notes, blocos, onFechar, onCriado }: { notes: Note[]; b
 
     const novaOrdem = maxOrdemAtual(notes, blocos) + 1
     const pos       = proximaPosicaoLivre(notes, blocos)
-    pos.ordem       = novaOrdem
 
     let res: Response
     if (fotoArquivo) {
@@ -1444,13 +1606,13 @@ function ComposerModal({ notes, blocos, onFechar, onCriado }: { notes: Note[]; b
       form.append('titulo', titulo); form.append('conteudo', conteudo)
       form.append('cor', corFinal); form.append('imagem_capa', fotoArquivo)
       form.append('canvas_x', String(pos.x)); form.append('canvas_y', String(pos.y))
-      form.append('canvas_ordem', String(pos.ordem))
+      form.append('canvas_ordem', String(novaOrdem))
       res = await fetch('/api/notes/criar/', { method: 'POST', headers: { 'X-CSRFToken': getCsrf() }, body: form })
     } else {
       res = await fetch('/api/notes/criar/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-        body: JSON.stringify({ titulo, conteudo, cor: corFinal, canvas_x: pos.x, canvas_y: pos.y, canvas_ordem: pos.ordem }),
+        body: JSON.stringify({ titulo, conteudo, cor: corFinal, canvas_x: pos.x, canvas_y: pos.y, canvas_ordem: novaOrdem }),
       })
     }
 
@@ -1458,10 +1620,10 @@ function ComposerModal({ notes, blocos, onFechar, onCriado }: { notes: Note[]; b
     if (data.ok) {
       // Garante que o note retornado tem a posição correta
       const noteComPosicao: Note = {
-        ...data.post,
-        canvas_x: pos.x,
-        canvas_y: pos.y,
-        canvas_ordem: pos.ordem,
+      ...data.post,
+      canvas_x: pos.x,
+      canvas_y: pos.y,
+      canvas_ordem: data.post.canvas_ordem ?? (maxOrdemAtual(notes, blocos) + 1),
       }
       onCriado(noteComPosicao)
     } else {
@@ -1676,9 +1838,10 @@ export function NotesPage() {
         const { id } = dragBlocoRef.current
         const sn     = snapToGrid(dragPos.x, dragPos.y)
         if (celulaOcupada(notes, blocos, sn.x, sn.y, null, id)) {
-          const o = dragOriginRef.current
-          setBlocos(prev => prev.map(b => b.id === id ? { ...b, canvas_x: o.x, canvas_y: o.y } : b))
-          setTimeout(() => setSnapBackId(null), 380)
+        const o = dragOriginRef.current
+        setSnapBackId(id)
+        setBlocos(prev => prev.map(b => b.id === id ? { ...b, canvas_x: o.x, canvas_y: o.y } : b))
+        setTimeout(() => setSnapBackId(null), 380)
         } else {
           setBlocos(prev => prev.map(b => {
             if (b.id !== id) return b
@@ -1756,6 +1919,7 @@ export function NotesPage() {
   }
 
   function cliparEmBloco(cardId: number, blocoId: number) {
+    const cardOriginal = notes.find(n => n.id === cardId)
     fetch(`/api/blocos/${blocoId}/clipar/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
@@ -1764,7 +1928,14 @@ export function NotesPage() {
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
-          setBlocos(prev => prev.map(b => b.id === blocoId ? data.bloco : b))
+          setBlocos(prev => prev.map(b => {
+            if (b.id !== blocoId) return b
+            const blocoAtualizado = data.bloco as Bloco
+            const cardsCompletos = blocoAtualizado.cards.length > 0
+              ? blocoAtualizado.cards
+              : [...b.cards.filter(c => c.id !== cardId), ...(cardOriginal ? [cardOriginal] : [])]
+            return { ...blocoAtualizado, cards: cardsCompletos }
+          }))
           setNotes(prev => prev.filter(n => n.id !== cardId))
         }
       })
@@ -1942,6 +2113,14 @@ export function NotesPage() {
           from{opacity:0;transform:scale(0.55) translateY(-40px)}
           to{opacity:1;transform:scale(1) translateY(0)}
         }
+        @keyframes cardSair {
+        from { opacity:1; transform: rotateY(0deg) translateX(0); }
+        to   { opacity:0; transform: rotateY(-45deg) translateX(-60px) scale(0.85); }
+        }
+        @keyframes cardEntrarModal {
+          from { opacity:0; transform: rotateY(30deg) translateX(40px) scale(0.9); }
+          to   { opacity:1; transform: rotateY(0deg) translateX(0) scale(1); }
+        }
       `}</style>
 
       <div
@@ -1985,6 +2164,7 @@ export function NotesPage() {
                 isNew={newNoteId === note.id}
                 dropdownAberto={dropdownCardId === note.id}
                 blocos={blocosSemEsteCard}
+                zoom={zoom}
                 onAbrir={() => setNoteLendo(note)}
                 onDragStart={e => iniciarDragNote(e, note)}
                 onDropdownToggle={e => {
@@ -2014,6 +2194,7 @@ export function NotesPage() {
                 isDragging={isDragging}
                 dragPos={isDragging ? dragPos : null}
                 dropdownAberto={dropdownBlocoId === bloco.id}
+                zoom={zoom}
                 onAbrir={() => setModalBlocoAberto(bloco)}
                 onDragStart={e => iniciarDragBloco(e, bloco)}
                 onDropdownToggle={e => {
