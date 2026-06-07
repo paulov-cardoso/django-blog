@@ -9,7 +9,8 @@ from .views import (
     api_notes_privados, api_notes_privados, api_criar_note, api_excluir_note, api_publicar_note,
     api_notes_privados, api_criar_note, api_excluir_note, api_publicar_note, api_salvar_posicao_note,
     api_listar_blocos, api_criar_bloco, api_clipar_em_bloco, api_remover_card_bloco, api_desfazer_bloco, api_destruir_bloco,
-    api_salvar_posicao_bloco,
+    api_salvar_posicao_bloco, api_auth_login, api_auth_registrar, api_auth_logout, api_auth_refresh, api_auth_me,
+    api_auth_senha_reset, api_auth_senha_confirmar,
 )
 
 urlpatterns = [
@@ -17,6 +18,15 @@ urlpatterns = [
     path('post/<int:post_id>/', detalhe_post, name='detalhe_post'),
     path('novo/', criar_post, name='criar_post'),
     path('registrar/', registrar, name='registrar'),
+
+    # Auth JWT
+    path('api/auth/login/',            api_auth_login,           name='api_auth_login'),
+    path('api/auth/registrar/',        api_auth_registrar,       name='api_auth_registrar'),
+    path('api/auth/logout/',           api_auth_logout,          name='api_auth_logout'),
+    path('api/auth/refresh/',          api_auth_refresh,         name='api_auth_refresh'),
+    path('api/auth/me/',               api_auth_me,              name='api_auth_me'),
+    path('api/auth/senha/reset/',      api_auth_senha_reset,     name='api_auth_senha_reset'),
+    path('api/auth/senha/confirmar/',  api_auth_senha_confirmar, name='api_auth_senha_confirmar'),
 
     # API de categorias
     path('api/categorias/buscar/',  buscar_categorias,        name='buscar_categorias'),

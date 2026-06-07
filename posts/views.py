@@ -15,6 +15,20 @@ from .models import (
 from .forms import PostForm, RegistroForm, AutorForm
 from .constants import GRID_COL, GRID_ROW, COLS_POR_LINHA
 
+from django.contrib.auth import authenticate
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+
+
 
 # ── constantes ────────────────────────────────────────────────────────────────
 
@@ -2008,3 +2022,180 @@ def api_salvar_posicao_bloco(request, bloco_id):
     except (KeyError, ValueError, TypeError):
         return JsonResponse({'erro': 'Dados inválidos.'}, status=400)
     return JsonResponse({'ok': True})
+
+
+
+# ── AUTH JWT ──────────────────────────────────────────────────────────────────
+
+def _tokens_para(user):
+    refresh = RefreshToken.for_user(user)
+    return {
+        'access':  str(refresh.access_token),
+        'refresh': str(refresh),
+    }
+
+
+def _dados_usuario(user):
+    autor = getattr(user, 'autor', None)
+    return {
+        'id':             user.id,
+        'username':       user.username,
+        'nome_exibicao':  autor.nome_exibicao if autor else user.username,
+        'foto':           autor.foto_perfil.url if (autor and autor.foto_perfil) else None,
+    }
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_auth_login(request):
+    username = request.data.get('username', '').strip()
+    password = request.data.get('password', '').strip()
+
+    if not username or not password:
+        return Response({'erro': 'Usuário e senha são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Permite login por email
+    if '@' in username:
+        try:
+            user_obj = User.objects.get(email=username)
+            username = user_obj.username
+        except User.DoesNotExist:
+            return Response({'erro': 'Usuário ou senha incorretos.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    user = authenticate(request, username=username, password=password)
+    if user is None:
+        return Response({'erro': 'Usuário ou senha incorretos.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    return Response({**_tokens_para(user), 'usuario': _dados_usuario(user)})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_auth_registrar(request):
+    username      = request.data.get('username', '').strip()
+    nome_exibicao = request.data.get('nome_exibicao', '').strip()
+    password1     = request.data.get('password1', '')
+    password2     = request.data.get('password2', '')
+
+    erros = {}
+
+    if not username:
+        erros['username'] = 'Usuário obrigatório.'
+    elif User.objects.filter(username=username).exists():
+        erros['username'] = 'Este usuário já está em uso.'
+
+    if not nome_exibicao:
+        erros['nome_exibicao'] = 'Nome de exibição obrigatório.'
+
+    if not password1:
+        erros['password1'] = 'Senha obrigatória.'
+    elif len(password1) < 8:
+        erros['password1'] = 'Mínimo de 8 caracteres.'
+    elif password1 != password2:
+        erros['password2'] = 'As senhas não coincidem.'
+
+    if erros:
+        return Response({'erros': erros}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    user = User.objects.create_user(username=username, password=password1)
+    autor = user.autor
+    autor.nome          = nome_exibicao
+    autor.nome_exibicao = nome_exibicao
+    autor.save(update_fields=['nome', 'nome_exibicao'])
+
+    return Response({**_tokens_para(user), 'usuario': _dados_usuario(user)}, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_auth_logout(request):
+    refresh_token = request.data.get('refresh')
+    if not refresh_token:
+        return Response({'erro': 'refresh token obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+    except TokenError:
+        return Response({'erro': 'Token inválido ou já expirado.'}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({'ok': True})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_auth_refresh(request):
+    refresh_token = request.data.get('refresh')
+    if not refresh_token:
+        return Response({'erro': 'refresh token obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        token  = RefreshToken(refresh_token)
+        return Response({'access': str(token.access_token), 'refresh': str(token)})
+    except TokenError:
+        return Response({'erro': 'Token inválido ou expirado.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_auth_me(request):
+    return Response({'usuario': _dados_usuario(request.user)})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_auth_senha_reset(request):
+    """Envia email com link de reset apontando para o frontend React."""
+    email = request.data.get('email', '').strip()
+    if not email:
+        return Response({'erro': 'Email obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        # Responde OK mesmo assim — não revela se o email existe
+        return Response({'ok': True})
+
+    uid   = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    link  = f"{settings.FRONTEND_URL}/senha/confirmar/{uid}/{token}/"
+
+    send_mail(
+        subject='Redefinição de senha — Synapsoo',
+        message=f'Clique no link para redefinir sua senha:\n\n{link}\n\nO link expira em 24 horas.',
+        from_email='noreply@synapsoo.com',
+        recipient_list=[email],
+        fail_silently=False,
+    )
+
+    return Response({'ok': True})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def api_auth_senha_confirmar(request):
+    """Valida uid + token e define a nova senha."""
+    uid       = request.data.get('uid', '')
+    token     = request.data.get('token', '')
+    password1 = request.data.get('password1', '')
+    password2 = request.data.get('password2', '')
+
+    if not all([uid, token, password1, password2]):
+        return Response({'erro': 'Todos os campos são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if password1 != password2:
+        return Response({'erros': {'password2': 'As senhas não coincidem.'}}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    if len(password1) < 8:
+        return Response({'erros': {'password1': 'Mínimo de 8 caracteres.'}}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    try:
+        pk   = force_str(urlsafe_base64_decode(uid))
+        user = User.objects.get(pk=pk)
+    except (User.DoesNotExist, ValueError, TypeError):
+        return Response({'erro': 'Link inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not default_token_generator.check_token(user, token):
+        return Response({'erro': 'Link expirado ou inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(password1)
+    user.save()
+
+    return Response({'ok': True})
