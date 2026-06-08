@@ -26,6 +26,10 @@ export function SenhaResetPage() {
     }
   }
 
+  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleSubmit()
+  }
+
   if (enviado) {
     return (
       <AuthLayout>
@@ -59,6 +63,7 @@ export function SenhaResetPage() {
           value={email} onChange={setEmail}
           autoComplete="email"
           icone={<IconeEmail />}
+          onKeyDown={onEnter}
         />
       </div>
 

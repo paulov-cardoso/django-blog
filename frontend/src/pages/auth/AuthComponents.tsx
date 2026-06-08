@@ -67,9 +67,10 @@ interface CampoTextoProps {
   autoComplete?: string
   erro?: string
   icone: React.ReactNode
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
 }
 
-export function CampoTexto({ id, name, type = 'text', placeholder, value, onChange, autoComplete, erro, icone }: CampoTextoProps) {
+export function CampoTexto({ id, name, type = 'text', placeholder, value, onChange, autoComplete, erro, icone, onKeyDown }: CampoTextoProps) {
   return (
     <div style={{ marginBottom: '12px' }}>
       <div style={{ position: 'relative' }}>
@@ -82,6 +83,7 @@ export function CampoTexto({ id, name, type = 'text', placeholder, value, onChan
           autoComplete={autoComplete}
           onChange={e => onChange(e.target.value)}
           style={erro ? inputErro : inputBase}
+          onKeyDown={onKeyDown}
           onFocus={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.20)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.55)' }}
           onBlur={e  => { e.currentTarget.style.background = 'rgba(255,255,255,0.13)'; e.currentTarget.style.borderColor = erro ? 'rgba(248,113,113,0.70)' : 'rgba(255,255,255,0.25)' }}
         />
@@ -106,9 +108,10 @@ interface CampoSenhaProps {
   onChange: (v: string) => void
   autoComplete?: string
   erro?: string
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
 }
 
-export function CampoSenha({ id, name, placeholder, value, onChange, autoComplete, erro }: CampoSenhaProps) {
+export function CampoSenha({ id, name, placeholder, value, onChange, autoComplete, erro, onKeyDown }: CampoSenhaProps) {
   const [visivel, setVisivel] = useState(false)
 
   return (
@@ -124,6 +127,7 @@ export function CampoSenha({ id, name, placeholder, value, onChange, autoComplet
           autoComplete={autoComplete}
           onChange={e => onChange(e.target.value)}
           style={erro ? inputErro : inputBase}
+          onKeyDown={onKeyDown}
           onFocus={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.20)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.55)' }}
           onBlur={e  => { e.currentTarget.style.background = 'rgba(255,255,255,0.13)'; e.currentTarget.style.borderColor = erro ? 'rgba(248,113,113,0.70)' : 'rgba(255,255,255,0.25)' }}
         />

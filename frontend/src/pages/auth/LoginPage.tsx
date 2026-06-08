@@ -38,6 +38,10 @@ export function LoginPage() {
     }
   }
 
+  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleSubmit()
+  }
+
   return (
     <AuthLayout>
       <TituloAuth>Entrar</TituloAuth>
@@ -50,6 +54,7 @@ export function LoginPage() {
         value={username} onChange={setUsername}
         autoComplete="username"
         icone={<IconeUsuario />}
+        onKeyDown={onEnter}
       />
 
       <CampoSenha
@@ -57,6 +62,7 @@ export function LoginPage() {
         placeholder="Senha"
         value={password} onChange={setPassword}
         autoComplete="current-password"
+        onKeyDown={onEnter}
       />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '12px 0 16px', fontSize: '12px', fontWeight: 300, color: 'rgba(255,255,255,0.85)', fontFamily: "'Poppins', sans-serif" }}>

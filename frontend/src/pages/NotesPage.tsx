@@ -235,6 +235,161 @@ function LapisSVG() {
   )
 }
 
+// ─── Card de boas vindas no mural infinito vazio ────────────────────────
+
+function IconeNotesPrivados({ size = 52 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="postit-grad" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#3a2d9e" />
+          <stop offset="40%" stopColor="#6832b5" />
+          <stop offset="70%" stopColor="#9a3aaa" />
+          <stop offset="100%" stopColor="#c85838" />
+        </linearGradient>
+        <linearGradient id="postit-fold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="rgba(0,0,0,0.22)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.06)" />
+        </linearGradient>
+      </defs>
+      {/* Post-it body */}
+      <rect x="2" y="2" width="48" height="48" rx="4" fill="url(#postit-grad)" />
+      {/* Fold corner */}
+      <path d="M38 2 L50 14 L38 14 Z" fill="url(#postit-fold)" />
+      {/* Cadeado — corpo */}
+      <rect x="18" y="27" width="16" height="13" rx="3" fill="rgba(255,255,255,0.90)" />
+      {/* Cadeado — arco */}
+      <path
+        d="M20 27 V22 C20 18.134 32 18.134 32 22 V27"
+        stroke="rgba(255,255,255,0.90)"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        fill="none"
+      />
+      {/* Cadeado — buraco da fechadura */}
+      <circle cx="26" cy="33" r="2.2" fill="url(#postit-grad)" />
+      <rect x="25" y="33" width="2" height="3.5" rx="1" fill="url(#postit-grad)" />
+      {/* Sombra sutil no post-it */}
+      <rect x="2" y="2" width="48" height="48" rx="4" fill="rgba(255,255,255,0.04)" />
+    </svg>
+  )
+}
+
+
+function TexturaCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = ref.current
+    if (!canvas) return
+    canvas.width  = CARD_W
+    canvas.height = CARD_H
+    const ctx = canvas.getContext('2d')!
+    const img = ctx.createImageData(CARD_W, CARD_H)
+    const px  = img.data
+    for (let y = 0; y < CARD_H; y++) {
+      for (let x = 0; x < CARD_W; x++) {
+        const idx    = (y * CARD_W + x) * 4
+        const grain  = Math.random()
+        const stripe = (Math.sin(y * 0.4 + Math.random() * 0.6) + 1) / 2
+        const diag   = (Math.sin((x + y) * 0.08) + 1) / 2
+        const val    = Math.floor((grain * 0.55 + stripe * 0.30 + diag * 0.15) * 255)
+        px[idx] = px[idx + 1] = px[idx + 2] = val
+        px[idx + 3] = 255
+      }
+    }
+    ctx.putImageData(img, 0, 0)
+  }, [])
+
+  return (
+    <canvas
+      ref={ref}
+      aria-hidden="true"
+      style={{
+        position: 'absolute', inset: 0,
+        width: '100%', height: '100%',
+        borderRadius: 'inherit',
+        opacity: 0.18,
+        mixBlendMode: 'soft-light',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}
+    />
+  )
+}
+
+
+function CardBoasVindas({ camX, camY, zoom, containerRef }: {
+  camX: number
+  camY: number
+  zoom: number
+  containerRef: React.RefObject<HTMLDivElement>
+}) {
+  const container = containerRef.current
+  const viewW = container ? container.getBoundingClientRect().width  : window.innerWidth
+  const viewH = container ? container.getBoundingClientRect().height : window.innerHeight
+
+  const canvasCenterX = (-camX + viewW / 2) / zoom - CARD_W / 2
+  const canvasCenterY = (-camY + viewH / 2) / zoom - CARD_H / 2
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: canvasCenterX,
+        top:  canvasCenterY,
+        width: CARD_W,
+        height: CARD_H,
+        borderRadius: 12,
+        background: 'linear-gradient(155deg, #3a2d9e 0%, #6832b5 40%, #9a3aaa 65%, #c85838 100%)',
+        border: '1px solid rgba(255,255,255,0.18)',
+        boxShadow: '0 8px 32px rgba(58,45,158,0.45), 0 2px 8px rgba(0,0,0,0.3)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        padding: '20px 20px 18px',
+        pointerEvents: 'none',
+        userSelect: 'none',
+        animation: 'cardEntrar 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Textura idêntica à do AuthLayout */}
+      <TexturaCanvas />
+
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <IconeNotesPrivados size={52} />
+
+        <div style={{ textAlign: 'center' }}>
+          <p style={{
+            fontFamily: typography.fontFamily.primary,
+            fontSize: 13,
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.95)',
+            margin: '0 0 7px',
+            lineHeight: 1.3,
+          }}>
+            Bem-vindo ao seu mural infinito
+          </p>
+          <p style={{
+            fontFamily: typography.fontFamily.primary,
+            fontSize: 10.5,
+            fontWeight: 400,
+            color: 'rgba(255,255,255,0.65)',
+            margin: 0,
+            lineHeight: 1.6,
+          }}>
+            Crie e arraste quantos notes forem necessários. Comece quando quiser clicando em{' '}
+            <span style={{ color: 'rgba(255,255,255,0.90)', fontWeight: 600 }}>Criar novo note</span>.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Dropdown do card (position: fixed, nunca cortado) ────────────────────────
 
 interface CardDropdownProps {
@@ -2144,9 +2299,12 @@ export function NotesPage() {
           overflow: 'visible',
         }}>
           {notes.length === 0 && blocos.length === 0 && (
-            <div style={{ position: 'absolute', top: 40, left: 40, color: colors.text.secondary, fontFamily: typography.fontFamily.primary, fontSize: 14, pointerEvents: 'none' }}>
-              Clique em "Criar novo note" para começar
-            </div>
+            <CardBoasVindas
+              camX={camX}
+              camY={camY}
+              zoom={zoom}
+              containerRef={containerRef}
+            />
           )}
 
           {notesVisiveis.map(note => {

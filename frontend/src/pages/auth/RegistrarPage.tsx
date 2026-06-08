@@ -46,6 +46,10 @@ export function RegistrarPage() {
     }
   }
 
+  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleSubmit()
+  }
+
   return (
     <AuthLayout>
       <TituloAuth>Cadastro</TituloAuth>
@@ -59,6 +63,7 @@ export function RegistrarPage() {
         autoComplete="username"
         erro={erros.username}
         icone={<IconeUsuario />}
+        onKeyDown={onEnter}
       />
 
       <CampoTexto
@@ -67,6 +72,7 @@ export function RegistrarPage() {
         value={nomeExibicao} onChange={setNomeExibicao}
         erro={erros.nome_exibicao}
         icone={<IconeEdicao />}
+        onKeyDown={onEnter}
       />
 
       <div>
@@ -76,6 +82,7 @@ export function RegistrarPage() {
           value={password1} onChange={setPassword1}
           autoComplete="new-password"
           erro={erros.password1}
+          onKeyDown={onEnter}
         />
         <div
           onFocus={() => setSenhaFocada(true)}
@@ -92,6 +99,7 @@ export function RegistrarPage() {
           value={password2} onChange={setPassword2}
           autoComplete="new-password"
           erro={erros.password2}
+          onKeyDown={onEnter}
         />
       </div>
 

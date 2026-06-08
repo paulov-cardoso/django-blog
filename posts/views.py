@@ -1850,6 +1850,7 @@ def api_criar_bloco(request):
     bloco.cards.add(card)
 
     return JsonResponse({'ok': True, 'bloco': _serializar_bloco(bloco)}, status=201)
+
  
  
 @login_required
