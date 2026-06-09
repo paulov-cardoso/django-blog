@@ -32,19 +32,22 @@ from rest_framework_simplejwt.exceptions import TokenError
 
 import functools
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.tokens import AccessToken
 
 def jwt_required(view_func):
     @functools.wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        jwt_auth = JWTAuthentication()
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if not auth_header.startswith('Bearer '):
+            return JsonResponse({'erro': 'Token não fornecido.'}, status=401)
+        raw_token = auth_header.split(' ', 1)[1]
         try:
-            result = jwt_auth.authenticate(request)
-            if result is None:
-                return JsonResponse({'erro': 'Token não fornecido.'}, status=401)
-            request.user, _ = result
-        except AuthenticationFailed as e:
-            return JsonResponse({'erro': str(e)}, status=401)
+            validated_token = AccessToken(raw_token)
+            user_id = validated_token['user_id']
+            request.user = User.objects.get(id=user_id)
+        except (TokenError, InvalidToken, User.DoesNotExist):
+            return JsonResponse({'erro': 'Token inválido ou expirado.'}, status=401)
         return view_func(request, *args, **kwargs)
     return wrapper
 
