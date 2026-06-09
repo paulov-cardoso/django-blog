@@ -187,6 +187,14 @@ function getCsrf() {
   return c ? c.split('=')[1] : ''
 }
 
+function getAuthHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const token = localStorage.getItem('soo_access')
+  return {
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...extra,
+  }
+}
+
 function maxOrdemAtual(notes: Note[], blocos: Bloco[]) {
   const ordens = [
     ...notes.map(n => n.canvas_ordem),
@@ -1604,15 +1612,17 @@ function ModalLeitura({ note, onFechar, onExcluido }: { note: Note; onFechar: ()
 
   function excluir() {
     if (!confirm('Excluir este note permanentemente?')) return
-    fetch(`/api/notes/${note.id}/excluir/`, { method: 'POST', headers: { 'X-CSRFToken': getCsrf() } })
-      .then(() => onExcluido(note.id))
+    fetch(`/api/notes/${note.id}/excluir/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
+    })
   }
 
   function publicar(destino: 'feed' | 'campo') {
     setPublicando(true); setErroAcao('')
     fetch(`/api/notes/${note.id}/publicar/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
       body: JSON.stringify({ destino }),
     })
       .then(r => r.json())
@@ -1763,11 +1773,15 @@ function ComposerModal({ notes, blocos, onFechar, onCriado }: { notes: Note[]; b
       form.append('cor', corFinal); form.append('imagem_capa', fotoArquivo)
       form.append('canvas_x', String(pos.x)); form.append('canvas_y', String(pos.y))
       form.append('canvas_ordem', String(novaOrdem))
-      res = await fetch('/api/notes/criar/', { method: 'POST', headers: { 'X-CSRFToken': getCsrf() }, body: form })
+      res = await fetch('/api/notes/criar/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
+        body: form,
+      })
     } else {
       res = await fetch('/api/notes/criar/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
         body: JSON.stringify({ titulo, conteudo, cor: corFinal, canvas_x: pos.x, canvas_y: pos.y, canvas_ordem: novaOrdem }),
       })
     }
@@ -1913,8 +1927,8 @@ export function NotesPage() {
 
   function carregarTudo() {
     Promise.all([
-      fetch('/api/notes/privados/').then(r => r.json()),
-      fetch('/api/blocos/').then(r => r.json()),
+      fetch('/api/notes/privados/', { headers: getAuthHeaders() }).then(r => r.json()),
+      fetch('/api/blocos/', { headers: getAuthHeaders() }).then(r => r.json()),
     ]).then(([notesData, blocosData]) => {
       const posts: Note[] = notesData.posts
       setNotes(posts)
@@ -1929,7 +1943,7 @@ export function NotesPage() {
     salvarPosTimeout.current = setTimeout(() => {
       fetch(`/api/notes/${id}/posicao/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
         body: JSON.stringify({ x, y, ordem }),
       })
     }, 600)
@@ -1938,7 +1952,7 @@ export function NotesPage() {
   function salvarPosicaoBloco(id: number, x: number, y: number, ordem: number) {
     fetch(`/api/blocos/${id}/posicao/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
       body: JSON.stringify({ x, y, ordem }),
     })
   }
@@ -2061,7 +2075,7 @@ export function NotesPage() {
 
     fetch('/api/blocos/criar/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
       body: JSON.stringify({
         nome,
         card_id: cardId,
@@ -2084,14 +2098,14 @@ export function NotesPage() {
   function cliparEmBloco(cardId: number, blocoId: number) {
       fetch(`/api/blocos/${blocoId}/clipar/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
         body: JSON.stringify({ card_id: cardId }),
       })
         .then(r => r.json())
         .then(data => {
           if (data.ok) {
             setNotes(prev => prev.filter(n => n.id !== cardId))
-            fetch('/api/blocos/')
+            fetch('/api/blocos/', { headers: getAuthHeaders() })
               .then(r => r.json())
               .then(d => setBlocos(d.blocos ?? []))
           }
@@ -2102,7 +2116,7 @@ export function NotesPage() {
   function removerCardDoBloco(blocoId: number, cardId: number) {
     fetch(`/api/blocos/${blocoId}/remover-card/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
       body: JSON.stringify({ card_id: cardId }),
     })
       .then(r => r.json())
@@ -2115,14 +2129,14 @@ export function NotesPage() {
           setModalBlocoAberto(data.bloco)
         }
         // Recarrega notes para ter o card de volta no canvas
-        fetch('/api/notes/privados/').then(r => r.json()).then(d => setNotes(d.posts))
+        fetch('/api/notes/privados/', { headers: getAuthHeaders() }).then(r => r.json()).then(d => setNotes(d.posts))
       })
   }
 
   function desfazerBloco(blocoId: number) {
     fetch(`/api/blocos/${blocoId}/desfazer/`, {
       method: 'POST',
-      headers: { 'X-CSRFToken': getCsrf() },
+      headers: { 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
     })
       .then(r => r.json())
       .then(data => {
@@ -2137,7 +2151,7 @@ export function NotesPage() {
   function destruirBloco(blocoId: number) {
     fetch(`/api/blocos/${blocoId}/destruir/`, {
       method: 'POST',
-      headers: { 'X-CSRFToken': getCsrf() },
+      headers: { 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
     })
       .then(r => r.json())
       .then(data => {
@@ -2151,7 +2165,10 @@ export function NotesPage() {
 
   function excluirNote(id: number) {
     if (!confirm('Excluir este note permanentemente?')) return
-    fetch(`/api/notes/${id}/excluir/`, { method: 'POST', headers: { 'X-CSRFToken': getCsrf() } })
+    fetch(`/api/notes/${id}/excluir/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf(), ...getAuthHeaders() },
+    })
       .then(() => {
         setNotes(prev => prev.filter(n => n.id !== id))
         setBlocos(prev =>

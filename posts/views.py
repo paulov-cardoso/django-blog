@@ -28,6 +28,25 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
+# ── JWT decorator para views Django comuns ────────────────────────────────────
+
+import functools
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import AuthenticationFailed
+
+def jwt_required(view_func):
+    @functools.wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        jwt_auth = JWTAuthentication()
+        try:
+            result = jwt_auth.authenticate(request)
+            if result is None:
+                return JsonResponse({'erro': 'Token não fornecido.'}, status=401)
+            request.user, _ = result
+        except AuthenticationFailed as e:
+            return JsonResponse({'erro': str(e)}, status=401)
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
 
 # ── constantes ────────────────────────────────────────────────────────────────
@@ -1574,7 +1593,7 @@ def campo_pool_json(request):
 
 
 
-@login_required
+@jwt_required
 def api_notes_privados(request):
     autor = request.user.autor
     posts = Post.objects.filter(
@@ -1634,7 +1653,7 @@ def penalizar_card_campo(request):
     return JsonResponse({'ok': True, 'post_id': post_id})
 
 
-@login_required
+@jwt_required
 def api_criar_note(request):
     if request.method != 'POST':
         return JsonResponse({'erro': 'Metodo nao permitido.'}, status=405)
@@ -1701,7 +1720,7 @@ def api_criar_note(request):
     }, status=201)
 
 
-@login_required
+@jwt_required
 def api_excluir_note(request, post_id):
     if request.method != 'POST':
         return JsonResponse({'erro': 'Metodo nao permitido.'}, status=405)
@@ -1711,7 +1730,7 @@ def api_excluir_note(request, post_id):
     return JsonResponse({'ok': True})
 
 
-@login_required
+@jwt_required
 def api_publicar_note(request, post_id):
     if request.method != 'POST':
         return JsonResponse({'erro': 'Metodo nao permitido.'}, status=405)
@@ -1741,7 +1760,7 @@ def api_publicar_note(request, post_id):
 
 
 
-@login_required
+@jwt_required
 def api_salvar_posicao_note(request, note_id):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'erro': 'metodo_invalido'}, status=405)
@@ -1798,7 +1817,7 @@ def _serializar_bloco(bloco):
     }
  
  
-@login_required
+@jwt_required
 def api_listar_blocos(request):
     """GET /api/blocos/ — retorna todos os blocos do usuário logado."""
     autor  = request.user.autor
@@ -1806,7 +1825,7 @@ def api_listar_blocos(request):
     return JsonResponse({'blocos': [_serializar_bloco(b) for b in blocos]})
  
  
-@login_required
+@jwt_required
 def api_criar_bloco(request):
     """
     POST /api/blocos/criar/
@@ -1853,7 +1872,7 @@ def api_criar_bloco(request):
 
  
  
-@login_required
+@jwt_required
 def api_clipar_em_bloco(request, bloco_id):
     """
     POST /api/blocos/<bloco_id>/clipar/
@@ -1889,7 +1908,7 @@ def api_clipar_em_bloco(request, bloco_id):
     return JsonResponse({'ok': True, 'bloco': _serializar_bloco(bloco)})
  
  
-@login_required
+@jwt_required
 def api_remover_card_bloco(request, bloco_id):
     """
     POST /api/blocos/<bloco_id>/remover-card/
@@ -1923,7 +1942,7 @@ def api_remover_card_bloco(request, bloco_id):
     return JsonResponse({'ok': True, 'bloco_destruido': False, 'bloco': _serializar_bloco(bloco)})
  
  
-@login_required
+@jwt_required
 def api_desfazer_bloco(request, bloco_id):
     """
     POST /api/blocos/<bloco_id>/desfazer/
@@ -1985,7 +2004,7 @@ def api_desfazer_bloco(request, bloco_id):
     return JsonResponse({'ok': True, 'cards_restaurados': cards_restaurados})
  
  
-@login_required
+@jwt_required
 def api_destruir_bloco(request, bloco_id):
     """
     POST /api/blocos/<bloco_id>/destruir/
@@ -2004,7 +2023,7 @@ def api_destruir_bloco(request, bloco_id):
     return JsonResponse({'ok': True, 'cards_destruidos': card_ids})
  
  
-@login_required
+@jwt_required
 def api_salvar_posicao_bloco(request, bloco_id):
     """
     POST /api/blocos/<bloco_id>/posicao/
