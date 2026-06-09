@@ -1600,8 +1600,11 @@ def campo_pool_json(request):
 def api_notes_privados(request):
     autor = request.user.autor
     posts = Post.objects.filter(
-        autor=autor,
-        visibilidade='privado',
+    autor=autor,
+    visibilidade='privado',
+    ).exclude(
+        canvas_x=-9999.0,
+        canvas_y=-9999.0,
     ).prefetch_related('categorias').order_by('-data_criacao')
 
     return JsonResponse({
@@ -1856,8 +1859,8 @@ def api_criar_bloco(request):
     autor = request.user.autor
     card  = get_object_or_404(Post, id=card_id, autor=autor, visibilidade='privado')
 
-    card.canvas_x     = 0
-    card.canvas_y     = 0
+    card.canvas_x     = -9999.0
+    card.canvas_y     = -9999.0
     card.canvas_ordem = 0
     card.save(update_fields=['canvas_x', 'canvas_y', 'canvas_ordem'])
 
@@ -1899,8 +1902,8 @@ def api_clipar_em_bloco(request, bloco_id):
     card  = get_object_or_404(Post, id=card_id, autor=autor, visibilidade='privado')
 
     if card.id not in bloco.card_ids_ordenados:
-        card.canvas_x     = 0
-        card.canvas_y     = 0
+        card.canvas_x     = -9999.0
+        card.canvas_y     = -9999.0
         card.canvas_ordem = 0
         card.save(update_fields=['canvas_x', 'canvas_y', 'canvas_ordem'])
 
