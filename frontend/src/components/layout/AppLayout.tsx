@@ -1,13 +1,10 @@
 import { colors, typography } from '../../design/tokens'
 import { Navbar } from './Navbar'
-import { TabBar, TABBAR_HEIGHT } from './TabBar'
-import type { AbaId } from './TabBar'
 
-// Navbar fixa em 56px + TabBar fixa em 36px = 92px de offset total para o main
+// Navbar fixa em 56px = offset total para o main (TabBar removida na Fase A)
 const NAVBAR_HEIGHT = 56
 
 interface AppLayoutProps {
-  abaAtual: AbaId
   children: React.ReactNode
   notifSino?: number
   notifCarta?: number
@@ -16,7 +13,6 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({
-  abaAtual,
   children,
   notifSino = 0,
   notifCarta = 0,
@@ -36,13 +32,12 @@ export function AppLayout({
         notifPessoa={notifPessoa}
         username={username}
       />
-      <TabBar abaAtual={abaAtual} />
       <main style={{
         maxWidth: '80rem',
         margin: '0 auto',
         width: '100%',
-        /* Offset fixo: navbar (56px) + tabbar compacta (36px) = 92px */
-        paddingTop: `${NAVBAR_HEIGHT + TABBAR_HEIGHT}px`,
+        /* Offset fixo: só a navbar (56px). TabBar removida na Fase A. */
+        paddingTop: `${NAVBAR_HEIGHT}px`,
         paddingLeft: '16px',
         paddingRight: '16px',
         paddingBottom: '32px',
